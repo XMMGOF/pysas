@@ -34,7 +34,7 @@ run function defined there.
 # Standard library imports
 from importlib import import_module
 import pkgutil
-import os
+import os, sys
 import subprocess
 
 # Third party imports
@@ -140,10 +140,9 @@ class RunTask:
                                      stdout=self.stdoutFile,
                                      stderr=subprocess.STDOUT,
                                      universal_newlines=True)                              
-                p.wait()
-
-            #for line in p.stdout:
-            #    print(line, end='')                 
+                for line in p.stdout:
+                    self.stdoutFile.write(line)
+                p.wait()                   
             
             if p.returncode != 0:
                 if self.logFile != 'DEFAULT':

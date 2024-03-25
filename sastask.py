@@ -349,3 +349,6 @@ class MyTask(SASTask):
             return self.Exit
         r = RunTask(self.taskname, self.iparsdic,self.logFile)
         r.run()
+
+    def printHelp(self):
+        self.paramXmlInfo.printHelp()
