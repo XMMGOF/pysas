@@ -431,7 +431,7 @@ def filter_data(data, nan_values = -999, upper_limit = None, lower_limit = None)
             mask = np.logical_or.reduce([c > upper_limit for c in data.columns.values()])
             data = data[~mask]
         if type(lower_limit) == int or type(lower_limit) == float:
-            mask = np.logical_or.reduce([c < lower_limit for c in table.columns.values()])
+            mask = np.logical_or.reduce([c < lower_limit for c in data.columns.values()])
             data = data[~mask]
 
     else:

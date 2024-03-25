@@ -72,7 +72,7 @@ class RunTask:
         sas_path = os.environ.get('SAS_PATH')
 
         if not sas_path:
-            raise exception('SAS_PATH is undefined! SAS not initialised?')
+            raise Exception('SAS_PATH is undefined! SAS not initialised?')
 
         saspath = sas_path.split(':')
 

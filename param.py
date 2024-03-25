@@ -336,6 +336,6 @@ class paramXmlInfoReader:
         el2nam(p): returns the name of a parameter element p
         """
         if not pels:
-            raise exception('pels is undefined!')
+            raise Exception('pels is undefined!')
         pname = pels[p]
         return pname
