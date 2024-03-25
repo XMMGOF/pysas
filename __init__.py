@@ -10,5 +10,6 @@ from . import runtask
 from . import configutils
 from . import init_sas
 from .version import *
+from .odfcontrol import odfcontrol
 
 __version__ = f'pysas - (pysas-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]'
