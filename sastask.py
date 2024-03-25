@@ -174,6 +174,28 @@ class MyTask(SASTask):
         self.inargs = inargs
         self.logFile = logFile
 
+        # Check if inargs is a 'dict'. If it is then convert to list format.
+        if isinstance(self.inargs, dict):
+            # Get dict of default inputs for the task.
+            t = paramXmlInfoReader(self.taskname)
+            t.xmlParser()
+            defdict = t.defaultValues()
+            defkeys = defdict.keys()
+            inkeys = self.inargs.keys()
+            outparams = []
+            
+            # Loop over all keys in the inargs dict and add values in 
+            # the outdict, but only if different from default values. 
+            # Build outparams.
+            for key in list(inkeys):
+                if key == 'options':
+                    # Only if 'options' is not empty.
+                    if self.inargs[key] != '':
+                        outparams.append(self.inargs[key])
+                else:
+                    outparams.append(key+'='+self.inargs[key])  
+            self.inargs = outparams
+
         # Reorder self.inargs to group together all options and 
         # all args of type param=value, in that order.
         sasparams = []
