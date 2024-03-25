@@ -9,7 +9,7 @@ This repository can be cloned by going into the directory where pySAS is install
 ```
 and then clone this version of pySAS by executing the command
 ```
-> git clone https://github.com/rjtanner/pysas
+> git clone https://github.com/XMMGOF/pysas
 ```
 You can then use pySAS like normal.
 
