@@ -7,6 +7,7 @@ from . import parser
 from . import param
 from . import error
 from . import runtask
+from . import configutils
 from . import init_sas
 from .version import *
 
