@@ -339,3 +339,28 @@ class paramXmlInfoReader:
             raise Exception('pels is undefined!')
         pname = pels[p]
         return pname
+
+def get_input_params(taskname,return_param_obj=False):
+    """
+    Function to return dictionary of input parameters for a given 
+    SAS task.
+
+        Input:
+        - taskname (string)
+        - return_param_obj (boolean) default: False
+
+        Output:
+        - dictionary of input parameters with defaults.
+        - (optional) paramXmlInfoReader object, but only if 
+          return_param_obj = True
+    """
+
+    t = paramXmlInfoReader(taskname)
+    t.xmlParser()
+    defaults = t.defaultValues()
+    defaults['options'] = ''
+
+    if return_param_obj:
+        return defaults, t
+    else:
+        return defaults
