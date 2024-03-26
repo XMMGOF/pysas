@@ -1,6 +1,6 @@
 ### Cloning This Repository
 
-This development version of pySAS can be used with versions 20 and up of XMM-Newton SAS.
+This development version of pySAS can be used with versions 20 and up of XMM-Newton SAS. After installing SAS [following the installation instructions](https://www.cosmos.esa.int/web/xmm-newton/sas-installation) you can then clone this repository to use this development version of pySAS.
 
 This repository can be cloned by going into the directory where pySAS is installed to remove the current version of pySAS using 
 ```
