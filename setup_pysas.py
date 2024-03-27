@@ -153,21 +153,12 @@ if not os.path.exists(sas_dir):
     print(f'SAS path {sas_dir} does not exist! Check path or SAS install!')
     raise Exception(f'SAS path {sas_dir} does not exist!')
 
-# pysas_dir = glob.glob(sas_dir+'/lib/python')[0]
-# if os.path.exists(pysas_dir):
-#     home_dir = os.path.expanduser('~')
-#     cmd = ''
-#     if os.path.exists(os.path.join(home_dir,'.bash_profile')):
-#         bashfile = '.bash_profile'
-#     elif os.path.exists(os.path.join(home_dir,'.bashrc')):
-#         bashfile = '.bashrc'
-#     else:
-#         bashfile = ''
-#     if bashfile != '':
-#         bashpath = os.path.join(home_dir,bashfile)
-#         cmd = f'echo PYTHONPATH=\'{pysas_dir}:$PYTHONPATH >>{bashfile}\''
-#         print(f'Adding {pysas_dir} to PYTHONPATH in {bashfile}')
-#         result = subprocess.run(cmd, shell=True)
+pysas_dir = glob.glob(sas_dir+'/lib/python')[0]
+bashfile = os.path.join(os.path.expanduser('~'),'.bash_profile')
+if os.path.exists(bashfile):
+    with open(bashfile, "a") as myfile:
+        myfile.write(f'export PYTHONPATH={pysas_dir}:$PYTHONPATH')
+    print(f'Adding {pysas_dir} to PYTHONPATH in {bashfile}')
 
 print('\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
