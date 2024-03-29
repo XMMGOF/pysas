@@ -61,6 +61,7 @@ if (os.path.expanduser("~") == '/home/idies') and \
     sas_cfg_defaults['sas_dir']     = sas_dir
     sas_cfg_defaults['sas_ccfpath'] = sas_ccfpath
     sas_cfg = ConfigParser(sas_cfg_defaults)
+    sas_cfg.add_section("sas")
 else:
     # If not on SciServer.
     # Check if .config directory exists. If not, make it.
