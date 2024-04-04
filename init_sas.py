@@ -131,8 +131,8 @@ def initializesas(sas_dir, sas_ccfpath, verbosity = 4, suppress_warning = 1, ima
         raise Exception('LHEASOFT is not set. Please initialise HEASOFT')
 
     # Necessary to fix a problem with calls to heasoft from certain SAS functions.
-    add_environ_variable('HEADASNOQUERY','')
-    add_environ_variable('HEADASPROMPT','/dev/null')
+    # add_environ_variable('HEADASNOQUERY','')
+    # add_environ_variable('HEADASPROMPT','/dev/null')
 
     # Checks if a basic call to HEASOFT works.
     try:

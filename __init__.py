@@ -22,7 +22,7 @@ sas_dir     = sas_cfg.get("sas", "sas_dir")
 sas_ccfpath = sas_cfg.get("sas", "sas_ccfpath")
 
 # Checks if defaults work.
-if not sas_cfg['DEFAULT']['on_sci_server']:
+if sas_cfg['DEFAULT']['on_sci_server'] == 'False':
     if os.path.exists(sas_dir) and os.path.exists(sas_ccfpath):
         initializesas(sas_dir, sas_ccfpath)
     elif sas_dir != '/does/not/exist' and sas_ccfpath != '/does/not/exist':
