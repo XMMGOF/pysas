@@ -140,9 +140,9 @@ class RunTask:
                                      stdout=self.stdoutFile,
                                      stderr=subprocess.STDOUT,
                                      universal_newlines=True)                              
-                for line in p.stdout:
-                    self.stdoutFile.write(line)
-                p.wait()                   
+                p.wait()
+                # for line in p.stdout:
+                #     self.stdoutFile.write(line)                   
             
             if p.returncode != 0:
                 if self.logFile != 'DEFAULT':
