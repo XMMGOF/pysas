@@ -7,11 +7,16 @@ This repository can be cloned by going into the directory where pySAS is install
 > cd /path/to/sas/install/xmmsas_202XXXXXX_YYYY/lib/python/
 > rm -rf ./pysas
 ```
-and then clone this version of pySAS by executing the command
+and then clone this version of pySAS by executing the command,
 ```
-> git clone https://github.com/XMMGOF/pysas
+> git clone https://github.com/XMMGOF/pysas.git
 ```
 You can then use pySAS like normal.
+
+To incorporate new changes to pySAS from GitHub, from the pysas directory use the following command,
+```
+> git pull https://github.com/XMMGOF/pysas.git
+```
 
 ### Running pySAS for the First Time
 
