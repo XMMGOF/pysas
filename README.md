@@ -39,7 +39,7 @@ It is recommended that you add this line to your .bash_profile file (or equivele
 
 ### Example Scripts
 
-We have included a few example scripts and Jupyter notebooks in the directory titled `example_scripts`. We will be expanding the number of example scripts and Jupyter notebooks.
+We have included a few example scripts and Jupyter notebooks in the directory titled `example`. We will be expanding the number of example scripts and Jupyter notebooks.
 
 ### FAQ
 
