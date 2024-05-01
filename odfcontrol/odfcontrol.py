@@ -640,32 +640,38 @@ class ODFobject(object):
         print(f"   SAS command to be executed: {self.task}, with arguments; \n{self.inargs}")
         print(f"Running {self.task} ..... \n")
 
+        file_keys = list(self.files.keys())
+
         if self.task == 'epproc':
             # Check if epproc has already run. If it has, do not run again 
             exists = False
-            self.files['pnevt_list'] = []
+            if 'PNevt_list' not in file_keys:
+                self.files['PNevt_list'] = []
             for root, dirs, files in os.walk("."):  
                 for filename in files:
                     if (filename.find('EPN') != -1) and filename.endswith('Evts.ds'):
-                        self.files['pnevt_list'].append(os.path.abspath(os.path.join(root,filename)))
+                        file_path = os.path.abspath(os.path.join(root,filename))
+                        if file_path not in self.files['PNevt_list']:
+                            self.files['PNevt_list'].append(file_path)
                         exists = True
             if exists and not self.rerun:    
-                print(" > " + str(len(self.files['pnevt_list'])) + " EPIC-pn event list found. Not running epproc again.\n")
-                for x in self.files['pnevt_list']:
+                print(" > " + str(len(self.files['PNevt_list'])) + " EPIC-pn event list found. Not running epproc again.\n")
+                for x in self.files['PNevt_list']:
                     print("    " + x + "\n")
                 print("..... OK")
             else:
                 w(self.task,self.inargs,logFile=self.logFile).run()      # <<<<< Execute SAS task
                 exists = False
-                self.files['pnevt_list'] = []
+                if 'PNevt_list' not in file_keys:
+                    self.files['PNevt_list'] = []
                 for root, dirs, files in os.walk("."):  
                     for filename in files:
                         if (filename.find('EPN') != -1) and filename.endswith('Evts.ds'):
-                            self.files['pnevt_list'].append(os.path.abspath(os.path.join(root,filename)))
+                            self.files['PNevt_list'].append(os.path.abspath(os.path.join(root,filename)))
                             exists = True
                 if exists:    
-                    print(" > " + str(len(self.files['pnevt_list'])) + " EPIC-pn event list found after running epproc.\n")
-                    for x in self.files['pnevt_list']:
+                    print(" > " + str(len(self.files['PNevt_list'])) + " EPIC-pn event list found after running epproc.\n")
+                    for x in self.files['PNevt_list']:
                         print("    " + x + "\n")
                     print("..... OK")
                 else:
@@ -674,43 +680,51 @@ class ODFobject(object):
         elif self.task == 'emproc':
             # Check if emproc has already run. If it has, do not run again 
             exists = False
-            self.files['m1evt_list'] = []
-            self.files['m2evt_list'] = []
+            if 'M1evt_list' not in file_keys:
+                self.files['M1evt_list'] = []
+            if 'M2evt_list' not in file_keys:
+                self.files['M2evt_list'] = []
             for root, dirs, files in os.walk("."):  
                 for filename in files:
                     if (filename.find('EMOS1') != -1) and filename.endswith('ImagingEvts.ds'):
-                        self.files['m1evt_list'].append(os.path.abspath(os.path.join(root,filename)))
+                        file_path = os.path.abspath(os.path.join(root,filename))
+                        if file_path not in self.files['M1evt_list']:
+                            self.files['M1evt_list'].append(file_path)
                         exists = True
                     if (filename.find('EMOS2') != -1) and filename.endswith('ImagingEvts.ds'):
-                        self.files['m2evt_list'].append(os.path.abspath(os.path.join(root,filename)))
+                        file_path = os.path.abspath(os.path.join(root,filename))
+                        if file_path not in self.files['M2evt_list']:
+                            self.files['M2evt_list'].append(file_path)
                         exists = True
             if exists and not self.rerun:    
-                print(" > " + str(len(self.files['m1evt_list'])) + " EPIC-MOS1 event list found. Not running emproc again.\n")
-                for x in self.files['m1evt_list']:
+                print(" > " + str(len(self.files['M1evt_list'])) + " EPIC-MOS1 event list found. Not running emproc again.\n")
+                for x in self.files['M1evt_list']:
                     print("    " + x + "\n")
-                print(" > " + str(len(self.files['m2evt_list'])) + " EPIC-MOS2 event list found. Not running emproc again.\n")
-                for x in self.files['m2evt_list']:
+                print(" > " + str(len(self.files['M2evt_list'])) + " EPIC-MOS2 event list found. Not running emproc again.\n")
+                for x in self.files['M2evt_list']:
                     print("    " + x + "\n")
                 print("..... OK")
             else:
                 w(self.task,self.inargs,logFile=self.logFile).run()      # <<<<< Execute SAS task
                 exists = False 
-                self.files['m1evt_list'] = []
-                self.files['m2evt_list'] = []
+                if 'M1evt_list' not in file_keys:
+                    self.files['M1evt_list'] = []
+                if 'M2evt_list' not in file_keys:
+                    self.files['M2evt_list'] = []
                 for root, dirs, files in os.walk("."):  
                     for filename in files:
                         if (filename.find('EMOS1') != -1) and filename.endswith('ImagingEvts.ds'):
-                            self.files['m1evt_list'].append(os.path.abspath(os.path.join(root,filename)))
+                            self.files['M1evt_list'].append(os.path.abspath(os.path.join(root,filename)))
                             exists = True 
                         if (filename.find('EMOS2') != -1) and filename.endswith('ImagingEvts.ds'):
-                            self.files['m2evt_list'].append(os.path.abspath(os.path.join(root,filename)))
+                            self.files['M2evt_list'].append(os.path.abspath(os.path.join(root,filename)))
                             exists = True            
                 if exists:    
-                    print(" > " + str(len(self.files['m1evt_list'])) + " EPIC-MOS1 event list found after running emproc.\n")
-                    for x in self.files['m1evt_list']:
+                    print(" > " + str(len(self.files['M1evt_list'])) + " EPIC-MOS1 event list found after running emproc.\n")
+                    for x in self.files['M1evt_list']:
                         print("    " + x + "\n")
-                    print(" > " + str(len(self.files['m2evt_list'])) + " EPIC-MOS2 event list found after running emproc.\n")
-                    for x in self.files['m2evt_list']:
+                    print(" > " + str(len(self.files['M2evt_list'])) + " EPIC-MOS2 event list found after running emproc.\n")
+                    for x in self.files['M2evt_list']:
                         print("    " + x + "\n")
                     print("..... OK")
                 else:
