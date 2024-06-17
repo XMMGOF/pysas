@@ -84,7 +84,7 @@ class ODFobject(object):
     def set_odfid(self):
         """
         Checks if obs_dir exists. If it exists looks for existing 
-        odf_dir, work_dir, SAS_CCF, and SAS_ODF. Similar to odfcompile, 
+        odf_dir, work_dir, SAS_CCF, and SAS_ODF. Similar to calibrate_odf, 
         but will not download any data, will not calibrate it, or do 
         anything other than link to files and directories. 
         """
@@ -96,13 +96,14 @@ class ODFobject(object):
         # given on odfobject creation.
         if self.data_dir != None:
             data_dir = self.data_dir
+        else:
+            data_dir = sas_cfg.get("sas", "data_dir")
 
         # Start checking data_dir
-        data_dir = sas_cfg.get("sas", "data_dir")
         if os.path.exists(data_dir):
             self.data_dir = data_dir
         else:
-            # Nothing can be done! User must run odfcompile!
+            # Nothing can be done! User must run calibrate_odf!
             return
 
         # Set directories for the observation, odf, pps, and work.
@@ -115,12 +116,12 @@ class ODFobject(object):
             if os.path.exists(self.odf_dir):
                 print(f'odf_dir found at {self.odf_dir}.')
             else:
-                print(f'odf_dir not found! User must run odfcompile!')
+                print(f'odf_dir not found! User must run calibrate_odf!')
                 return
             if os.path.exists(self.work_dir):
                 print(f'work_dir found at {self.work_dir}.')
             else:
-                print(f'work_dir not found! User must run odfcompile!')
+                print(f'work_dir not found! User must run calibrate_odf!')
                 return
         else:
             # obs_dir not found! Nothing can be done!
@@ -143,8 +144,8 @@ class ODFobject(object):
         if os.path.exists(self.files['sas_ccf']):
             logger.log('info', '{0} is present'.format(self.files['sas_ccf']))
         else:
-            logger.log('error', 'ccf.cif file not present! User must run odfcompile!')
-            print('ccf.cif file not present! User must run odfcompile!')
+            logger.log('error', 'ccf.cif file not present! User must run calibrate_odf!')
+            print('ccf.cif file not present! User must run calibrate_odf!')
             return
 
         # Set 'SAS_CCF' enviroment variable.
@@ -164,8 +165,8 @@ class ODFobject(object):
         if os.path.exists(self.files['sas_odf']):
             logger.log('info', '{0} is present'.format(self.files['sas_odf']))
         else:
-            logger.log('error', 'sas_odf file not present! User must run odfcompile!')
-            print('sas_odf file not present! User must run odfcompile!')
+            logger.log('error', 'sas_odf file not present! User must run calibrate_odf!')
+            print('sas_odf file not present! User must run calibrate_odf!')
             return
         
         # Check that the SUM.SAS file PATH keyword points to a real ODF directory
@@ -175,54 +176,20 @@ class ODFobject(object):
                 if 'PATH' in line:
                     key, path = line.split()
                     if not os.path.exists(path):
-                        logger.log('error', f'Summary file PATH {path} does not exist. Rerun odfcompile with overwrite=True.')
-                        print(f'\nSummary file PATH {path} does not exist. \n\n>>>>Rerun odfcompile with overwrite=True.')
+                        logger.log('error', f'Summary file PATH {path} does not exist. Rerun calibrate_odf with overwrite=True.')
+                        print(f'\nSummary file PATH {path} does not exist. \n\n>>>>Rerun calibrate_odf with overwrite=True.')
                     MANIFEST = glob.glob(os.path.join(path, 'MANIFEST*'))
                     if not os.path.exists(MANIFEST[0]):
-                        logger.log('error', f'Missing {MANIFEST[0]} file in {path}. Missing ODF components? Rerun odfcompile with overwrite=True.')
-                        print(f'\nMissing {MANIFEST[0]} file in {path}. Missing ODF components? \n\n>>>>Rerun odfcompile with overwrite=True.')
+                        logger.log('error', f'Missing {MANIFEST[0]} file in {path}. Missing ODF components? Rerun calibrate_odf with overwrite=True.')
+                        print(f'\nMissing {MANIFEST[0]} file in {path}. Missing ODF components? \n\n>>>>Rerun calibrate_odf with overwrite=True.')
         
         # Set 'SAS_ODF' enviroment variable.
         os.environ['SAS_ODF'] = self.files['sas_odf']
         logger.log('info', 'SAS_ODF = {0}'.format(self.files['sas_odf']))
         print('SAS_ODF = {0}'.format(self.files['sas_odf']))
 
-        self.get_active_instruments()
-
-        # Check if events lists have already been made from the odf files.
-
-        inst_list = list(self.active_instruments.keys())
-        evt_list_list = {'PN': 'PNevt_list',
-                         'M1': 'M1evt_list',
-                         'M2': 'M2evt_list',
-                         'R1': 'R1evt_list',
-                         'R2': 'R2evt_list',
-                         'OM': 'OMevt_list'}
-        find_list =     {'PN': 'EPN',
-                         'M1': 'EMOS1',
-                         'M2': 'EMOS2',
-                         'R1': 'R1',
-                         'R2': 'R2',
-                         'OM': 'OM'}
-        inst_name =     {'PN': 'EPIC-pn',
-                         'M1': 'EPIC-MOS1',
-                         'M2': 'EPIC-MOS2',
-                         'R1': 'RGS1',
-                         'R2': 'RGS2',
-                         'OM': 'OM'}
-        for item in inst_list: self.files[evt_list_list[item]] = []
-
-        for inst in inst_list:
-            exists = False
-            files = glob.glob(self.obs_dir+'/**/*.ds', recursive=True)
-            for filename in files:
-                if (filename.find(find_list[inst]) != -1) and filename.endswith('Evts.ds'):
-                    self.files[evt_list_list[inst]].append(os.path.abspath(filename))
-                    exists = True
-            if exists:
-                print(" > {0} {1} event list(s) found.\n".format(len(self.files[evt_list_list[inst]]),inst_name[inst]))
-                for x in self.files[evt_list_list[inst]]:
-                    print("    " + x + "\n")
+        # Check for previously generated event lists.
+        self.get_event_lists()
 
         # Exit the set_odfid function. Everything is set.
         return
@@ -239,7 +206,7 @@ class ODFobject(object):
         os.environ['SAS_VERBOSITY'] = '{}'.format(self.verbosity)
         os.environ['SAS_SUPPRESS_WARNING'] = '{}'.format(self.suppress_warning)
 
-    def odfcompile(self,data_dir=None,level='ODF',
+    def calibrate_odf(self,data_dir=None,level='ODF',
                sas_ccf=None,sas_odf=None,
                cifbuild_opts=None,odfingest_opts=None,
                encryption_key=None,overwrite=False,repo='esa'):
@@ -248,9 +215,9 @@ class ODFobject(object):
 
         odf = pysas.odfcontrol.ODFobject(obsid)
 
-        This function can then be used as, odf.odfcompile().
+        This function can then be used as, odf.calibrate_odf().
 
-        The odfcompile function will automatically look in data_dir for the subdirectory 
+        The calibrate_odf function will automatically look in data_dir for the subdirectory 
         data_dir/odfid. If it does not exist then it will download the data.
         
         If it exists it will search data_dir/odfid and any subdirectories for the ccf.cif
@@ -442,12 +409,12 @@ class ODFobject(object):
                         if 'PATH' in line:
                             key, path = line.split()
                             if not os.path.exists(path):
-                                logger.log('error', f'Summary file PATH {path} does not exist. Rerun odfcompile with overwrite=True.')
-                                raise Exception(f'Summary file PATH {path} does not exist. Rerun odfcompile with overwrite=True.')
+                                logger.log('error', f'Summary file PATH {path} does not exist. Rerun calibrate_odf with overwrite=True.')
+                                raise Exception(f'Summary file PATH {path} does not exist. Rerun calibrate_odf with overwrite=True.')
                             MANIFEST = glob.glob(os.path.join(path, 'MANIFEST*'))
                             if not os.path.exists(MANIFEST[0]):
-                                logger.log('error', f'Missing {MANIFEST[0]} file in {path}. Missing ODF components? Rerun odfcompile with overwrite=True.')
-                                raise Exception(f'\nMissing {MANIFEST[0]} file in {path}. Missing ODF components? Rerun odfcompile with overwrite=True.')
+                                logger.log('error', f'Missing {MANIFEST[0]} file in {path}. Missing ODF components? Rerun calibrate_odf with overwrite=True.')
+                                raise Exception(f'\nMissing {MANIFEST[0]} file in {path}. Missing ODF components? Rerun calibrate_odf with overwrite=True.')
                 
                 # Set 'SAS_ODF' enviroment variable.
                 os.environ['SAS_ODF'] = self.files['sas_odf']
@@ -457,7 +424,7 @@ class ODFobject(object):
                 self.get_active_instruments()
 
                 if not os.path.exists(self.work_dir): os.mkdir(self.work_dir)
-                # Exit the odfcompile function. Everything is set.
+                # Exit the calibrate_odf function. Everything is set.
                 return
             else:
                 # If obs_dir exists and overwrite = True then remove obs_dir.
@@ -480,7 +447,7 @@ class ODFobject(object):
                       encryption_key=self.encryption_key,repo=self.repo,
                       logger=logger)
 
-        # If only PPS files were requested then odfcompile stops here.
+        # If only PPS files were requested then calibrate_odf stops here.
         # Else will run cifbuild and odfingest.
         if level == 'PPS':
             ppsdir = os.path.join(self.data_dir, self.odfid, 'pps')
@@ -606,19 +573,34 @@ class ODFobject(object):
             SAS_ODF = {self.files['sas_odf']}
             \n''')
 
+    def odfcompile(self,data_dir=None,level='ODF',
+               sas_ccf=None,sas_odf=None,
+               cifbuild_opts=None,odfingest_opts=None,
+               encryption_key=None,overwrite=False,repo='esa'):
+        # print("Deprication Warning: 'odfcompile' has been replaced by 'calibrate_odf'. \n
+        # 'odfcompile' will for now point to 'calibrate_odf', but 'odfcompile' will be removed\n
+        # in a future release.")
+        self.calibrate_odf(data_dir=None,level='ODF',
+                            sas_ccf=None,sas_odf=None,
+                            cifbuild_opts=None,odfingest_opts=None,
+                            encryption_key=None,overwrite=False,repo='esa')
+
     def runanalysis(self,task,inargs,rerun=False,logFile='DEFAULT'):
         """
         A wrapper for the wrapper. Yes. I know.
 
-        For certain SAS tasks it will check if the related files are already
-        present. If they are, it will not run again, unless "rerun=True". For 
+        This will check if output files are present for the selected SAS task.
+        If they are, will not rerun that SAS task unless "rerun=True". For 
         all other tasks it will simply call the standard pySAS wrapper.
 
         Lists of output files are stored in the dictionary self.files{}.
 
         SAS Tasks that it currently works for:
             --epproc
+            --epchain (Warning current version of epchain fails in SAS v. 21)
             --emproc
+            --emchain (Warning current version of emchain fails in SAS v. 21)
+            --rgsproc
 
         More will be added as needed.
         """
@@ -634,69 +616,28 @@ class ODFobject(object):
             os.chdir(self.work_dir)
         else:
             print(f'The directory for the observation ID ({self.odfid}) does not seem to exist!\n    {self.obs_dir}')
-            print('Has \'odfcompile\' been run?')
+            print('Has \'calibrate_odf\' been run?')
             raise Exception(f'Problem with the directory for odfID = {self.odfid}!')
+        
+        self.get_event_lists(print_output=False)
 
-        print(f"   SAS command to be executed: {self.task}, with arguments; \n{self.inargs}")
-        print(f"Running {self.task} ..... \n")
+        run_task = False
 
-        file_keys = list(self.files.keys())
-
-        if self.task == 'epproc':
-            # Check if epproc has already run. If it has, do not run again 
-            exists = False
-            if 'PNevt_list' not in file_keys:
-                self.files['PNevt_list'] = []
-            for root, dirs, files in os.walk("."):  
-                for filename in files:
-                    if (filename.find('EPN') != -1) and filename.endswith('Evts.ds'):
-                        file_path = os.path.abspath(os.path.join(root,filename))
-                        if file_path not in self.files['PNevt_list']:
-                            self.files['PNevt_list'].append(file_path)
-                        exists = True
-            if exists and not self.rerun:    
-                print(" > " + str(len(self.files['PNevt_list'])) + " EPIC-pn event list found. Not running epproc again.\n")
+        # Check if 'epproc' or 'epchain' has been run.
+        if (self.task == 'epproc' or self.task == 'epchain') and self.active_instruments['PN']:
+            if len(self.files['PNevt_list']) == 0 or self.rerun:
+                run_task = True
+            else:
+                print(" > " + str(len(self.files['PNevt_list'])) + " EPIC-pn event list found. Not running {self.task} again.\n")
                 for x in self.files['PNevt_list']:
                     print("    " + x + "\n")
                 print("..... OK")
+
+        # Check if 'emproc' has been run.
+        elif self.task == 'emproc' and (self.active_instruments['M1'] or self.active_instruments['M2']):
+            if (len(self.files['M1evt_list']) == 0 and len(self.files['M2evt_list']) == 0) or self.rerun:
+                run_task = True
             else:
-                w(self.task,self.inargs,logFile=self.logFile).run()      # <<<<< Execute SAS task
-                exists = False
-                if 'PNevt_list' not in file_keys:
-                    self.files['PNevt_list'] = []
-                for root, dirs, files in os.walk("."):  
-                    for filename in files:
-                        if (filename.find('EPN') != -1) and filename.endswith('Evts.ds'):
-                            self.files['PNevt_list'].append(os.path.abspath(os.path.join(root,filename)))
-                            exists = True
-                if exists:    
-                    print(" > " + str(len(self.files['PNevt_list'])) + " EPIC-pn event list found after running epproc.\n")
-                    for x in self.files['PNevt_list']:
-                        print("    " + x + "\n")
-                    print("..... OK")
-                else:
-                    print("Something has gone wrong with epproc. I cant find any event list files after running. \n")
-        
-        elif self.task == 'emproc':
-            # Check if emproc has already run. If it has, do not run again 
-            exists = False
-            if 'M1evt_list' not in file_keys:
-                self.files['M1evt_list'] = []
-            if 'M2evt_list' not in file_keys:
-                self.files['M2evt_list'] = []
-            for root, dirs, files in os.walk("."):  
-                for filename in files:
-                    if (filename.find('EMOS1') != -1) and filename.endswith('ImagingEvts.ds'):
-                        file_path = os.path.abspath(os.path.join(root,filename))
-                        if file_path not in self.files['M1evt_list']:
-                            self.files['M1evt_list'].append(file_path)
-                        exists = True
-                    if (filename.find('EMOS2') != -1) and filename.endswith('ImagingEvts.ds'):
-                        file_path = os.path.abspath(os.path.join(root,filename))
-                        if file_path not in self.files['M2evt_list']:
-                            self.files['M2evt_list'].append(file_path)
-                        exists = True
-            if exists and not self.rerun:    
                 print(" > " + str(len(self.files['M1evt_list'])) + " EPIC-MOS1 event list found. Not running emproc again.\n")
                 for x in self.files['M1evt_list']:
                     print("    " + x + "\n")
@@ -704,73 +645,165 @@ class ODFobject(object):
                 for x in self.files['M2evt_list']:
                     print("    " + x + "\n")
                 print("..... OK")
-            else:
-                w(self.task,self.inargs,logFile=self.logFile).run()      # <<<<< Execute SAS task
-                exists = False 
-                if 'M1evt_list' not in file_keys:
-                    self.files['M1evt_list'] = []
-                if 'M2evt_list' not in file_keys:
-                    self.files['M2evt_list'] = []
-                for root, dirs, files in os.walk("."):  
-                    for filename in files:
-                        if (filename.find('EMOS1') != -1) and filename.endswith('ImagingEvts.ds'):
-                            self.files['M1evt_list'].append(os.path.abspath(os.path.join(root,filename)))
-                            exists = True 
-                        if (filename.find('EMOS2') != -1) and filename.endswith('ImagingEvts.ds'):
-                            self.files['M2evt_list'].append(os.path.abspath(os.path.join(root,filename)))
-                            exists = True            
-                if exists:    
-                    print(" > " + str(len(self.files['M1evt_list'])) + " EPIC-MOS1 event list found after running emproc.\n")
-                    for x in self.files['M1evt_list']:
-                        print("    " + x + "\n")
-                    print(" > " + str(len(self.files['M2evt_list'])) + " EPIC-MOS2 event list found after running emproc.\n")
-                    for x in self.files['M2evt_list']:
-                        print("    " + x + "\n")
-                    print("..... OK")
-                else:
-                    print("Something has gone wrong with emproc. I cant find any event list file. \n")
-        else:
-            w(self.task,self.inargs).run()      # <<<<< Execute SAS task
 
-    def basic_setup(self, **kwargs):
+        # Check if 'rgsproc' has been run.
+        elif self.task == 'rgsproc' and (self.active_instruments['R1'] or self.active_instruments['R2']):
+            if (len(self.files['R1evt_list']) == 0 and len(self.files['R2evt_list']) == 0) or self.rerun:
+                run_task = True
+            else:
+                print(" > " + str(len(self.files['R1evt_list'])) + " RGS1 event list found. Not running rgsproc again.\n")
+                for x in self.files['R1evt_list']:
+                    print("    " + x + "\n")
+                print(" > " + str(len(self.files['R2evt_list'])) + " RGS2 event list found. Not running rgsproc again.\n")
+                for x in self.files['R2evt_list']:
+                    print("    " + x + "\n")
+                print("..... OK")
+        
+        if run_task:
+            print(f"   SAS command to be executed: {self.task}, with arguments; \n{self.inargs}")
+            print(f"Running {self.task} ..... \n")
+            w(self.task,self.inargs,logFile=self.logFile).run()      # <<<<< Execute SAS task
+
+        # Check if run sucsessfully
+        self.get_event_lists(print_output=False)
+        if len(self.files['PNevt_list']) == 0:
+            print("Something has gone wrong. I cant find any event list files after running epproc. \n")
+        if (len(self.files['M1evt_list']) == 0 and len(self.files['M2evt_list']) == 0):
+            print("Something has gone wrong. I cant find any event list files after running emproc. \n")
+        if (len(self.files['R1evt_list']) == 0 and len(self.files['R2evt_list']) == 0)
+            print("Something has gone wrong. I cant find any event list files after running rgsproc. \n")
+
+
+    def basic_setup(self,run_epproc=True,run_emproc=True,run_rgsproc=True,
+                    run_omichain=False,run_epchain=False,run_emchain=False
+                    , **kwargs):
         """
         Function to do all basic analysis tasks. The function will:
 
-            1. Call the function 'odfcompile'
+            1. Call the function 'calibrate_odf'
                 A. Download data
                 B. Run 'cifbuild'
                 C. Run 'odfingest'
-            2. Run 'epproc'
-            3. Run 'emproc'
+            2. Run 'epproc' -OR- 'epchain'
+            3. Run 'emproc' -OR- 'emchain'
+            4. Run 'rgsproc'
+            5. Run 'omichain' (not run by default)
 
-        All input arguments for 'odfcompile' can be passed to 'basic_setup'.
+        If 'run_epchain' is set to 'True', then 'epproc' will not run.
+        If 'run_emchain' is set to 'True', then 'emproc' will not run.
 
-        Input arguments for 'epproc' and 'emproc' can also be passed in 
-        using 'epproc_args' and 'emproc_args' respectively. By defaut 
-        'epproc' and 'emproc' will not rerun if output files are found,
-        but they can be forced to rerun by setting 'rerun=True' as an
-        input to 'basic_setup'.
+        All input arguments for 'calibrate_odf' can be passed to 'basic_setup'.
+
+        'calibrate_odf' inputs (with defaults):
+               
+            data_dir       = None
+            level          = 'ODF'
+            sas_ccf        = None
+            sas_odf        = None
+            cifbuild_opts  = None
+            odfingest_opts = None
+            encryption_key = None
+            overwrite      = False
+            repo           = 'esa'
+
+        Input arguments for 'epproc', 'emproc', and 'rgsproc' can also be 
+        passed in using 'epproc_args', 'emproc_args', or 'rgsproc_args' 
+        respectively (or 'epchain_args' and 'emchain_args'). By defaut 
+        'epproc', 'emproc', and 'rgsproc' will not rerun if output files 
+        are found, but they can be forced to rerun by setting 'rerun=True' 
+        as an input to 'basic_setup'.
+
+        Examples for use:
+
+            odf.basic_setup()
+
+                - Uses the defaults.
+
+            odf.basic_setup(repo='heasarc')
+
+                - Uses the defaults, but downloads data from the HEASARC.
+
+            odf.basic_setup(overwrite=True)
+
+                - Will erase any previous data files for the Obs ID and 
+                  download a fresh set of data files.
+
+            odf.basic_setup(rerun=True)
+
+                - Will **not** download new files, but will rerun 'epproc',
+                  'emproc', and 'rgsproc' and create new event lists.
+
+            odf.basic_setup(repo='heasarc',
+                            epproc_args=['withoutoftime=yes'])
+
+                - Downloads data from the HEASARC and runs 'epproc' with the
+                  'withoutoftime' option.
+
+            odf.basic_setup(run_epchain=True,
+                            run_emchain=True)
+
+                - Will run 'epchain' and 'emchain' instead of 'epproc' and
+                  'emproc'.
+
+            odf.basic_setup(run_epproc=False,
+                            run_emproc=False)
+
+                - Will not run 'epproc' or 'emproc'. Will only run 'rgsproc'
+                  by default.
+
+            odf.basic_setup(run_epproc=False,
+                            run_emproc=True,
+                            run_rgsproc=False)
+
+                - Will only run 'emproc', **not** 'epproc' or 'rgsproc'.
+
         """
 
-        self.odfcompile(data_dir       = kwargs.get('data_dir', None),
-                        level          = kwargs.get('level', 'ODF'),
-                        sas_ccf        = kwargs.get('sas_ccf', None),
-                        sas_odf        = kwargs.get('sas_odf', None),
-                        cifbuild_opts  = kwargs.get('cifbuild_opts', None),
-                        odfingest_opts = kwargs.get('odfingest_opts', None),
-                        encryption_key = kwargs.get('encryption_key', None),
-                        overwrite      = kwargs.get('overwrite', False),
-                        repo           = kwargs.get('repo', 'esa'))
+        self.calibrate_odf(data_dir       = kwargs.get('data_dir', None),
+                           level          = kwargs.get('level', 'ODF'),
+                           sas_ccf        = kwargs.get('sas_ccf', None),
+                           sas_odf        = kwargs.get('sas_odf', None),
+                           cifbuild_opts  = kwargs.get('cifbuild_opts', None),
+                           odfingest_opts = kwargs.get('odfingest_opts', None),
+                           encryption_key = kwargs.get('encryption_key', None),
+                           overwrite      = kwargs.get('overwrite', False),
+                           repo           = kwargs.get('repo', 'esa'))
 
-        self.runanalysis('epproc',
-                         kwargs.get('epproc_args', []),
-                         rerun = kwargs.get('rerun', False),
-                         logFile=kwargs.get('logFile', 'epproc.log'))
+        if run_epproc and not run_epchain:
+            self.runanalysis('epproc',
+                            kwargs.get('epproc_args', []),
+                            rerun = kwargs.get('rerun', False),
+                            logFile=kwargs.get('logFile', 'epproc.log'))
+        
+        if run_epchain:
+            self.runanalysis('epchain',
+                            kwargs.get('epchain_args', []),
+                            rerun = kwargs.get('rerun', False),
+                            logFile=kwargs.get('logFile', 'epchain.log'))
 
-        self.runanalysis('emproc',
-                         kwargs.get('emproc_args', []),
-                         rerun = kwargs.get('rerun', False),
-                         logFile=kwargs.get('logFile', 'emproc.log'))
+        if run_emproc and not run_emchain:
+            self.runanalysis('emproc',
+                            kwargs.get('emproc_args', []),
+                            rerun = kwargs.get('rerun', False),
+                            logFile=kwargs.get('logFile', 'emproc.log'))
+            
+        if run_emchain:
+            self.runanalysis('emchain',
+                            kwargs.get('emchain_args', []),
+                            rerun = kwargs.get('rerun', False),
+                            logFile=kwargs.get('logFile', 'emchain.log'))
+            
+        if run_rgsproc:
+            self.runanalysis('rgsproc',
+                            kwargs.get('rgsproc_args', []),
+                            rerun = kwargs.get('rerun', False),
+                            logFile=kwargs.get('logFile', 'rgsproc.log'))
+        
+        if run_omichain:
+            self.runanalysis('omichain',
+                            kwargs.get('omichain_args', []),
+                            rerun = kwargs.get('rerun', False),
+                            logFile=kwargs.get('logFile', 'omichain.log'))
     
     def get_active_instruments(self):
         """
@@ -803,6 +836,63 @@ class ODFobject(object):
             print('Something is wrong with the odf summary file: {0}'.format(self.files['sas_odf']))
 
         return
+    
+    def get_event_lists(self,print_output=True):
+        """
+        Checks the observation directory (obs_dir) for basic unfiltered 
+        event list files created by 'epproc', 'emproc', 'rgsproc', and 
+        'omichain'. Stores paths and file names in self.files.
+        """
+
+        self.get_active_instruments()
+
+        # Check if events lists have already been made from the odf files.
+
+        inst_list = list(self.active_instruments.keys())
+        evt_list_list = {'PN': 'PNevt_list',
+                         'M1': 'M1evt_list',
+                         'M2': 'M2evt_list',
+                         'R1': 'R1evt_list',
+                         'R2': 'R2evt_list',
+                         'OM': 'OMevt_list'}
+        find_list =     {'PN': 'EPN',
+                         'M1': 'EMOS1',
+                         'M2': 'EMOS2',
+                         'R1': 'R1',
+                         'R2': 'R2',
+                         'OM': 'OM'}
+        inst_name =     {'PN': 'EPIC-pn',
+                         'M1': 'EPIC-MOS1',
+                         'M2': 'EPIC-MOS2',
+                         'R1': 'RGS1',
+                         'R2': 'RGS2',
+                         'OM': 'OM'}
+        for item in inst_list: self.files[evt_list_list[item]] = []
+
+        for inst in inst_list:
+            exists = False
+            # Checking for EPIC event lists.
+            files = glob.glob(self.obs_dir+'/**/*.ds', recursive=True)
+            for filename in files:
+                if (filename.find(find_list[inst]) != -1) and filename.endswith('Evts.ds'):
+                    self.files[evt_list_list[inst]].append(os.path.abspath(filename))
+                    exists = True
+            # Checking for RGS event lists.
+            files = glob.glob(self.obs_dir+'/**/*EVENLI*FIT', recursive=True)
+            for filename in files:
+                if (filename.find(find_list[inst]) != -1):
+                    self.files[evt_list_list[inst]].append(os.path.abspath(filename))
+                    exists = True
+            if exists:
+                if print_output:
+                    print(" > {0} {1} event list(s) found.\n".format(len(self.files[evt_list_list[inst]]),inst_name[inst]))
+                    for x in self.files[evt_list_list[inst]]:
+                        print("    " + x + "\n")
+
+        return
+    
+    #def check_(self,task):
+
 
 def generate_logger(logname=None,log_dir=None):
     """
