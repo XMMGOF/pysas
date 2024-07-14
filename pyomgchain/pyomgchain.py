@@ -28,13 +28,10 @@ __version__ = f'pyomgchain (pyomgchain-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]'
 # or those taken from par file defaults.
 
 import os
-import datetime
-import sys
 import glob
 import pysas.pyutils.pyutils as pyutils
 import logging
 import subprocess
-import re
 import fnmatch
 import time
 

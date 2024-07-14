@@ -34,7 +34,7 @@ run function defined there.
 # Standard library imports
 from importlib import import_module
 import pkgutil
-import os, sys
+import os
 import subprocess
 
 # Third party imports

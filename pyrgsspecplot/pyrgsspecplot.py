@@ -28,19 +28,16 @@ import numpy as np
 import pysas.pyutils.pyutils as pyutils
 import pysas.pysasplot_utils.pysasplot_utils as sasplt
 import sys
-import pickle
 from astropy.io import fits
 from astropy.table import Table
 import time
 import os
-import warnings
 #warnings.filterwarnings("error")
 import glob
 import re
 from pysas.logger import TaskLogger as TL
 from astropy import units as u
 import matplotlib.pyplot as plt
-from astropy import constants as const
 from astropy.coordinates import Angle
 
 

@@ -20,7 +20,6 @@
 
 
 from xml.dom import minidom
-import sys
 from pysas.xmmextractorGUI.utils import Instruments
 
 class createXML:

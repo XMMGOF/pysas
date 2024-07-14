@@ -46,23 +46,18 @@ import tarfile
 import traceback
 import subprocess
 from PyQt5 import QtWidgets
-from PyQt5.QtGui import QFont, QFontMetrics
+from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QHBoxLayout, QTabWidget,QMainWindow,QPushButton, QVBoxLayout,\
     QLineEdit, QFormLayout, QMessageBox, QButtonGroup, QAbstractButton
-from PyQt5.Qt import QApplication, QWidget, QPixmap, QLabel, QScrollArea,QFrame,QGroupBox,\
-    QGridLayout, QSizePolicy, QLayout, QFileDialog, QObject, QDialog, QComboBox
+from PyQt5.Qt import QApplication, QWidget, QLabel, QScrollArea,QFrame,QGroupBox,\
+    QFileDialog, QDialog, QComboBox
 from PyQt5.QtCore import QRect, QTimer,pyqtSlot, Qt, QFile, QTextStream
 from xml.dom import minidom
 from pysas.xmmextractorGUI.controlPanel import controlPanel
 from pysas.xmmextractorGUI.createXML import createXML
 from pysas.xmmextractorGUI.doIt import doIt
 from pysas.xmmextractorGUI.showImageClass import PlotCanvas
-from astropy.units import pixel
 from astropy.io import fits
-from astropy.table import Table
-from _operator import length_hint, contains
-from six import _meth_self
-from fileinput import filename
 from numpy import RAISE
 from pyds9 import *
 

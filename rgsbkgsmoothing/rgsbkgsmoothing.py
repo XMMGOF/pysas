@@ -25,7 +25,6 @@ from pysas.error import Error
 import pysas.rgsbkgsmoothing.expTime as  e
 import numpy as np
 from astropy.io import fits
-from astropy.table import Table
 import sys
 import os
 from scipy.optimize import curve_fit

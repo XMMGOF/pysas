@@ -3,10 +3,7 @@
 from pysas.error import Error
 from astropy.io import fits
 import numpy as np
-import sys
 import os
-from scipy.optimize import curve_fit
-import matplotlib.pyplot as plt
 
 
 def getData(srcspecfilename,bkgspecfilename,expmapfilename,resmatfilename,intermediateFileFlag,intermediateFile):

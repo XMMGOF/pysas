@@ -23,10 +23,7 @@ __version__ = f'pyutils (pyutils-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]'
 
 
 import numpy as np
-import subprocess
-import os
 from astropy.io import fits
-import re
 import datetime
 import sys
 from astropy.table import Table

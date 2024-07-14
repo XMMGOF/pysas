@@ -20,7 +20,6 @@
 
 import numpy as np
 import os
-import sys
 import glob
 from pysas.logger import TaskLogger as TL
 from pysas.pyutils import pyutils

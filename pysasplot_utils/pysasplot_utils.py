@@ -31,7 +31,6 @@ from astropy.table import Table
 import sys
 import re
 import warnings
-import matplotlib.backends.backend_pdf
 import pickle
 from pypdf import PdfMerger
 from matplotlib.patches import Rectangle
