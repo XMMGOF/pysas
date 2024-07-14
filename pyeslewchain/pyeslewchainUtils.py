@@ -20,7 +20,6 @@
 # Utilities for the eslewchain script.
 
 import os
-import subprocess
 from astropy.io import fits
 
 def delete_exposure_xtns(fill_file):

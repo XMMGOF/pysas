@@ -23,7 +23,6 @@ sessions
 """
 
 # Standard library imports
-import subprocess
 
 # Third party imports
 

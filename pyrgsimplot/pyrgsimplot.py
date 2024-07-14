@@ -22,7 +22,6 @@ from .version import VERSION, SAS_RELEASE, SAS_AKA
 __version__ = f'pyrgsimplot (pyrgsimplot-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]' 
 
 
-import logging
 import pysas.pyutils.pyutils as pyutils
 import os
 import numpy as np
@@ -37,7 +36,6 @@ from matplotlib.colors import LogNorm
 from matplotlib.colors import PowerNorm
 import glob
 import time
-import matplotlib.transforms as tr
 from astropy.wcs import WCS
 from astropy.coordinates import Angle
 from pysas.logger import TaskLogger as TL

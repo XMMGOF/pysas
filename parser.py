@@ -43,12 +43,10 @@ Task parameters entered are returned in list tparams.
 
 # Standard library imports
 import os
-import sys
 import subprocess
 import argparse
 import pkgutil
 from importlib import import_module
-from contextlib import suppress
 
 # Third party imports
 

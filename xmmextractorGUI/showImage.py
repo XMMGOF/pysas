@@ -18,17 +18,13 @@
 #	along with SAS.  If not, see <http://www.gnu.org/licenses/>.
 import sys
  
-from PyQt5.QtWidgets import QApplication, QMainWindow, QMenu, QVBoxLayout, QSizePolicy, QMessageBox, QWidget, QPushButton
-from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QApplication, QMainWindow, QSizePolicy
  
-from PyQt5.QtGui import QIcon, QPixmap
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
-from astropy.visualization import astropy_mpl_style
 from astropy.io import fits
 from matplotlib.colors import LogNorm
-import random
 
  
  

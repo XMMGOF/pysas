@@ -18,12 +18,10 @@
 #	along with SAS.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import sys
 import os
 import subprocess
 import traceback
 import threading
-import time
 import logging
 
 class doIt:

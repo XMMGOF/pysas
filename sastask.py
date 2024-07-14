@@ -109,7 +109,6 @@ The runtask method uses class RunTask.
 
 # Standard library imports
 from abc import ABC, abstractmethod
-import os
 
 # Third party imports
 

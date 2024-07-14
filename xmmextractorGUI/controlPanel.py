@@ -18,12 +18,11 @@
 #	along with SAS.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from PyQt5.QtWidgets import QFrame
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QVBoxLayout, QWidget,QLineEdit
+from PyQt5.QtWidgets import QVBoxLayout
 from PyQt5.QtCore import QRect,Qt,pyqtSlot
 from functools import partial
-from PyQt5.Qt import QScrollArea, QGroupBox
+from PyQt5.Qt import QScrollArea
 import logging
 
 class controlPanel:

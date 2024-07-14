@@ -21,17 +21,15 @@ import logging
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
-import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.table import unique, Table
-from PyQt5.QtWidgets import QSizePolicy
 #import pylab as plt
 from matplotlib.colors import LogNorm
 import matplotlib.gridspec as gridspec
-from matplotlib.ticker import  MaxNLocator, FormatStrFormatter, MultipleLocator, FuncFormatter, ScalarFormatter, NullFormatter,StrMethodFormatter
+from matplotlib.ticker import FuncFormatter
 
 class PlotCanvas(FigureCanvas):
  

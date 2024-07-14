@@ -19,14 +19,9 @@
 
 from .version import VERSION, SAS_RELEASE, SAS_AKA
 from astropy.io import fits
-from astropy.table import Table
 import numpy as np
-import matplotlib.pyplot as plt
-from shutil import copyfile
 import glob
-from collections import Counter
 import os
-import argparse
 from pysas.logger import TaskLogger as TL
 
 
