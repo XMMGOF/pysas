@@ -38,7 +38,7 @@ from ..init_sas import initializesas
 from ..wrapper import Wrapper as w
 
 # __version__ = f'odfcontrol (startsas-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]' 
-__version__ = 'odfcontrol (odfcontrol-0.1)'
+__version__ = 'odfcontrol (odfcontrol-1.0)'
 __all__ = ['ODFobject', 'download_data']
 
 
@@ -46,7 +46,7 @@ class ODFobject(object):
     """
     Class for observation data files (ODF).
 
-        An odfid is necessary.
+        An odfid (Obs ID) is required.
 
         data_dir is the base directory where you store all XMM data.
 
@@ -59,6 +59,30 @@ class ODFobject(object):
                 SAS_CCF  = work_dir/ccf.cif
                 SAS_ODF  = work_dir/*SUM.SAS
 
+                
+        Directory links and OdfID information are stored as
+        variables in the ODFobject.
+
+            self.odfid    : The Obs ID required to make the ODFobject
+            self.data_dir : Path to the data directory
+            self.files    : A dictionary containing links to event lists
+                            and other important files
+
+                            Default dictionary keys are:
+                                'sas_ccf'
+                                'sas_odf'
+                                'PNevt_list'
+                                'M1evt_list'
+                                'M2evt_list'
+                                'R1evt_list'
+                                'R2evt_list'
+                                'OMevt_list'
+
+            self.obs_dir  : Path to the observation directory
+            self.odf_dir  : Path to the ODF directory
+            self.pps_dir  : Path to the PPS directory
+            self.work_dir : Path to the working directory
+
     """
 
     def __init__(self,odfid,data_dir=None):
@@ -69,7 +93,11 @@ class ODFobject(object):
 
     def inisas(self,sas_dir,sas_ccfpath,verbosity=4,suppress_warning=1):
         """
+        --Not intended to be used by the end user. Internal use only.--
+
         Simple wrapper for 'initializesas' defined in init_sas.py.
+
+        SAS initialization should happen automatically.
         """
         self.sas_dir = sas_dir
         self.sas_ccfpath = sas_ccfpath
@@ -83,10 +111,16 @@ class ODFobject(object):
 
     def set_odfid(self):
         """
-        Checks if obs_dir exists. If it exists looks for existing 
-        odf_dir, work_dir, SAS_CCF, and SAS_ODF. Similar to calibrate_odf, 
-        but will not download any data, will not calibrate it, or do 
-        anything other than link to files and directories. 
+        --Not intended to be used by the end user. Internal use only.--
+
+        Basic method for setting the environment variables for a single 
+        'ObsID'.
+
+        Checks if obs_dir exists in data_dir. If it exists looks for 
+        existing odf_dir, work_dir, SAS_CCF, and SAS_ODF. Similar to 
+        calibrate_odf, but will not download any data, will not 
+        calibrate it, or do anything other than link to files and 
+        directories. 
         """
 
         # Where are we?
@@ -194,7 +228,7 @@ class ODFobject(object):
         # Exit the set_odfid function. Everything is set.
         return
 
-    def sastalk(self,verbosity=4,suppress_warning=1):
+    def sas_talk(self,verbosity=4,suppress_warning=1):
         """
         Simple function to set general SAS veriables 'verbosity' 
         and 'suppress_warning'.
@@ -213,7 +247,7 @@ class ODFobject(object):
         """
         Before running this function an ODFobject must be created first. e.g.
 
-        odf = pysas.odfcontrol.ODFobject(obsid)
+            odf = pysas.odfcontrol.ODFobject(obsid)
 
         This function can then be used as, odf.calibrate_odf().
 
@@ -580,18 +614,25 @@ class ODFobject(object):
         # print("Deprication Warning: 'odfcompile' has been replaced by 'calibrate_odf'. \n
         # 'odfcompile' will for now point to 'calibrate_odf', but 'odfcompile' will be removed\n
         # in a future release.")
+        """
+        Depricated function. Replaced by self.calibrate_odf.
+        """
         self.calibrate_odf(data_dir=None,level='ODF',
                             sas_ccf=None,sas_odf=None,
                             cifbuild_opts=None,odfingest_opts=None,
                             encryption_key=None,overwrite=False,repo='esa')
 
-    def runanalysis(self,task,inargs,rerun=False,logFile='DEFAULT'):
+    def run_analysis(self,task,inargs,rerun=False,logFile='DEFAULT'):
         """
+        --Not intended to be used by the end user. Internal use only.--
+
         A wrapper for the wrapper. Yes. I know.
 
+        This function is not intended to be used by the end user, but is
+        only called by 'basic_setup'.
+
         This will check if output files are present for the selected SAS task.
-        If they are, will not rerun that SAS task unless "rerun=True". For 
-        all other tasks it will simply call the standard pySAS wrapper.
+        If they are, will not rerun that SAS task unless "rerun=True".
 
         Lists of output files are stored in the dictionary self.files{}.
 
@@ -621,12 +662,14 @@ class ODFobject(object):
         
         self.get_event_lists(print_output=False)
 
-        run_task = False
+        run_ep   = False
+        run_em   = False
+        run_rgs  = False
 
         # Check if 'epproc' or 'epchain' has been run.
         if (self.task == 'epproc' or self.task == 'epchain') and self.active_instruments['PN']:
             if len(self.files['PNevt_list']) == 0 or self.rerun:
-                run_task = True
+                run_ep   = True
             else:
                 print(" > " + str(len(self.files['PNevt_list'])) + " EPIC-pn event list found. Not running {self.task} again.\n")
                 for x in self.files['PNevt_list']:
@@ -636,7 +679,7 @@ class ODFobject(object):
         # Check if 'emproc' has been run.
         elif self.task == 'emproc' and (self.active_instruments['M1'] or self.active_instruments['M2']):
             if (len(self.files['M1evt_list']) == 0 and len(self.files['M2evt_list']) == 0) or self.rerun:
-                run_task = True
+                run_em   = True
             else:
                 print(" > " + str(len(self.files['M1evt_list'])) + " EPIC-MOS1 event list found. Not running emproc again.\n")
                 for x in self.files['M1evt_list']:
@@ -649,7 +692,7 @@ class ODFobject(object):
         # Check if 'rgsproc' has been run.
         elif self.task == 'rgsproc' and (self.active_instruments['R1'] or self.active_instruments['R2']):
             if (len(self.files['R1evt_list']) == 0 and len(self.files['R2evt_list']) == 0) or self.rerun:
-                run_task = True
+                run_rgs  = True
             else:
                 print(" > " + str(len(self.files['R1evt_list'])) + " RGS1 event list found. Not running rgsproc again.\n")
                 for x in self.files['R1evt_list']:
@@ -659,20 +702,19 @@ class ODFobject(object):
                     print("    " + x + "\n")
                 print("..... OK")
         
-        if run_task:
+        if run_ep or run_em or run_rgs:
             print(f"   SAS command to be executed: {self.task}, with arguments; \n{self.inargs}")
             print(f"Running {self.task} ..... \n")
             w(self.task,self.inargs,logFile=self.logFile).run()      # <<<<< Execute SAS task
 
         # Check if run sucsessfully
         self.get_event_lists(print_output=False)
-        if len(self.files['PNevt_list']) == 0:
+        if (len(self.files['PNevt_list']) == 0) and run_ep:
             print("Something has gone wrong. I cant find any event list files after running epproc. \n")
-        if (len(self.files['M1evt_list']) == 0 and len(self.files['M2evt_list']) == 0):
+        if (len(self.files['M1evt_list']) == 0 and len(self.files['M2evt_list']) == 0 and run_em):
             print("Something has gone wrong. I cant find any event list files after running emproc. \n")
-        if (len(self.files['R1evt_list']) == 0 and len(self.files['R2evt_list']) == 0)
+        if (len(self.files['R1evt_list']) == 0 and len(self.files['R2evt_list']) == 0 and run_rgs):
             print("Something has gone wrong. I cant find any event list files after running rgsproc. \n")
-
 
     def basic_setup(self,run_epproc=True,run_emproc=True,run_rgsproc=True,
                     run_omichain=False,run_epchain=False,run_emchain=False
@@ -770,40 +812,40 @@ class ODFobject(object):
                            repo           = kwargs.get('repo', 'esa'))
 
         if run_epproc and not run_epchain:
-            self.runanalysis('epproc',
+            self.run_analysis('epproc',
                             kwargs.get('epproc_args', []),
                             rerun = kwargs.get('rerun', False),
                             logFile=kwargs.get('logFile', 'epproc.log'))
         
         if run_epchain:
-            self.runanalysis('epchain',
-                            kwargs.get('epchain_args', []),
-                            rerun = kwargs.get('rerun', False),
-                            logFile=kwargs.get('logFile', 'epchain.log'))
+            self.run_analysis('epchain',
+                             kwargs.get('epchain_args', []),
+                             rerun = kwargs.get('rerun', False),
+                             logFile=kwargs.get('logFile', 'epchain.log'))
 
         if run_emproc and not run_emchain:
-            self.runanalysis('emproc',
-                            kwargs.get('emproc_args', []),
-                            rerun = kwargs.get('rerun', False),
-                            logFile=kwargs.get('logFile', 'emproc.log'))
+            self.run_analysis('emproc',
+                             kwargs.get('emproc_args', []),
+                             rerun = kwargs.get('rerun', False),
+                             logFile=kwargs.get('logFile', 'emproc.log'))
             
         if run_emchain:
-            self.runanalysis('emchain',
-                            kwargs.get('emchain_args', []),
-                            rerun = kwargs.get('rerun', False),
-                            logFile=kwargs.get('logFile', 'emchain.log'))
+            self.run_analysis('emchain',
+                             kwargs.get('emchain_args', []),
+                             rerun = kwargs.get('rerun', False),
+                             logFile=kwargs.get('logFile', 'emchain.log'))
             
         if run_rgsproc:
-            self.runanalysis('rgsproc',
-                            kwargs.get('rgsproc_args', []),
-                            rerun = kwargs.get('rerun', False),
-                            logFile=kwargs.get('logFile', 'rgsproc.log'))
+            self.run_analysis('rgsproc',
+                             kwargs.get('rgsproc_args', []),
+                             rerun = kwargs.get('rerun', False),
+                             logFile=kwargs.get('logFile', 'rgsproc.log'))
         
         if run_omichain:
-            self.runanalysis('omichain',
-                            kwargs.get('omichain_args', []),
-                            rerun = kwargs.get('rerun', False),
-                            logFile=kwargs.get('logFile', 'omichain.log'))
+            self.run_analysis('omichain',
+                             kwargs.get('omichain_args', []),
+                             rerun = kwargs.get('rerun', False),
+                             logFile=kwargs.get('logFile', 'omichain.log'))
     
     def get_active_instruments(self):
         """
@@ -842,6 +884,15 @@ class ODFobject(object):
         Checks the observation directory (obs_dir) for basic unfiltered 
         event list files created by 'epproc', 'emproc', 'rgsproc', and 
         'omichain'. Stores paths and file names in self.files.
+
+        'self.files' is a dictionary with the following keys:
+
+            'PNevt_list'
+            'M1evt_list'
+            'M2evt_list'
+            'R1evt_list'
+            'R2evt_list'
+            'OMevt_list'
         """
 
         self.get_active_instruments()
@@ -891,12 +942,10 @@ class ODFobject(object):
 
         return
     
-    #def check_(self,task):
-
 
 def generate_logger(logname=None,log_dir=None):
     """
-    
+    --Not intended to be used by the end user. Internal use only.--
     """
     if not logname:
         logname = 'general_sas'
@@ -926,10 +975,13 @@ def generate_logger(logname=None,log_dir=None):
 
 def download_data(odfid,data_dir,level='ODF',encryption_key=None,repo='esa',logger=None):
     """
+    --Not intended to be used by the end user. Internal use only.--
+    --Recommended to use pysas.odfcontrol.ODFobject.calibrate_odf instead.--
+
     Downloads, or copies, data from chosen repository. 
 
     Will silently overwrite any preexisting data files and remove any existing
-    pipeline products. Will create diretory stucture in 'data_dir' for odf.
+    pipeline products. Will create directory structure in 'data_dir' for odf.
 
     Inputs:
 
@@ -944,7 +996,7 @@ def download_data(odfid,data_dir,level='ODF',encryption_key=None,repo='esa',logg
                                         Default: 'ODF'
                                         Can be 'ODF, 'PPS' or 'ALL'.
 
-            --encryption_key: (string): Encryption key for propietary data, a string 32 
+            --encryption_key: (string): Encryption key for proprietary data, a string 32 
                                         characters long. -OR- path to file containing 
                                         ONLY the encryption key.
 
