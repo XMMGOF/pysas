@@ -1,4 +1,4 @@
-# setuppysas.py
+# setup_pysas.py
 #
 # Written by: Ryan Tanner
 # email: ryan.tanner@nasa.gov
@@ -18,7 +18,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with SAS. If not, see <http://www.gnu.org/licenses/>.
 
-# setuppysas.py
+# setup_pysas.py
 
 """
     The purpose of this script is so that the user can set the pySAS
@@ -267,7 +267,7 @@ if download_calibration:
     if esa_or_nasa in esa:
         cmd = f'rsync -v -a --delete --delete-after --force --include=\'*.CCF\' --exclude=\'*/\' sasdev-xmm.esac.esa.int::XMM_VALID_CCF {sas_ccfpath}'
     elif esa_or_nasa in nasa:
-        cmd = f'wget -m -nH --cut-dirs=4 -e robots=off -l 2 -np -R "index.html*" https://heasarc.gsfc.nasa.gov/FTP/xmm/data/CCF -P {sas_ccfpath}'
+        cmd = f'wget -nH --no-remove-listing -N -np -r --cut-dirs=4 -e robots=off -l 1 -R "index.html*" https://heasarc.gsfc.nasa.gov/FTP/xmm/data/CCF/ -P {sas_ccfpath}'
     print(f'Downloading calibration data using the command:\n{cmd}')
     print('This may take a while.')
     time.sleep(3)
