@@ -243,7 +243,8 @@ class ODFobject(object):
     def calibrate_odf(self,data_dir=None,level='ODF',
                sas_ccf=None,sas_odf=None,
                cifbuild_opts=None,odfingest_opts=None,
-               encryption_key=None,overwrite=False,repo='esa'):
+               encryption_key=None,overwrite=False,
+               recalibrate=False,repo='esa'):
         """
         Before running this function an ODFobject must be created first. e.g.
 
@@ -292,6 +293,8 @@ class ODFobject(object):
 
             --overwrite:     (boolean): If True will force overwrite of data if odfid 
                                         data already exists in data_dir/.
+
+            --recalibrate:   (boolean): If True will rerun odfingest and cifbuild.
 
             --repo:           (string): Which repository to use to download data. 
                                         Default: 'esa'
@@ -364,12 +367,12 @@ class ODFobject(object):
         else:
             logger.log('info', f'SAS_DIR = {sasdir}') 
 
-        sasccfpath = os.environ.get('SAS_CCFPATH')
-        if not sasccfpath:
+        sas_ccfpath = os.environ.get('SAS_CCFPATH')
+        if not sas_ccfpath:
             logger.log('error', 'SAS_CCFPATH not set. Please define it.')
             raise Exception('SAS_CCFPATH not set. Please define it.')
         else:
-            logger.log('info',f'SAS_CCFPATH = {sasccfpath}')
+            logger.log('info',f'SAS_CCFPATH = {sas_ccfpath}')
         
         os.chdir(self.data_dir)
         logger.log('info', f'Changed directory to {self.data_dir}')
@@ -390,7 +393,7 @@ class ODFobject(object):
         # Checks if obs_dir exists. Removes it if overwrite = True.
         # Default overwrite = False.
         if os.path.exists(self.obs_dir):
-            if not overwrite:
+            if not overwrite and not recalibrate:
                 logger.log('info', f'Existing directory for {self.odfid} found ...')
                 logger.log('info', f'Searching {self.data_dir}/{self.odfid} for ccf.cif and *SUM.SAS files ...')
 
@@ -413,7 +416,6 @@ class ODFobject(object):
                         sys.exit(1)
 
                 # Set 'SAS_CCF' enviroment variable.
-                #### Potential Bug Here, check it out. obs_dir exists, overwrite False, but ccf.cif doesn't exist, causes problem?
                 os.environ['SAS_CCF'] = self.files['sas_ccf']
                 logger.log('info', 'SAS_CCF = {0}'.format(self.files['sas_ccf']))
                 print('SAS_CCF = {}'.format(self.files['sas_ccf']))
@@ -460,11 +462,13 @@ class ODFobject(object):
                 if not os.path.exists(self.work_dir): os.mkdir(self.work_dir)
                 # Exit the calibrate_odf function. Everything is set.
                 return
-            else:
+            elif overwrite:
                 # If obs_dir exists and overwrite = True then remove obs_dir.
                 logger.log('info', f'Removing existing directory {self.obs_dir} ...')
                 print(f'\n\nRemoving existing directory {self.obs_dir} ...')
                 shutil.rmtree(self.obs_dir)
+            elif recalibrate:
+                self.run_caliration(self,cifbuild_opts,odfingest_opts,logger)
 
         # Start fresh with new download.
         # Identify the download level.
@@ -491,121 +495,130 @@ class ODFobject(object):
             logger.log('info', f'PPS products can be found in {ppsdir}')
             print(f'\nPPS products can be found in {ppsdir}\n\nLink to Observation Summary html: {ppssumhtmllink}')
         else:
-            # Run cifbuild and odfingest on the new data.
-            os.chdir(self.odf_dir)
-            logger.log('info', f'Changed directory to {self.odf_dir}')
+            self.run_caliration(self,cifbuild_opts,odfingest_opts,logger)
 
-            # Checks that the MANIFEST file is there
-            MANIFEST = glob.glob('MANIFEST*')
-            try:
-                os.path.exists(MANIFEST[0])
-                logger.log('info', f'File {MANIFEST[0]} exists')
-            except FileExistsError:
-                logger.log('error', f'File {MANIFEST[0]} not present. Please check ODF!')
-                print(f'File {MANIFEST[0]} not present. Please check ODF!')
-                sys.exit(1)
+    def run_caliration(self,cifbuild_opts,odfingest_opts,logger):
+        """
+        --Not intended to be used by the end user. Internal use only.--
 
-            # Here the ODF is fully untarred below odfid subdirectory
-            # Now we start preparing the SAS_ODF and SAS_CCF
-            logger.log('info', f'Setting SAS_ODF = {self.odf_dir}')
-            print(f'\nSetting SAS_ODF = {self.odf_dir}')
-            os.environ['SAS_ODF'] = self.odf_dir
+        Making this a separate function since it can be called from different places.
+        Prevent duplication of code.
+        """
+        # Run cifbuild and odfingest on the new data.
+        os.chdir(self.odf_dir)
+        logger.log('info', f'Changed directory to {self.odf_dir}')
 
-            # Change to working directory
-            if not os.path.exists(self.work_dir): os.mkdir(self.work_dir)
-            os.chdir(self.work_dir)
+        # Checks that the MANIFEST file is there
+        MANIFEST = glob.glob('MANIFEST*')
+        try:
+            os.path.exists(MANIFEST[0])
+            logger.log('info', f'File {MANIFEST[0]} exists')
+        except FileExistsError:
+            logger.log('error', f'File {MANIFEST[0]} not present. Please check ODF!')
+            print(f'File {MANIFEST[0]} not present. Please check ODF!')
+            sys.exit(1)
 
-            # Run cifbuild
-            if cifbuild_opts:
-                cifbuild_opts_list = cifbuild_opts.split(" ") 
-                cmd = ['cifbuild']
-                cmd = cmd + cifbuild_opts_list
-                logger.log('info', f'Running cifbuild with {cifbuild_opts} ...')
-                print(f'\nRunning cifbuild with {cifbuild_opts} ...')
-            else:
-                cmd = ['cifbuild']
-                logger.log('info', f'Running cifbuild...')
-                print(f'\nRunning cifbuild...')
-            
-            ##### Running cifbuild
-            rc = subprocess.run(cmd)
-            if rc.returncode != 0:
-                logger.log('error', 'cifbuild failed to complete')
-                raise Exception('cifbuild failed to complete')
-            
-            # Check whether ccf.cif is produced or not
-            ccfcif = glob.glob('ccf.cif')
-            try:
-                os.path.exists(ccfcif[0])
-                logger.log('info', f'CIF file {ccfcif[0]} created')
-            except FileExistsError:
-                logger.log('error','The ccf.cif was not produced')
-                print('ccf.cif file is not produced')
-                sys.exit(1)
-            
-            # Sets SAS_CCF variable
-            fullccfcif = os.path.join(self.work_dir, 'ccf.cif')
-            logger.log('info', f'Setting SAS_CCF = {fullccfcif}')
-            print(f'\nSetting SAS_CCF = {fullccfcif}')
-            os.environ['SAS_CCF'] = fullccfcif
-            self.files['sas_ccf'] = fullccfcif
+        # Here the ODF is fully untarred below odfid subdirectory
+        # Now we start preparing the SAS_ODF and SAS_CCF
+        logger.log('info', f'Setting SAS_ODF = {self.odf_dir}')
+        print(f'\nSetting SAS_ODF = {self.odf_dir}')
+        os.environ['SAS_ODF'] = self.odf_dir
 
-            # Now run odfingest
-            if odfingest_opts:
-                odfingest_opts_list = odfingest_opts.split(" ")
-                cmd = ['odfingest'] 
-                cmd = cmd + odfingest_opts_list
-                logger.log('info', f'Running odfingest with {odfingest_opts} ...')
-                print(f'\nRunning odfingest with {odfingest_opts} ...')
-            else:
-                cmd = ['odfingest']
-                logger.log('info','Running odfingest...') 
-                print('\nRunning odfingest...')
-            
-            ##### Running odfingest
-            rc = subprocess.run(cmd)
-            if rc.returncode != 0:
-                logger.log('error', 'odfingest failed to complete')
-                raise Exception('odfingest failed to complete.')
-            else:
-                logger.log('info', 'odfingest successfully completed')
+        # Change to working directory
+        if not os.path.exists(self.work_dir): os.mkdir(self.work_dir)
+        os.chdir(self.work_dir)
 
-            # Check whether the SUM.SAS has been produced or not
-            sumsas = glob.glob('*SUM.SAS')
-            try:
-                os.path.exists(sumsas[0])
-                logger.log('info', f'SAS summary file {sumsas[0]} created')
-            except FileExistsError:
-                logger.log('error','SUM.SAS file was not produced') 
-                print('SUM.SAS file was not produced')
-                sys.exit(1)
-            
-            # Set the SAS_ODF to the SUM.SAS file
-            fullsumsas = os.path.join(self.work_dir, sumsas[0])
-            os.environ['SAS_ODF'] = fullsumsas
-            logger.log('info', f'Setting SAS_ODF = {fullsumsas}')
-            print(f'\nSetting SAS_ODF = {fullsumsas}')
-            self.files['sas_odf'] = fullsumsas
-            
-            # Check that the SUM.SAS file has the right PATH keyword
-            with open(self.files['sas_odf']) as inf:
-                lines = inf.readlines()
-                for line in lines:
-                    if 'PATH' in line:
-                        key, path = line.split()
-                        if path != self.odf_dir:
-                            logger.log('error', f'SAS summary file PATH {path} mismatchs {self.odf_dir}')
-                            raise Exception(f'SAS summary file PATH {path} mismatchs {self.odf_dir}')
-                        else:
-                            logger.log('info', f'Summary file PATH keyword matches {self.odf_dir}')
-                            print(f'\nWarning: Summary file PATH keyword matches {self.odf_dir}')
+        # Run cifbuild
+        if cifbuild_opts:
+            cifbuild_opts_list = cifbuild_opts.split(" ") 
+            cmd = ['cifbuild']
+            cmd = cmd + cifbuild_opts_list
+            logger.log('info', f'Running cifbuild with {cifbuild_opts} ...')
+            print(f'\nRunning cifbuild with {cifbuild_opts} ...')
+        else:
+            cmd = ['cifbuild']
+            logger.log('info', f'Running cifbuild...')
+            print(f'\nRunning cifbuild...')
+        
+        ##### Running cifbuild
+        rc = subprocess.run(cmd)
+        if rc.returncode != 0:
+            logger.log('error', 'cifbuild failed to complete')
+            raise Exception('cifbuild failed to complete')
+        
+        # Check whether ccf.cif is produced or not
+        ccfcif = glob.glob('ccf.cif')
+        try:
+            os.path.exists(ccfcif[0])
+            logger.log('info', f'CIF file {ccfcif[0]} created')
+        except FileExistsError:
+            logger.log('error','The ccf.cif was not produced')
+            print('ccf.cif file is not produced')
+            sys.exit(1)
+        
+        # Sets SAS_CCF variable
+        fullccfcif = os.path.join(self.work_dir, 'ccf.cif')
+        logger.log('info', f'Setting SAS_CCF = {fullccfcif}')
+        print(f'\nSetting SAS_CCF = {fullccfcif}')
+        os.environ['SAS_CCF'] = fullccfcif
+        self.files['sas_ccf'] = fullccfcif
 
-            self.get_active_instruments()
+        # Now run odfingest
+        if odfingest_opts:
+            odfingest_opts_list = odfingest_opts.split(" ")
+            cmd = ['odfingest'] 
+            cmd = cmd + odfingest_opts_list
+            logger.log('info', f'Running odfingest with {odfingest_opts} ...')
+            print(f'\nRunning odfingest with {odfingest_opts} ...')
+        else:
+            cmd = ['odfingest']
+            logger.log('info','Running odfingest...') 
+            print('\nRunning odfingest...')
+        
+        ##### Running odfingest
+        rc = subprocess.run(cmd)
+        if rc.returncode != 0:
+            logger.log('error', 'odfingest failed to complete')
+            raise Exception('odfingest failed to complete.')
+        else:
+            logger.log('info', 'odfingest successfully completed')
 
-            print(f'''\n\n
-            SAS_CCF = {self.files['sas_ccf']}
-            SAS_ODF = {self.files['sas_odf']}
-            \n''')
+        # Check whether the SUM.SAS has been produced or not
+        sumsas = glob.glob('*SUM.SAS')
+        try:
+            os.path.exists(sumsas[0])
+            logger.log('info', f'SAS summary file {sumsas[0]} created')
+        except FileExistsError:
+            logger.log('error','SUM.SAS file was not produced') 
+            print('SUM.SAS file was not produced')
+            sys.exit(1)
+        
+        # Set the SAS_ODF to the SUM.SAS file
+        fullsumsas = os.path.join(self.work_dir, sumsas[0])
+        os.environ['SAS_ODF'] = fullsumsas
+        logger.log('info', f'Setting SAS_ODF = {fullsumsas}')
+        print(f'\nSetting SAS_ODF = {fullsumsas}')
+        self.files['sas_odf'] = fullsumsas
+        
+        # Check that the SUM.SAS file has the right PATH keyword
+        with open(self.files['sas_odf']) as inf:
+            lines = inf.readlines()
+            for line in lines:
+                if 'PATH' in line:
+                    key, path = line.split()
+                    if path != self.odf_dir:
+                        logger.log('error', f'SAS summary file PATH {path} mismatchs {self.odf_dir}')
+                        raise Exception(f'SAS summary file PATH {path} mismatchs {self.odf_dir}')
+                    else:
+                        logger.log('info', f'Summary file PATH keyword matches {self.odf_dir}')
+                        print(f'\nWarning: Summary file PATH keyword matches {self.odf_dir}')
+
+        self.get_active_instruments()
+
+        print(f'''\n\n
+        SAS_CCF = {self.files['sas_ccf']}
+        SAS_ODF = {self.files['sas_odf']}
+        \n''')
 
     def odfcompile(self,data_dir=None,level='ODF',
                sas_ccf=None,sas_odf=None,
@@ -746,6 +759,7 @@ class ODFobject(object):
             odfingest_opts = None
             encryption_key = None
             overwrite      = False
+            recalibrate    = False
             repo           = 'esa'
 
         Input arguments for 'epproc', 'emproc', and 'rgsproc' can also be 
@@ -769,6 +783,11 @@ class ODFobject(object):
 
                 - Will erase any previous data files for the Obs ID and 
                   download a fresh set of data files.
+
+            odf.basic_setup(recalibrate=True)
+
+                - Will rerun cifbuild and odfingest to generate new 
+                  ccf.cif and *SUM.SAS files.
 
             odf.basic_setup(rerun=True)
 
