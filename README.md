@@ -65,7 +65,14 @@ A: One thing at a time. We're still working on pip.
 
 Q: Can I use pySAS to update the XMM-Newton calibration files?
 
-A: Not yet! But that is something we are working on!
+A: Yes! Just start a Python session and run the following commands:
+
+```python
+import pysas
+pysas.sasutils.update_calibration_files()
+```
+
+This will download new calibration files.
 
 Q: What version of pySAS is installed on SciServer?
 
