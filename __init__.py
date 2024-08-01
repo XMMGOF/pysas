@@ -9,6 +9,7 @@ from . import error
 from . import runtask
 from . import configutils
 from . import init_sas
+from . import sasutils
 from .version import *
 from .odfcontrol import odfcontrol
 
