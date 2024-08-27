@@ -116,11 +116,20 @@ class ODFobject(object):
         Basic method for setting the environment variables for a single 
         'ObsID'.
 
-        Checks if obs_dir exists in data_dir. If it exists looks for 
-        existing odf_dir, work_dir, SAS_CCF, and SAS_ODF. Similar to 
-        calibrate_odf, but will not download any data, will not 
-        calibrate it, or do anything other than link to files and 
-        directories. 
+        Checks for the existence of various directories. If a directory 
+        is not found then set_odfid will stop and use 'return' command.
+        Directories that will be checked for (in this order):
+            
+            data_dir
+            obs_dir
+            odf_dir -or- pps_dir
+            work_dir
+
+        Then checks for the ccf.cif, *SUM.SAS files and event lists.
+
+        Similar to calibrate_odf, but will not download any data, 
+        will not calibrate it, or do anything other than link to 
+        files and directories. 
         """
 
         # Where are we?
@@ -143,42 +152,41 @@ class ODFobject(object):
         # Set directories for the observation, odf, pps, and work.
         self.obs_dir  = os.path.join(self.data_dir,self.odfid)
         self.odf_dir  = os.path.join(self.obs_dir,'ODF')
+        self.pps_dir  = os.path.join(self.obs_dir,'PPS')
         self.work_dir = os.path.join(self.obs_dir,'work')
 
         if os.path.exists(self.obs_dir):
             print(f'obs_dir found at {self.obs_dir}.')
-            if os.path.exists(self.odf_dir):
-                print(f'odf_dir found at {self.odf_dir}.')
-            else:
-                print(f'odf_dir not found! User must run calibrate_odf!')
-                return
-            if os.path.exists(self.work_dir):
-                print(f'work_dir found at {self.work_dir}.')
-            else:
-                print(f'work_dir not found! User must run calibrate_odf!')
-                return
         else:
             # obs_dir not found! Nothing can be done!
             return
+        
+        if os.path.exists(self.odf_dir):
+            print(f'odf_dir found at {self.odf_dir}.')
+            if os.path.exists(self.pps_dir):
+                print(f'pps_dir found at {self.pps_dir}.')
+        else:
+            if os.path.exists(self.pps_dir):
+                print(f'pps_dir found at {self.pps_dir}.')
+            else:
+                print(f'ODF and PPS directories not found! User must download data!')
+                return
+        
+        if os.path.exists(self.work_dir):
+            print(f'work_dir found at {self.work_dir}.')
+        else:
+            print(f'work_dir not found! User must run create it!')
+            return
 
+        # Only generate logger if observation directory exists.
         logger = generate_logger(logname='odf_'+self.odfid, log_dir=self.data_dir)
         logger.log('info', f'Data directory = {self.data_dir}')
         logger.log('info', f'Existing directory for {self.odfid} found ...')
         logger.log('info', f'Searching {self.data_dir}/{self.odfid} for ccf.cif and *SUM.SAS files ...')
 
         # Looking for ccf.cif file.
-        self.files['sas_ccf'] = os.path.join('does','not','exist')
-        logger.log('info', f'Searching for ccf.cif.')
-        for path, directories, files in os.walk(self.obs_dir):
-            for file in files:
-                if 'ccf.cif' in file:
-                    logger.log('info', f'Found ccf.cif file in {path}.')
-                    self.files['sas_ccf'] = os.path.join(path,file)
-        # Check if ccf.cif file exists.
-        if os.path.exists(self.files['sas_ccf']):
-            logger.log('info', '{0} is present'.format(self.files['sas_ccf']))
-        else:
-            logger.log('error', 'ccf.cif file not present! User must run calibrate_odf!')
+        exists = self.check_for_ccf_cif(logger)
+        if not exists:
             print('ccf.cif file not present! User must run calibrate_odf!')
             return
 
@@ -188,34 +196,10 @@ class ODFobject(object):
         print('SAS_CCF = {}'.format(self.files['sas_ccf']))
 
         # Looking for *SUM.SAS file.
-        self.files['sas_odf'] = os.path.join('does','not','exist')
-        logger.log('info', f'Path to *SUM.SAS file not given. Will search for it.')
-        for path, directories, files in os.walk(self.obs_dir):
-            for file in files:
-                if 'SUM.SAS' in file:
-                    logger.log('info', f'Found *SUM.SAS file in {path}.')
-                    self.files['sas_odf'] = os.path.join(path,file)
-        # Check if *SUM.SAS file exists.
-        if os.path.exists(self.files['sas_odf']):
-            logger.log('info', '{0} is present'.format(self.files['sas_odf']))
-        else:
-            logger.log('error', 'sas_odf file not present! User must run calibrate_odf!')
-            print('sas_odf file not present! User must run calibrate_odf!')
+        exists = self.check_for_SUM_SAS(logger)
+        if not exists:
+            print('*SUM.SAS file not present! User must run calibrate_odf!')
             return
-        
-        # Check that the SUM.SAS file PATH keyword points to a real ODF directory
-        with open(self.files['sas_odf']) as inf:
-            lines = inf.readlines()
-            for line in lines:
-                if 'PATH' in line:
-                    key, path = line.split()
-                    if not os.path.exists(path):
-                        logger.log('error', f'Summary file PATH {path} does not exist. Rerun calibrate_odf with overwrite=True.')
-                        print(f'\nSummary file PATH {path} does not exist. \n\n>>>>Rerun calibrate_odf with overwrite=True.')
-                    MANIFEST = glob.glob(os.path.join(path, 'MANIFEST*'))
-                    if not os.path.exists(MANIFEST[0]):
-                        logger.log('error', f'Missing {MANIFEST[0]} file in {path}. Missing ODF components? Rerun calibrate_odf with overwrite=True.')
-                        print(f'\nMissing {MANIFEST[0]} file in {path}. Missing ODF components? \n\n>>>>Rerun calibrate_odf with overwrite=True.')
         
         # Set 'SAS_ODF' enviroment variable.
         os.environ['SAS_ODF'] = self.files['sas_odf']
@@ -241,16 +225,18 @@ class ODFobject(object):
         os.environ['SAS_SUPPRESS_WARNING'] = '{}'.format(self.suppress_warning)
 
     def calibrate_odf(self,data_dir=None,level='ODF',
-               sas_ccf=None,sas_odf=None,
-               cifbuild_opts=None,odfingest_opts=None,
-               encryption_key=None,overwrite=False,
-               recalibrate=False,repo='esa'):
+                      sas_ccf=None,sas_odf=None,
+                      cifbuild_opts=[],odfingest_opts=[],
+                      encryption_key=None,overwrite=False,
+                      recalibrate=False,repo='esa'):
         """
         Before running this function an ODFobject must be created first. e.g.
 
             odf = pysas.odfcontrol.ODFobject(obsid)
 
-        This function can then be used as, odf.calibrate_odf().
+        This function can then be used as, 
+        
+            odf.calibrate_odf()
 
         The calibrate_odf function will automatically look in data_dir for the subdirectory 
         data_dir/odfid. If it does not exist then it will download the data.
@@ -283,9 +269,9 @@ class ODFobject(object):
 
             --sas_odf:   (string/path): Path to *SUM.SAS file for odfid.
 
-            --cifbuild_opts:  (string): Options for cifbuild.
+            --cifbuild_opts:    (list): Options for cifbuild.
 
-            --odfingest_opts: (string): Options for odfingest.
+            --odfingest_opts:   (list): Options for odfingest.
 
             --encryption_key: (string): Encryption key for proprietary data, a string 32 
                                         characters long. -OR- Path to file containing 
@@ -346,7 +332,11 @@ class ODFobject(object):
         self.level = level
         self.files['sas_ccf'] = sas_ccf
         self.files['sas_odf'] = sas_odf
+        if cifbuild_opts == None:
+            cifbuild_opts = []
         self.cifbuild_opts = cifbuild_opts
+        if odfingest_opts == None:
+            odfingest_opts = []
         self.odfingest_opts = odfingest_opts
         self.encryption_key = encryption_key
         self.repo = repo
@@ -390,67 +380,66 @@ class ODFobject(object):
         self.odf_dir  = os.path.join(self.obs_dir,'ODF')
         self.work_dir = os.path.join(self.obs_dir,'work')
 
-        # Checks if obs_dir exists. Removes it if overwrite = True.
-        # Default overwrite = False.
+        # Checks if obs_dir exists. 
+        # Removes it if overwrite = True. Default overwrite = False.
+        # Runs calibration if recalibrate = True. Default recalibrate = False
+        # Else, looks for ccf.cif and *SUM.SAS files.
+        # If ccf.cif and *SUM.SAS files are not found then will run calibration.
         if os.path.exists(self.obs_dir):
-            if not overwrite and not recalibrate:
-                logger.log('info', f'Existing directory for {self.odfid} found ...')
-                logger.log('info', f'Searching {self.data_dir}/{self.odfid} for ccf.cif and *SUM.SAS files ...')
-
+            logger.log('info', f'Existing directory for {self.odfid} found ...')
+            if overwrite:
+                # If obs_dir exists and overwrite = True then remove obs_dir.
+                # If the obs_dir is removed then we don't have to do anything else.
+                logger.log('info', f'Removing existing directory {self.obs_dir} ...')
+                print(f'\n\nRemoving existing directory {self.obs_dir} ...')
+                shutil.rmtree(self.obs_dir)
+            elif recalibrate:
+                self.run_calibration(cifbuild_opts,odfingest_opts,logger)
+            else:
+                logger.log('info', f'Searching {self.obs_dir} for ccf.cif and *SUM.SAS files ...')
                 # Looking for ccf.cif file.
                 if self.files['sas_ccf'] == None:
-                    logger.log('info', f'Path to ccf.cif file not given. Will search for it.')
-                    for path, directories, files in os.walk(self.obs_dir):
-                        for file in files:
-                            if 'ccf.cif' in file:
-                                logger.log('info', f'Found ccf.cif file in {path}.')
-                                self.files['sas_ccf'] = os.path.join(path,file)
+                    ccf_exists = self.check_for_ccf_cif(logger)
                 else:
-                    # Check if ccf.cif file exists.
+                    # Check if ccf.cif file path given by user exists.
                     try:
                         os.path.exists(self.files['sas_ccf'])
                         logger.log('info', '{0} is present'.format(self.files['sas_ccf']))
+                        ccf_exists = True
                     except FileExistsError:
+                        # The only way to get this error is if the user provided a bad filename or path.
                         logger.log('error', 'File {0} not present! Please check if path is correct!'.format(self.files['sas_ccf']))
                         print('File {0} not present! Please check if path is correct!'.format(self.files['sas_ccf']))
                         sys.exit(1)
-
-                # Set 'SAS_CCF' enviroment variable.
-                os.environ['SAS_CCF'] = self.files['sas_ccf']
-                logger.log('info', 'SAS_CCF = {0}'.format(self.files['sas_ccf']))
-                print('SAS_CCF = {}'.format(self.files['sas_ccf']))
-
+                
                 # Looking for *SUM.SAS file.
                 if self.files['sas_odf'] == None:
-                    logger.log('info', f'Path to *SUM.SAS file not given. Will search for it.')
-                    for path, directories, files in os.walk(self.obs_dir):
-                        for file in files:
-                            if 'SUM.SAS' in file:
-                                logger.log('info', f'Found *SUM.SAS file in {path}.')
-                                self.files['sas_odf'] = os.path.join(path,file)
+                    SUM_exists = self.check_for_SUM_SAS(logger)                    
                 else:
-                    # Check if *SUM.SAS file exists.
+                    # Check if *SUM.SAS file path given by user exists.
                     try:
-                        os.path.exists(self.files['sas_odf'])
-                        logger.log('info', '{0} is present'.format(self.files['sas_odf']))
+                        SUM_exists = self.check_for_SUM_SAS(logger,user_defined_file=self.files['sas_odf'])
+                        if SUM_exists:
+                            logger.log('info', '{0} is present'.format(self.files['sas_odf']))
                     except FileExistsError:
+                        # The only way to get this error is if the user provided a bad filename or path.
                         logger.log('error', 'File {0} not present! Please check if path is correct!'.format(self.files['sas_odf']))
                         print('File {0} not present! Please check if path is correct!'.format(self.files['sas_odf']))
                         sys.exit(1)
-                        
-                # Check that the SUM.SAS file PATH keyword points to a real ODF directory
-                with open(self.files['sas_odf']) as inf:
-                    lines = inf.readlines()
-                    for line in lines:
-                        if 'PATH' in line:
-                            key, path = line.split()
-                            if not os.path.exists(path):
-                                logger.log('error', f'Summary file PATH {path} does not exist. Rerun calibrate_odf with overwrite=True.')
-                                raise Exception(f'Summary file PATH {path} does not exist. Rerun calibrate_odf with overwrite=True.')
-                            MANIFEST = glob.glob(os.path.join(path, 'MANIFEST*'))
-                            if not os.path.exists(MANIFEST[0]):
-                                logger.log('error', f'Missing {MANIFEST[0]} file in {path}. Missing ODF components? Rerun calibrate_odf with overwrite=True.')
-                                raise Exception(f'\nMissing {MANIFEST[0]} file in {path}. Missing ODF components? Rerun calibrate_odf with overwrite=True.')
+
+                if ccf_exists and SUM_exists:
+                    # Set 'SAS_CCF' enviroment variable.
+                    os.environ['SAS_CCF'] = self.files['sas_ccf']
+                    logger.log('info', 'SAS_CCF = {0}'.format(self.files['sas_ccf']))
+                    print('SAS_CCF = {}'.format(self.files['sas_ccf']))
+
+                    # Set 'SAS_ODF' enviroment variable.
+                    os.environ['SAS_ODF'] = self.files['sas_odf']
+                    logger.log('info', 'SAS_ODF = {0}'.format(self.files['sas_odf']))
+                    print('SAS_ODF = {0}'.format(self.files['sas_odf']))
+                else:
+                    # If the ccf.cif or *SUM.SAS files are not present, then run calibration.
+                    self.run_calibration(cifbuild_opts,odfingest_opts,logger) 
                 
                 # Set 'SAS_ODF' enviroment variable.
                 os.environ['SAS_ODF'] = self.files['sas_odf']
@@ -462,13 +451,6 @@ class ODFobject(object):
                 if not os.path.exists(self.work_dir): os.mkdir(self.work_dir)
                 # Exit the calibrate_odf function. Everything is set.
                 return
-            elif overwrite:
-                # If obs_dir exists and overwrite = True then remove obs_dir.
-                logger.log('info', f'Removing existing directory {self.obs_dir} ...')
-                print(f'\n\nRemoving existing directory {self.obs_dir} ...')
-                shutil.rmtree(self.obs_dir)
-            elif recalibrate:
-                self.run_caliration(self,cifbuild_opts,odfingest_opts,logger)
 
         # Start fresh with new download.
         # Identify the download level.
@@ -488,16 +470,16 @@ class ODFobject(object):
         # If only PPS files were requested then calibrate_odf stops here.
         # Else will run cifbuild and odfingest.
         if level == 'PPS':
-            ppsdir = os.path.join(self.data_dir, self.odfid, 'pps')
+            ppsdir = os.path.join(self.data_dir, self.odfid, 'PPS')
             ppssumhtml = 'P' + self.odfid + 'OBX000SUMMAR0000.HTM'
             ppssumhtmlfull = os.path.join(ppsdir, ppssumhtml)
             ppssumhtmllink = 'file://' + ppssumhtmlfull
             logger.log('info', f'PPS products can be found in {ppsdir}')
             print(f'\nPPS products can be found in {ppsdir}\n\nLink to Observation Summary html: {ppssumhtmllink}')
         else:
-            self.run_caliration(self,cifbuild_opts,odfingest_opts,logger)
+            self.run_calibration(cifbuild_opts,odfingest_opts,logger)
 
-    def run_caliration(self,cifbuild_opts,odfingest_opts,logger):
+    def run_calibration(self,cifbuild_opts,odfingest_opts,logger):
         """
         --Not intended to be used by the end user. Internal use only.--
 
@@ -529,22 +511,9 @@ class ODFobject(object):
         os.chdir(self.work_dir)
 
         # Run cifbuild
-        if cifbuild_opts:
-            cifbuild_opts_list = cifbuild_opts.split(" ") 
-            cmd = ['cifbuild']
-            cmd = cmd + cifbuild_opts_list
-            logger.log('info', f'Running cifbuild with {cifbuild_opts} ...')
-            print(f'\nRunning cifbuild with {cifbuild_opts} ...')
-        else:
-            cmd = ['cifbuild']
-            logger.log('info', f'Running cifbuild...')
-            print(f'\nRunning cifbuild...')
-        
-        ##### Running cifbuild
-        rc = subprocess.run(cmd)
-        if rc.returncode != 0:
-            logger.log('error', 'cifbuild failed to complete')
-            raise Exception('cifbuild failed to complete')
+        logger.log('info', f'Running cifbuild with inputs: {cifbuild_opts} ...')
+        print(f'\nRunning cifbuild with inputs: {cifbuild_opts} ...')
+        w('cifbuild',cifbuild_opts).run()
         
         # Check whether ccf.cif is produced or not
         ccfcif = glob.glob('ccf.cif')
@@ -564,24 +533,9 @@ class ODFobject(object):
         self.files['sas_ccf'] = fullccfcif
 
         # Now run odfingest
-        if odfingest_opts:
-            odfingest_opts_list = odfingest_opts.split(" ")
-            cmd = ['odfingest'] 
-            cmd = cmd + odfingest_opts_list
-            logger.log('info', f'Running odfingest with {odfingest_opts} ...')
-            print(f'\nRunning odfingest with {odfingest_opts} ...')
-        else:
-            cmd = ['odfingest']
-            logger.log('info','Running odfingest...') 
-            print('\nRunning odfingest...')
-        
-        ##### Running odfingest
-        rc = subprocess.run(cmd)
-        if rc.returncode != 0:
-            logger.log('error', 'odfingest failed to complete')
-            raise Exception('odfingest failed to complete.')
-        else:
-            logger.log('info', 'odfingest successfully completed')
+        logger.log('info', f'Running odfingest with inputs: {odfingest_opts} ...')
+        print(f'\nRunning odfingest with inputs: {odfingest_opts} ...')
+        w('odfingest',odfingest_opts).run()
 
         # Check whether the SUM.SAS has been produced or not
         sumsas = glob.glob('*SUM.SAS')
@@ -622,7 +576,7 @@ class ODFobject(object):
 
     def odfcompile(self,data_dir=None,level='ODF',
                sas_ccf=None,sas_odf=None,
-               cifbuild_opts=None,odfingest_opts=None,
+               cifbuild_opts=[],odfingest_opts=[],
                encryption_key=None,overwrite=False,repo='esa'):
         # print("Deprication Warning: 'odfcompile' has been replaced by 'calibrate_odf'. \n
         # 'odfcompile' will for now point to 'calibrate_odf', but 'odfcompile' will be removed\n
@@ -630,10 +584,10 @@ class ODFobject(object):
         """
         Depricated function. Replaced by self.calibrate_odf.
         """
-        self.calibrate_odf(data_dir=None,level='ODF',
-                            sas_ccf=None,sas_odf=None,
-                            cifbuild_opts=None,odfingest_opts=None,
-                            encryption_key=None,overwrite=False,repo='esa')
+        self.calibrate_odf(data_dir=data_dir,level=level,
+                            sas_ccf=sas_ccf,sas_odf=sas_odf,
+                            cifbuild_opts=cifbuild_opts,odfingest_opts=odfingest_opts,
+                            encryption_key=encryption_key,overwrite=overwrite,repo=repo)
 
     def run_analysis(self,task,inargs,rerun=False,logFile='DEFAULT'):
         """
@@ -755,8 +709,8 @@ class ODFobject(object):
             level          = 'ODF'
             sas_ccf        = None
             sas_odf        = None
-            cifbuild_opts  = None
-            odfingest_opts = None
+            cifbuild_opts  = []
+            odfingest_opts = []
             encryption_key = None
             overwrite      = False
             recalibrate    = False
@@ -824,8 +778,8 @@ class ODFobject(object):
                            level          = kwargs.get('level', 'ODF'),
                            sas_ccf        = kwargs.get('sas_ccf', None),
                            sas_odf        = kwargs.get('sas_odf', None),
-                           cifbuild_opts  = kwargs.get('cifbuild_opts', None),
-                           odfingest_opts = kwargs.get('odfingest_opts', None),
+                           cifbuild_opts  = kwargs.get('cifbuild_opts', []),
+                           odfingest_opts = kwargs.get('odfingest_opts', []),
                            encryption_key = kwargs.get('encryption_key', None),
                            overwrite      = kwargs.get('overwrite', False),
                            repo           = kwargs.get('repo', 'esa'))
@@ -960,6 +914,79 @@ class ODFobject(object):
                         print("    " + x + "\n")
 
         return
+    
+    def check_for_ccf_cif(self,logger):
+        """
+        --Not intended to be used by the end user. Internal use only.--
+
+        Checks for the ccf.cif file. Making this a function since it is 
+        used in several places.
+        """
+
+        exists = False
+
+        # Looking for ccf.cif file.
+        self.files['sas_ccf'] = os.path.join('does','not','exist')
+        logger.log('info', f'Searching for ccf.cif.')
+        for path, directories, files in os.walk(self.obs_dir):
+            for file in files:
+                if 'ccf.cif' in file:
+                    logger.log('info', f'Found ccf.cif file in {path}.')
+                    self.files['sas_ccf'] = os.path.join(path,file)
+        
+        # Check if ccf.cif file exists.
+        if os.path.exists(self.files['sas_ccf']):
+            logger.log('info', '{0} is present'.format(self.files['sas_ccf']))
+            exists = True
+        else:
+            logger.log('warning', 'ccf.cif file not present! User must run calibrate_odf!')
+
+        return exists
+    
+    def check_for_SUM_SAS(self,logger,user_defined_file=None):
+        """
+        --Not intended to be used by the end user. Internal use only.--
+
+        Checks for the *SUM.SAS file. Making this a function since it is 
+        used in several places.
+        """
+
+        exists = False
+
+        if user_defined_file == None:
+            # Looking for *SUM.SAS file.
+            self.files['sas_odf'] = os.path.join('does','not','exist')
+            logger.log('info', f'Path to *SUM.SAS file not given. Will search for it.')
+            for path, directories, files in os.walk(self.obs_dir):
+                for file in files:
+                    if 'SUM.SAS' in file:
+                        logger.log('info', f'Found *SUM.SAS file in {path}.')
+                        self.files['sas_odf'] = os.path.join(path,file)
+        # Check if *SUM.SAS file exists.
+        if os.path.exists(self.files['sas_odf']):
+            logger.log('info', '{0} is present'.format(self.files['sas_odf']))
+            exists = True
+        else:
+            logger.log('warning', 'sas_odf file not present! User must run calibrate_odf!')
+            return exists
+        
+        # Check that the SUM.SAS file PATH keyword points to a real ODF directory
+        with open(self.files['sas_odf']) as inf:
+            lines = inf.readlines()
+            for line in lines:
+                if 'PATH' in line:
+                    key, path = line.split()
+                    if not os.path.exists(path):
+                        logger.log('error', f'Summary file PATH {path} does not exist. Rerun calibrate_odf with overwrite=True.')
+                        print(f'\nSummary file PATH {path} does not exist. \n\n>>>>Rerun calibrate_odf with overwrite=True.')
+                        exists = False
+                    MANIFEST = glob.glob(os.path.join(path, 'MANIFEST*'))
+                    if not os.path.exists(MANIFEST[0]):
+                        logger.log('error', f'Missing {MANIFEST[0]} file in {path}. Missing ODF components? Rerun calibrate_odf with overwrite=True.')
+                        print(f'\nMissing {MANIFEST[0]} file in {path}. Missing ODF components? \n\n>>>>Rerun calibrate_odf with overwrite=True.')
+                        exists = False
+
+        return exists
     
 
 def generate_logger(logname=None,log_dir=None):

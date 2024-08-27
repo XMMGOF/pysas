@@ -63,6 +63,7 @@ import os, subprocess, time, glob
 # Local application imports
 from pysas.configutils import sas_cfg, set_sas_config_option
 from pysas.init_sas import initializesas
+from pysas.sasutils import update_calibration_files
 
 __version__ = 'setuppysas (setuppysas-0.1)'
 
@@ -263,15 +264,17 @@ else:
     else:
         print(f'Default SAS_CCFPATH = {sas_ccfpath}')
 
+# Putting calibration file download in its own function since it is used in multiple locations.
 if download_calibration:
-    if esa_or_nasa in esa:
-        cmd = f'rsync -v -a --delete --delete-after --force --include=\'*.CCF\' --exclude=\'*/\' sasdev-xmm.esac.esa.int::XMM_VALID_CCF {sas_ccfpath}'
-    elif esa_or_nasa in nasa:
-        cmd = f'wget -nH --no-remove-listing -N -np -r --cut-dirs=4 -e robots=off -l 1 -R "index.html*" https://heasarc.gsfc.nasa.gov/FTP/xmm/data/CCF/ -P {sas_ccfpath}'
-    print(f'Downloading calibration data using the command:\n{cmd}')
-    print('This may take a while.')
-    time.sleep(3)
-    result = subprocess.run(cmd, shell=True)
+    result = update_calibration_files(repo=esa_or_nasa)
+    # if esa_or_nasa in esa:
+    #     cmd = f'rsync -v -a --delete --delete-after --force --include=\'*.CCF\' --exclude=\'*/\' sasdev-xmm.esac.esa.int::XMM_VALID_CCF {sas_ccfpath}'
+    # elif esa_or_nasa in nasa:
+    #     cmd = f'wget -nH --no-remove-listing -N -np -r --cut-dirs=4 -e robots=off -l 1 -R "index.html*" https://heasarc.gsfc.nasa.gov/FTP/xmm/data/CCF/ -P {sas_ccfpath}'
+    # print(f'Downloading calibration data using the command:\n{cmd}')
+    # print('This may take a while.')
+    # time.sleep(3)
+    # result = subprocess.run(cmd, shell=True)
 
 scomment = f"""
     Success!

@@ -30,9 +30,11 @@ import os, subprocess, time
 
 # Local application imports
 
+
+
 def update_calibration_files(repo='NASA'):
     """
-    Function to update XMM calibration files.
+    Function to download/update XMM calibration files.
     """
 
     sas_ccfpath = os.environ.get('SAS_CCFPATH')
@@ -52,3 +54,5 @@ def update_calibration_files(repo='NASA'):
     print('This may take a while.')
     time.sleep(3)
     result = subprocess.run(cmd, shell=True)
+
+    return result
