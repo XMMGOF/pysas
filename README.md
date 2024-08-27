@@ -39,7 +39,7 @@ It is recommended that you add this line to your .bash_profile file (or equivele
 
 ### Example Scripts
 
-We have included a few example scripts and Jupyter notebooks in the directory titled `example`. We will be expanding the number of example scripts and Jupyter notebooks.
+We have included a few example scripts and Jupyter notebooks in the directory titled `documentation`. We will be expanding the number of example scripts and Jupyter notebooks.
 
 ### FAQ
 
@@ -76,7 +76,7 @@ This will download new calibration files.
 
 Q: What version of pySAS is installed on SciServer?
 
-A: This one!
+A: The version 1.4.1a. Some changes to pySAS have been made since the HEASARC image was created for SciServer. The next time a new HEASARC image is created for SciServer all new changes to pySAS will be incorporated.
 
 Q: Why have this version of pySAS separate from the standard version you can download from ESA when you download SAS?
 
