@@ -40,7 +40,7 @@ from ..sasutils import generate_logger,download_data
 
 # __version__ = f'odfcontrol (startsas-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]' 
 __version__ = 'odfcontrol (odfcontrol-1.0)'
-__all__ = ['ODFobject', 'download_data']
+__all__ = ['ODFobject']
 
 
 class ODFobject(object):
@@ -229,7 +229,8 @@ class ODFobject(object):
                       sas_ccf=None,sas_odf=None,
                       cifbuild_opts=[],odfingest_opts=[],
                       encryption_key=None,overwrite=False,
-                      recalibrate=False,repo='esa'):
+                      recalibrate=False,repo='esa',proprietary=False,
+                      credentials_file=None,**kwargs):
         """
         Before running this function an ODFobject must be created first. e.g.
 
@@ -466,7 +467,8 @@ class ODFobject(object):
         # Function for downloading a single odfid set.
         download_data(self.odfid,self.data_dir,level=self.level,
                       encryption_key=self.encryption_key,repo=self.repo,
-                      logger=logger)
+                      logger=logger,proprietary=proprietary,
+                      credentials_file=credentials_file,**kwargs)
 
         # If only PPS files were requested then calibrate_odf stops here.
         # Else will run cifbuild and odfingest.
@@ -484,8 +486,8 @@ class ODFobject(object):
         """
         --Not intended to be used by the end user. Internal use only.--
 
-        Making this a separate function since it can be called from different places.
-        Prevent duplication of code.
+        Making this a separate function since it can be called from different 
+        inside the function calibrate_odf. Prevents duplication of code.
         """
         # Run cifbuild and odfingest on the new data.
         os.chdir(self.odf_dir)
@@ -686,7 +688,7 @@ class ODFobject(object):
 
     def basic_setup(self,run_epproc=True,run_emproc=True,run_rgsproc=True,
                     run_omichain=False,run_epchain=False,run_emchain=False
-                    , **kwargs):
+                    ,**kwargs):
         """
         Function to do all basic analysis tasks. The function will:
 
@@ -706,16 +708,18 @@ class ODFobject(object):
 
         'calibrate_odf' inputs (with defaults):
                
-            data_dir       = None
-            level          = 'ODF'
-            sas_ccf        = None
-            sas_odf        = None
-            cifbuild_opts  = []
-            odfingest_opts = []
-            encryption_key = None
-            overwrite      = False
-            recalibrate    = False
-            repo           = 'esa'
+            data_dir         = None
+            level            = 'ODF'
+            sas_ccf          = None
+            sas_odf          = None
+            cifbuild_opts    = []
+            odfingest_opts   = []
+            encryption_key   = None
+            overwrite        = False
+            recalibrate      = False
+            repo             = 'esa'
+            proprietary      = False
+            credentials_file = None
 
         Input arguments for 'epproc', 'emproc', and 'rgsproc' can also be 
         passed in using 'epproc_args', 'emproc_args', or 'rgsproc_args' 
@@ -773,17 +777,32 @@ class ODFobject(object):
 
                 - Will only run 'emproc', **not** 'epproc' or 'rgsproc'.
 
+            odf.basic_setup(repo='heasarc',encryption_key='XXXXXXXXXXXXXXX')
+
+                - Uses the defaults, but downloads *proprietary* data from 
+                  the HEASARC. Must provide an encryption key, an alpha-numeric
+                  string with 30 characters.
+
+            odf.basic_setup(proprietary=True)
+
+                - Uses the defaults, but downloads *proprietary* data from 
+                  the XSA at ESA. Astroquery will ask for user's Cosmos
+                  username and password.
+
         """
 
-        self.calibrate_odf(data_dir       = kwargs.get('data_dir', None),
-                           level          = kwargs.get('level', 'ODF'),
-                           sas_ccf        = kwargs.get('sas_ccf', None),
-                           sas_odf        = kwargs.get('sas_odf', None),
-                           cifbuild_opts  = kwargs.get('cifbuild_opts', []),
-                           odfingest_opts = kwargs.get('odfingest_opts', []),
-                           encryption_key = kwargs.get('encryption_key', None),
-                           overwrite      = kwargs.get('overwrite', False),
-                           repo           = kwargs.get('repo', 'esa'))
+        self.calibrate_odf(data_dir         = kwargs.get('data_dir', None),
+                           level            = kwargs.get('level', 'ODF'),
+                           sas_ccf          = kwargs.get('sas_ccf', None),
+                           sas_odf          = kwargs.get('sas_odf', None),
+                           cifbuild_opts    = kwargs.get('cifbuild_opts', []),
+                           odfingest_opts   = kwargs.get('odfingest_opts', []),
+                           encryption_key   = kwargs.get('encryption_key', None),
+                           overwrite        = kwargs.get('overwrite', False),
+                           repo             = kwargs.get('repo', 'esa'),
+                           proprietary      = kwargs.get('proprietary', False),
+                           credentials_file = kwargs.get('credentials_file', None),
+                           **kwargs)
 
         if run_epproc and not run_epchain:
             self.run_analysis('epproc',
