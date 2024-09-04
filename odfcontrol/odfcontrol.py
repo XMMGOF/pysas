@@ -176,7 +176,7 @@ class ODFobject(object):
         if os.path.exists(self.work_dir):
             print(f'work_dir found at {self.work_dir}.')
         else:
-            print(f'work_dir not found! User must run create it!')
+            print(f'Default work_dir not found! User must create it!')
             return
 
         # Only generate logger if observation directory exists.
@@ -208,7 +208,11 @@ class ODFobject(object):
         print('SAS_ODF = {0}'.format(self.files['sas_odf']))
 
         # Check for previously generated event lists.
-        self.get_event_lists()
+        self.find_event_list_files()
+        self.find_rgs_spectra_files()
+
+        # Change to work directory.
+        os.chdir(self.work_dir)
 
         # Exit the set_odfid function. Everything is set.
         return
@@ -630,7 +634,8 @@ class ODFobject(object):
             print('Has \'calibrate_odf\' been run?')
             raise Exception(f'Problem with the directory for odfID = {self.odfid}!')
         
-        self.get_event_lists(print_output=False)
+        self.find_event_list_files(print_output=False)
+        self.find_rgs_spectra_files(print_output=False)
 
         run_ep   = False
         run_em   = False
@@ -678,13 +683,14 @@ class ODFobject(object):
             w(self.task,self.inargs,logFile=self.logFile).run()      # <<<<< Execute SAS task
 
         # Check if run sucsessfully
-        self.get_event_lists(print_output=False)
+        self.find_event_list_files(print_output=False)
         if (len(self.files['PNevt_list']) == 0) and run_ep:
             print("Something has gone wrong. I cant find any event list files after running epproc. \n")
         if (len(self.files['M1evt_list']) == 0 and len(self.files['M2evt_list']) == 0 and run_em):
             print("Something has gone wrong. I cant find any event list files after running emproc. \n")
         if (len(self.files['R1evt_list']) == 0 and len(self.files['R2evt_list']) == 0 and run_rgs):
             print("Something has gone wrong. I cant find any event list files after running rgsproc. \n")
+        self.find_rgs_spectra_files(print_output=False)
 
     def basic_setup(self,run_epproc=True,run_emproc=True,run_rgsproc=True,
                     run_omichain=False,run_epchain=False,run_emchain=False
@@ -801,8 +807,7 @@ class ODFobject(object):
                            overwrite        = kwargs.get('overwrite', False),
                            repo             = kwargs.get('repo', 'esa'),
                            proprietary      = kwargs.get('proprietary', False),
-                           credentials_file = kwargs.get('credentials_file', None),
-                           **kwargs)
+                           credentials_file = kwargs.get('credentials_file', None))
 
         if run_epproc and not run_epchain:
             self.run_analysis('epproc',
@@ -872,7 +877,7 @@ class ODFobject(object):
 
         return
     
-    def get_event_lists(self,print_output=True):
+    def find_event_list_files(self,print_output=True):
         """
         Checks the observation directory (obs_dir) for basic unfiltered 
         event list files created by 'epproc', 'emproc', 'rgsproc', and 
@@ -928,6 +933,7 @@ class ODFobject(object):
                     self.files[evt_list_list[inst]].append(os.path.abspath(filename))
                     exists = True
             if exists:
+                self.files[evt_list_list[inst]].sort()
                 if print_output:
                     print(" > {0} {1} event list(s) found.\n".format(len(self.files[evt_list_list[inst]]),inst_name[inst]))
                     for x in self.files[evt_list_list[inst]]:
@@ -935,6 +941,52 @@ class ODFobject(object):
 
         return
     
+    def find_rgs_spectra_files(self,print_output=True):
+        """
+        --Not intended to be used by the end user. Internal use only.--
+
+        Check for RGS spectra files created by rgsproc. Adds them to 
+        'files' dictrionary with the keys:
+
+            'R1SPEC'
+            'R2SPEC'
+        """
+
+        self.get_active_instruments()
+
+        # Check if events lists have already been made from the odf files.
+
+        inst_list = list(self.active_instruments.keys())
+        rgs_list = []
+        if 'R1' in inst_list: rgs_list.append('R1')
+        if 'R2' in inst_list: rgs_list.append('R2')
+
+        dict_key  = {'R1': 'R1spectra',
+                     'R2': 'R2spectra'}
+        file_key  = {'R1': 'R1',
+                     'R2': 'R2'}
+        inst_name = {'R1': 'RGS1',
+                     'R2': 'RGS2'}
+        
+        for item in rgs_list: self.files[dict_key[item]] = []
+
+        for inst in rgs_list:
+            exists = False
+            # Checking for RGS spectra.
+            files = glob.glob(self.obs_dir+'/**/*RSPEC*FIT', recursive=True)
+            for filename in files:
+                if (filename.find(file_key[inst]) != -1):
+                    self.files[dict_key[inst]].append(os.path.abspath(filename))
+                    exists = True
+            if exists:
+                self.files[dict_key[inst]].sort()
+                if print_output:
+                    print(" > {0} {1} spectra found.\n".format(len(self.files[dict_key[inst]]),inst_name[inst]))
+                    for x in self.files[dict_key[inst]]:
+                        print("    " + x + "\n")
+
+        return
+
     def check_for_ccf_cif(self,logger):
         """
         --Not intended to be used by the end user. Internal use only.--

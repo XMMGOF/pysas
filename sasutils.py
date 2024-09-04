@@ -43,7 +43,7 @@ def download_data(odfid,data_dir,
                   credentials_file=None,**kwargs):
     """
     --Not intended to be used by the end user. Internal use only.--
-    --Recommended to use pysas.odfcontrol.ODFobject.calibrate_odf instead.--
+    --Recommended to use calibrate_odf or basic_setup instead.--
 
     Downloads, or copies, data from chosen repository. 
 

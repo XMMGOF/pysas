@@ -109,7 +109,7 @@ The runtask method uses class RunTask.
 
 # Standard library imports
 from abc import ABC, abstractmethod
-import os
+import os, numbers
 
 # Third party imports
 
@@ -193,7 +193,10 @@ class MyTask(SASTask):
                     if self.inargs[key] != '':
                         outparams.append(self.inargs[key])
                 else:
-                    outparams.append(key+'='+self.inargs[key])  
+                    # Safety check to see if a number was passed in.
+                    if isinstance(self.inargs[key], numbers.Number):
+                        self.inargs[key] = str(self.inargs[key])
+                    outparams.append(key+'='+self.inargs[key])
             self.inargs = outparams
 
         # Reorder self.inargs to group together all options and 
