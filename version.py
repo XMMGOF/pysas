@@ -19,11 +19,11 @@
 #
 # 10-Nov-2021
 
-VERSION              = '1.4.1a'
+VERSION              = '1.4.1b'
 
-SAS_RELEASE          = 'xmmsas_20211109_1931'
-SAS_AKA              = '20.0.0'
+SAS_RELEASE          = 'xmmsas_20230412_1735'
+SAS_AKA              = '21.0.0'
 SAS_COMPILATION_DATE = 'Tue Nov  9 21:04:09 CET 2021'
 SAS_COMPILATION_HOST = 'sasbld03n'
 SAS_COMPILATION_USER = 'sasbuild'
-SAS_PLATFORM         = 'Ubuntu18.04'
+SAS_PLATFORM         = 'Ubuntu20.04'

@@ -26,7 +26,7 @@ odfcontrol.py
 """
 
 # Standard library imports
-import os, sys, shutil, glob
+import os, sys, shutil, glob, numbers
 
 # Third party imports
 
@@ -87,6 +87,8 @@ class ODFobject(object):
     """
 
     def __init__(self,odfid,data_dir=None):
+        if isinstance(odfid, numbers.Number):
+            odfid = str(odfid)
         self.odfid = odfid
         self.data_dir = data_dir
         self.files = {}
@@ -384,6 +386,7 @@ class ODFobject(object):
         # Set directories for the observation, odf, pps, and work.
         self.obs_dir  = os.path.join(self.data_dir,self.odfid)
         self.odf_dir  = os.path.join(self.obs_dir,'ODF')
+        self.pps_dir  = os.path.join(self.obs_dir,'PPS')
         self.work_dir = os.path.join(self.obs_dir,'work')
 
         # Checks if obs_dir exists. 
@@ -393,6 +396,8 @@ class ODFobject(object):
         # If ccf.cif and *SUM.SAS files are not found then will run calibration.
         if os.path.exists(self.obs_dir):
             logger.log('info', f'Existing directory for {self.odfid} found ...')
+            # Make sure directories exist.
+            if not os.path.exists(self.odf_dir): os.mkdir(self.odf_dir)
             if overwrite:
                 # If obs_dir exists and overwrite = True then remove obs_dir.
                 # If the obs_dir is removed then we don't have to do anything else.
