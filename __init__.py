@@ -10,6 +10,7 @@ from . import runtask
 from . import configutils
 from . import init_sas
 from . import sasutils
+from . import config_pysas
 from .version import *
 from .odfcontrol import odfcontrol
 
@@ -45,5 +46,5 @@ if sas_cfg['DEFAULT']['on_sci_server'] == 'False' and sas_initialize:
         print('sas_dir....: {}'.format(sas_dir_config))
         print('sas_ccfpath: {}'.format(sas_ccfpath_config))
 
-# Get rid of temporary variables to prevent problems.
+# Get rid of temporary variables to prevent possible conflicts.
 del sas_dir_config, sas_ccfpath_config, sas_initialize, sas_dir, sas_path, sas_ccfpath

@@ -1,45 +1,64 @@
+### Installing pySAS
+
+This development version of pySAS can be used with versions 20 and up of XMM-Newton SAS. After installing SAS [following the installation instructions](https://www.cosmos.esa.int/web/xmm-newton/sas-installation) you can then install the development version of pySAS using
+```
+pip install xmmpysas
+```
+Before you use pySAS for the first time you will need to configure pySAS so that it knows where you have SAS installed, and where the XMM calibration files are located. After installing pySAS using pip, in Python just run:
+```python
+import pysas
+pysas.config_pysas.run_config()
+```
+This will step you through connecting pySAS to SAS. After pySAS has been configured you can import pySAS like normal.
+```python
+import pysas
+```
+You can update pySAS using
+```
+pip install xmmpysas --upgrade
+```
+
 ### Cloning This Repository
 
-This development version of pySAS can be used with versions 20 and up of XMM-Newton SAS. After installing SAS [following the installation instructions](https://www.cosmos.esa.int/web/xmm-newton/sas-installation) you can then clone this repository to use this development version of pySAS.
-
-This repository can be cloned by going into the directory where pySAS is installed to remove the current version of pySAS using 
+*Alternatively*, this repository can be cloned by going into the directory where pySAS is installed to remove the current version of pySAS using 
 ```
-> cd /path/to/sas/install/xmmsas_202XXXXXX_YYYY/lib/python/
-> rm -rf ./pysas
+cd /path/to/sas/install/xmmsas_202XXXXXX_YYYY/lib/python/
+rm -rf ./pysas
 ```
 and then clone this version of pySAS by executing the command,
 ```
-> git clone https://github.com/XMMGOF/pysas.git
+git clone https://github.com/XMMGOF/pysas.git
 ```
 You can then use pySAS like normal.
 
 To incorporate new changes to pySAS from GitHub, from the pysas directory use the following command,
 ```
-> git pull https://github.com/XMMGOF/pysas.git
+git pull https://github.com/XMMGOF/pysas.git
 ```
 
 ### Running pySAS for the First Time
 
-The very first time you run this version of pySAS you can set SAS defaults that will be used by pySAS. To set the defaults run the script `setup_pysas.py` found in the top level of this repository (i.e. /path/to/sas/install/xmmsas_202XXXXXX_YYYY/lib/python/pysas/setup_pysas.py). This script will set:
+The very first time you run this version of pySAS you will have to set SAS defaults that will be used by pySAS. To set the defaults run the following commands in python:
+```python
+import pysas
+pysas.config_pysas.run_config()
+```
+This script will set:
 
 - sas_dir: The directory where SAS is installed. If you are running the script from inside the SAS directory this will be auto-detected.
 - sas_ccfpath: The directory where the calibration files are stored. If you already have them downloaded, just enter the directory where they are. But if you have not downloaded them yet, you will be given the option to download them after the setup. The script will even create the directory for you.
 - data_dir: You will have the option of designating a defaut data directory. All observation data files will be downloaded into this directory. If the data directory does not exist it will be created for you.
 
-You can run this script using the following commands:
+**Note:** If you installed pySAS by cloning it from GitHub you must add the pySAS directory to your PYTHONPATH environment variable. For example:
 ```
-> cd /path/to/sas/install/xmmsas_202XXXXXX_YYYY/lib/python/pysas/
-> python setup_pysas.py
-```
-**Note:** After initializing SAS you must add the pySAS directory to your PYTHONPATH environment variable. For example:
-```
-> export PYTHONPATH=/path/to/sas/install/xmmsas_202XXXXXX_YYYY/lib/python:$PYTHONPATH
+export PYTHONPATH=/path/to/sas/install/xmmsas_202XXXXXX_YYYY/lib/python:$PYTHONPATH
 ```
 It is recommended that you add this line to your .bash_profile file (or equivelent shell file).
+**This is not necessary if pySAS was installed using `pip install xmmpysas`.**
 
 ### Example Scripts
 
-We have included a few example scripts and Jupyter notebooks in the directory titled `documentation`. We will be expanding the number of example scripts and Jupyter notebooks.
+There are example scripts and Jupyter notebooks available on [GitHub demonstrating how to use pySAS](https://github.com/XMMGOF/pysas/tree/main/documentation). We are expanding the number of example scripts and Jupyter notebooks.
 
 ### FAQ
 
@@ -57,11 +76,14 @@ A: YES! That is the purpose of this repository! The whole idea is to provide a p
 
 Q: Can I use pip to install pySAS?
 
-A: Not yet! But that is something we are working on!
+A: Yes! Install using
+```
+pip install xmmpysas
+```
 
 Q: What about using conda to install pySAS?
 
-A: One thing at a time. We're still working on pip.
+A: We are working on it!
 
 Q: Can I use pySAS to update the XMM-Newton calibration files?
 
