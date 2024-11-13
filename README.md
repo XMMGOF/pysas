@@ -4,6 +4,10 @@ This development version of pySAS can be used with versions 20 and up of XMM-New
 ```
 pip install xmmpysas
 ```
+**Note:** Make sure you install **xmmpysas**. There is different Python module called *pysas* that has nothing to with pySAS for XMM-Newton.
+
+**Note:** Requires Python version >=3.10.
+
 Before you use pySAS for the first time you will need to configure pySAS so that it knows where you have SAS installed, and where the XMM calibration files are located. After installing pySAS using pip, in Python just run:
 ```python
 import pysas
@@ -20,7 +24,7 @@ pip install xmmpysas --upgrade
 
 ### Cloning This Repository
 
-*Alternatively*, this repository can be cloned by going into the directory where pySAS is installed to remove the current version of pySAS using 
+*Alternatively*, pySAS can be cloned from GitHub by going into the directory where pySAS is installed to remove the current version of pySAS using 
 ```
 cd /path/to/sas/install/xmmsas_202XXXXXX_YYYY/lib/python/
 rm -rf ./pysas
