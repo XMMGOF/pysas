@@ -264,11 +264,11 @@ class paramXmlInfoReader:
         Prints a table of all parameters with columns
         """
         table = BeautifulTable()
-        table.column_headers = ['name', 'mandatory', 'type', 'default', 'description']
-        table.column_widths = [50, 15, 10, 30, 50]
-        table.max_table_width = 160
+        table.columns.header = ['name', 'mandatory', 'type', 'default', 'description']
+        table.columns.width = [50, 15, 10, 30, 50]
+        table.maxwidth = 160
         for a in self.allparams.values():
-            table.append_row([a['id'], a['mandatory'], a['type'], a.get('default', None), a['description']])
+            table.rows.append([a['id'], a['mandatory'], a['type'], a.get('default', None), a['description']])
         print(table)
 
     # method defaultValues - Returns defaults

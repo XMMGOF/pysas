@@ -24,7 +24,7 @@ Utility functions specific to SAS or pySAS.
 """
 
 # Standard library imports
-import os, sys, subprocess, shutil, glob, tarfile, gzip, time
+import os, sys, subprocess, shutil, glob, tarfile, gzip, time, platform
 
 # Third party imports
 from astroquery.esa.xmm_newton import XMMNewton
@@ -327,3 +327,56 @@ def update_calibration_files(repo='NASA'):
     result = subprocess.run(cmd, shell=True)
 
     return result
+
+def install_sas(repo='NASA',sas_version='21.0.0'):
+    """
+    !!WARNING!! EXPERIMENTAL!
+    No guarentees this will work.
+    Only tested with Ubuntu v. 20 and 22
+    """
+
+    tar_file = f'sas_{sas_version}-'
+
+    if repo == 'NASA':
+        base_path = f'https://heasarc.gsfc.nasa.gov/FTP/xmm/software/sas/{sas_version}/'
+    elif repo == 'ESA':
+        base_path = f'https://sasdev-xmm.esac.esa.int/pub/sas/{sas_version}/'
+    else:
+        raise Exception(f"Repository '{repo}' not recognized. Use either 'NASA' or 'ESA'.")
+        
+
+    system = platform.system()
+    
+    if system == 'Linux':
+        base_path = base_path+f'{system}/'
+        output = subprocess.run(['lsb_release','-d'],capture_output=True,text=True)
+        outlist = output.stdout.split()
+        distribution = outlist[1]
+        version = outlist[2]
+        if distribution == 'Ubuntu':
+            if '18.04' in version:
+                version = '18.04'
+            elif '20.04' in version:
+                version = '20.04'
+            elif '22.04' in version:
+                version = '22.04'
+            else:
+                raise Exception(f"Ubuntu version {version} not recognized. Must be either '18.04', '20.04', or '22.04'.")
+            dis_ver = f'{distribution}{version}'
+            base_path = base_path+f'{dis_ver}/'
+            tar_file = tar_file+f'{dis_ver}.tgz'
+            download_link = base_path+tar_file
+            print(base_path)
+            print(tar_file)
+            print(download_link)
+            #test_link = 'https://heasarc.gsfc.nasa.gov/FTP/xmm/software/sparsebundle/components/DockerfileSAS'
+            subprocess.run(['wget',download_link])
+            subprocess.run(['tar','zxf',tar_file])
+            subprocess.run(['./install.sh'],shell=True)
+        else:
+            raise Exception(f"Linux distribution {distribution} not supported.")
+
+
+
+
+    
