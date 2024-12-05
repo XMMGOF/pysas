@@ -182,7 +182,6 @@ def run_config():
         response = input('Should I create it? (y/n): ')
         response = response.lower()
         if response in positive:
-            sas_dir = psas_dir
             print(f'Creating: {sas_ccfpath}')
             os.mkdir(sas_ccfpath)
         elif response in negative:
