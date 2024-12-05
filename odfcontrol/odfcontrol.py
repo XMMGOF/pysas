@@ -420,10 +420,12 @@ class ODFobject(object):
                 filename=filename,
                 **kwargs)
         
-        if os.path.exists(self.odf_dir):
-            self.files['ODF'] = self.__get_list_of_ODF_files()
-        if os.path.exists(self.pps_dir):
-            self.files['PPS'] = self.__get_list_of_PPS_files()
+        if hasattr(self, 'odf_dir'):
+            if os.path.exists(self.odf_dir):
+                self.files['ODF'] = self.__get_list_of_ODF_files()
+        if hasattr(self, 'pps_dir'):
+            if os.path.exists(self.pps_dir):
+                self.files['PPS'] = self.__get_list_of_PPS_files()
 
         return
     
