@@ -19,7 +19,7 @@
 #
 # 10-Nov-2021
 
-VERSION              = '1.4.3'
+VERSION              = '1.4.4'
 
 SAS_RELEASE          = 'xmmsas_20230412_1735'
 SAS_AKA              = '21.0.0'
