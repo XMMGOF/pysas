@@ -355,13 +355,12 @@ class ODFobject(object):
             logger = generate_logger(logname=f'download_{self.odfid}', log_dir=self.data_dir)
 
         # Check what exists in the obs_dir.
-        obs_dir = os.path.join(self.data_dir,self.odfid)
+        self.obs_dir = os.path.join(self.data_dir,self.odfid)
 
         # Checks if obs_dir exists. 
         # Removes it if overwrite = True. Default overwrite = False.
-        if os.path.exists(obs_dir):
+        if os.path.exists(self.obs_dir):
             logger.log('info', f'Existing directory for {self.odfid} found ...')
-            self.obs_dir = obs_dir
             if overwrite:
                 # If obs_dir exists and overwrite = True then remove obs_dir.
                 logger.log('info', f'Removing existing directory {self.obs_dir} ...')
