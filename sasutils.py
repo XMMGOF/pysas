@@ -269,6 +269,9 @@ def download_data(odfid,
         elif levl == 'PPS':
             os.mkdir(pps_dir)
         archive_data = f'/home/idies/workspace/headata/FTP/xmm/data/rev0//{odfid}/{levl}'
+        if filename: 
+            PPS_subset = True
+            PPSfile = filename
         if PPS_subset:
             files = glob.glob(archive_data + f'/**/{PPSfile}', recursive=True)
             for file in files:
