@@ -265,9 +265,9 @@ def download_data(odfid,
             levl = level
             dest_dir = os.path.join(dest_dir,levl)
         if levl == 'ODF':    
-            os.mkdir(odf_dir)
+            if not os.path.exists(odf_dir): os.mkdir(odf_dir)
         elif levl == 'PPS':
-            os.mkdir(pps_dir)
+            if not os.path.exists(pps_dir): os.mkdir(pps_dir)
         archive_data = f'/home/idies/workspace/headata/FTP/xmm/data/rev0//{odfid}/{levl}'
         if filename: 
             PPS_subset = True
