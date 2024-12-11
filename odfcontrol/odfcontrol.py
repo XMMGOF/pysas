@@ -600,11 +600,6 @@ class ODFobject(object):
 
             self.get_active_instruments()
 
-            if os.path.exists(self.odf_dir):
-                self.files['ODF'] = self.__get_list_of_ODF_files()
-            if os.path.exists(self.pps_dir):
-                self.files['PPS'] = self.__get_list_of_PPS_files()
-
             if not os.path.exists(self.work_dir): os.mkdir(self.work_dir)
             # Exit the calibrate_odf function. Everything is set.
         
@@ -1031,6 +1026,13 @@ class ODFobject(object):
                            extension        = kwargs.get('extension', None),
                            filename         = kwargs.get('filename', None))
         
+        if hasattr(self, 'odf_dir'):
+            if os.path.exists(self.odf_dir):
+                self.files['ODF'] = self.__get_list_of_ODF_files()
+        if hasattr(self, 'pps_dir'):
+            if os.path.exists(self.pps_dir):
+                self.files['PPS'] = self.__get_list_of_PPS_files()
+
         self.work_dir = os.path.join(self.obs_dir,'work')
         if not os.path.exists(self.work_dir): os.mkdir(self.work_dir)
         
