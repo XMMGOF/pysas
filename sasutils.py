@@ -218,6 +218,9 @@ def download_data(odfid,
         #Download the odfid from HEASARC, using wget
         logger.log('info', f'Changed directory to {data_dir}')
         os.chdir(data_dir)
+        clear_dirs = True
+        if os.path.exists(odf_dir) and level == 'PPS': clear_dirs = False
+        if os.path.exists(pps_dir) and level == 'ODF': clear_dirs = False
         if level == 'ALL':
             levl = ''
         else:
@@ -230,6 +233,7 @@ def download_data(odfid,
             PPS_subset_note = ''
             wgetA = ''
 
+        wgetf = ''
         if filename != None:
             wgetf = filename
             PPS_subset_note = f', file {wgetf}'
@@ -250,9 +254,9 @@ def download_data(odfid,
             for direc in directories:
                 if '4XMM' in direc:
                     shutil.rmtree(os.path.join(path,direc))
-                if level == 'ODF' and direc == 'PPS':
+                if level == 'ODF' and direc == 'PPS' and clear_dirs:
                     shutil.rmtree(os.path.join(path,direc))
-                if level == 'PPS' and direc == 'ODF':
+                if level == 'PPS' and direc == 'ODF' and clear_dirs:
                     shutil.rmtree(os.path.join(path,direc))
                 if 'om_mosaic' in direc:
                     shutil.rmtree(os.path.join(path,direc))
