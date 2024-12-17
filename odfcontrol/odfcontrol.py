@@ -399,12 +399,6 @@ class ODFobject(object):
 
             --OPTIONAL--
 
-            --data_dir:  (string/path): Path to directory where the data will be 
-                                        downloaded. Automatically creates directory
-                                        data_dir/odfid.
-                                        Default: Default from sas_config file, or
-                                        current working directory.
-
             --repo:           (string): Which repository to use to download data. 
                                         Default: 'esa'
                                         Can be either
@@ -416,13 +410,16 @@ class ODFobject(object):
                                         Default: 'ODF'
                                         Can be 'ODF, 'PPS' or 'ALL'.
 
+            --data_dir:  (string/path): Path to directory where the data will be 
+                                        downloaded. Automatically creates directory
+                                        data_dir/odfid.
+                                        Default: Default from sas_config file, or
+                                        current working directory.
+
             --overwrite:     (boolean): If True will force overwrite of data if odfid 
                                         data already exists in data_dir/.
 
-            --encryption_key: (string): Encryption key for proprietary data, a string 32 
-                                        characters long. -OR- path to file containing 
-                                        ONLY the encryption key.
-                                        Note: ONLY used for data from the HEASARC.
+            --logger:     (TaskLogger): Only used if called from inside 'basic_setup'.
 
             --proprietary    (boolean): Flag for downloading proprietary data from
                                         the XSA at ESA.
@@ -432,6 +429,30 @@ class ODFobject(object):
                                         only. (Optinal, astroquery will ask user 
                                         for username and password if filename
                                         not given.)
+
+            --encryption_key: (string): Encryption key for proprietary data, a string 32 
+                                        characters long. -OR- path to file containing 
+                                        ONLY the encryption key.
+                                        Note: ONLY used for data from the HEASARC.
+
+            --PPS_subset:    (boolean): Set PPS_subset=True if downloading a subset of PPS
+                                        files form the XMM-Newton archive.
+
+            --filename:       (string): If the exact PPS file name is known, then this can
+                                        be used to download a single PPS file.
+
+            
+            The remaining inputs are used for downloading groups of PPS files using a 
+            particular file pattern. Using these requires an understanding of PPS 
+            filenames.
+            
+                instname: instrument name
+                expflag: Exposure flag
+                expno: Exposure number
+                product_type: Product type
+                datasubsetno: data subset number/character
+                sourceno: Source number or slew step number
+                extension: File format
         """
         
         # Where are we?
@@ -578,6 +599,8 @@ class ODFobject(object):
             --odfingest_opts:   (list): Options for odfingest.
 
             --recalibrate:   (boolean): If True will rerun odfingest and cifbuild.
+
+            --logger:     (TaskLogger): Only used if called from inside 'basic_setup'.
 
         """
 
