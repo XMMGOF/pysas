@@ -94,44 +94,136 @@ class ODFobject(object):
         self.files = {}
         self.__set_obsid()
 
-    def inisas(self,sas_dir,sas_ccfpath,verbosity=4,suppress_warning=1):
+    def basic_setup(self,data_dir=None,level='ODF',repo='esa',
+                    overwrite=False,recalibrate=False,rerun=False,
+                    run_epproc=True,run_emproc=True,run_rgsproc=True,
+                    run_omichain=False,run_epchain=False,run_emchain=False,
+                    **kwargs):
         """
-        --Not intended to be used by the end user. Internal use only.--
+        Function to do all basic analysis tasks. The function will:
 
-        Simple wrapper for 'initializesas' defined in init_sas.py.
+            1. Download data by calling 'download_data'
+            2. Call the function 'calibrate_odf'
+                A. Run 'cifbuild'
+                B. Run 'odfingest'
+            2. Run 'epproc' -OR- 'epchain'
+            3. Run 'emproc' -OR- 'emchain'
+            4. Run 'rgsproc'
+            5. Run 'omichain' (not run by default)
 
-        SAS initialization should happen automatically.
-        """
-        self.sas_dir = sas_dir
-        self.sas_ccfpath = sas_ccfpath
-        self.verbosity = verbosity
-        self.suppress_warning = suppress_warning
+        If 'run_epchain' is set to 'True', then 'epproc' will not run.
+        If 'run_emchain' is set to 'True', then 'emproc' will not run.
 
-        return_info = initializesas(self.sas_dir, self.sas_ccfpath, 
-                                    verbosity = self.verbosity, 
-                                    suppress_warning = self.suppress_warning)
-        print(return_info)
+        Inputs:
 
-    def __set_obsid(self):
-        """
-        --Not intended to be used by the end user. Internal use only.--
+            data_dir:    Data directory.
+            level:       Level of data products ('ODF','PPS','ALL').
+            repo:        Download repository ('esa','heasarc','sciserver').
+            overwrite:   Remove previous data files and download again.
+            recalibrate: Rerun 'cifbuild' and 'odfingest'.
+            rerun:       Rerun the *procs or *chains.
 
-        Basic method for setting the environment variables for a single 
-        'ObsID'.
+        All input arguments for 'download_data' and 'calibrate_odf'
+        can be passed to 'basic_setup'.
 
-        Checks for the existence of various directories. If a directory 
-        is not found then __set_obsid will stop and use 'return' command.
-        Directories that will be checked for (in this order):
-            
-            data_dir
-            obs_dir
-            odf_dir -or- pps_dir
-            work_dir
+        'download_data' inputs (with defaults):
 
-        Then checks for the ccf.cif, *SUM.SAS files and event lists.
+            repo            = 'esa'
+            level           = 'ODF'
+            data_dir        = None
+            overwrite       = False
+            logger          = None
+            proprietary     = False
+            credentials_file= None
+            encryption_key  = None
+            PPS_subset      = False
+            instname        = None
+            expflag         = None
+            expno           = None
+            product_type    = None
+            datasubsetno    = None
+            sourceno        = None
+            extension       = None
+            **kwargs
 
-        Similar to download_data, but will not download any data, 
-        or do anything other than link to files and directories. 
+        'calibrate_odf' inputs (with defaults):
+               
+            obs_dir        = None
+            sas_ccf        = None
+            sas_odf        = None
+            cifbuild_opts  = []
+            odfingest_opts = []
+            recalibrate    = False
+            logger         = None
+
+        Input arguments for 'epproc', 'emproc', and 'rgsproc' can also be 
+        passed in using 'epproc_args', 'emproc_args', or 'rgsproc_args' 
+        respectively (or 'epchain_args' and 'emchain_args'). By defaut 
+        'epproc', 'emproc', and 'rgsproc' will not rerun if output files 
+        are found, but they can be forced to rerun by setting 'rerun=True' 
+        as an input to 'basic_setup'.
+
+        Examples for use:
+
+            odf.basic_setup()
+
+                - Uses the defaults.
+
+            odf.basic_setup(repo='heasarc')
+
+                - Uses the defaults, but downloads data from the HEASARC.
+
+            odf.basic_setup(overwrite=True)
+
+                - Will erase any previous data files for the Obs ID and 
+                  download a fresh set of data files.
+
+            odf.basic_setup(recalibrate=True)
+
+                - Will rerun cifbuild and odfingest to generate new 
+                  ccf.cif and *SUM.SAS files.
+
+            odf.basic_setup(rerun=True)
+
+                - Will **not** download new files, but will rerun 'epproc',
+                  'emproc', and 'rgsproc' and create new event lists.
+
+            odf.basic_setup(repo='heasarc',
+                            epproc_args=['withoutoftime=yes'])
+
+                - Downloads data from the HEASARC and runs 'epproc' with the
+                  'withoutoftime' option.
+
+            odf.basic_setup(run_epchain=True,
+                            run_emchain=True)
+
+                - Will run 'epchain' and 'emchain' instead of 'epproc' and
+                  'emproc'.
+
+            odf.basic_setup(run_epproc=False,
+                            run_emproc=False)
+
+                - Will not run 'epproc' or 'emproc'. Will only run 'rgsproc'
+                  by default.
+
+            odf.basic_setup(run_epproc=False,
+                            run_emproc=True,
+                            run_rgsproc=False)
+
+                - Will only run 'emproc', **not** 'epproc' or 'rgsproc'.
+
+            odf.basic_setup(repo='heasarc',encryption_key='XXXXXXXXXXXXXXX')
+
+                - Uses the defaults, but downloads *proprietary* data from 
+                  the HEASARC. Must provide an encryption key, an alpha-numeric
+                  string with 30 characters.
+
+            odf.basic_setup(proprietary=True)
+
+                - Uses the defaults, but downloads *proprietary* data from 
+                  the XSA at ESA. Astroquery will ask for user's Cosmos
+                  username and password.
+
         """
 
         # Where are we?
@@ -141,143 +233,152 @@ class ODFobject(object):
         # given on odfobject creation.
         if self.data_dir != None:
             data_dir = self.data_dir
-        else:
-            data_dir = sas_cfg.get("sas", "data_dir")
 
         # Start checking data_dir
-        if os.path.exists(data_dir):
-            self.data_dir = data_dir
-        else:
-            # Nothing can be done! User must run download_data!
-            return
-
-        # Set directories for the observation, odf, pps, and work.
-        self.obs_dir  = os.path.join(self.data_dir,self.odfid)
-        self.odf_dir  = os.path.join(self.obs_dir,'ODF')
-        self.pps_dir  = os.path.join(self.obs_dir,'PPS')
-        self.work_dir = os.path.join(self.obs_dir,'work')
-
-        if os.path.exists(self.obs_dir):
-            print(f'obs_dir found at {self.obs_dir}.')
-        else:
-            # obs_dir not found! Nothing can be done!
-            # User must run download_data!
-            return
-        
-        if os.path.exists(self.odf_dir):
-            print(f'odf_dir found at {self.odf_dir}.')
-            if os.path.exists(self.pps_dir):
-                print(f'pps_dir found at {self.pps_dir}.')
-        else:
-            if os.path.exists(self.pps_dir):
-                print(f'pps_dir found at {self.pps_dir}.')
+        if data_dir == None:
+            data_dir = sas_cfg.get("sas", "data_dir")
+            if os.path.exists(data_dir):
+                self.data_dir = data_dir
             else:
-                print(f'ODF and PPS directories not found! User must download data!')
-                return
-            
-        # Get lists of ODF and PPS files.
-        if os.path.exists(self.odf_dir):
-            self.files['ODF'] = self.__get_list_of_ODF_files()
-        if os.path.exists(self.pps_dir):
-            self.files['PPS'] = self.__get_list_of_PPS_files()
-        
-        if os.path.exists(self.work_dir):
-            print(f'work_dir found at {self.work_dir}.')
+                self.data_dir = startdir
         else:
-            print(f'Default work_dir not found! User must create it!')
-            return
+            self.data_dir = data_dir
 
-        # Only generate logger if observation directory exists.
+        # If data_dir was not given as an absolute path, it is interpreted
+        # as a subdirectory of startdir.
+        if self.data_dir[0] != '/':
+            self.data_dir = os.path.join(startdir, self.data_dir)
+        elif self.data_dir[:2] == './':
+            self.data_dir = os.path.join(startdir, self.data_dir[2:])
+
+        # Check if data_dir exists. If not then create it.
+        # Save comments for the logger created later.
+        logcomment = ''
+        if not os.path.isdir(self.data_dir):
+            logcomment = f'{self.data_dir} does not exist. Creating it!'
+            os.mkdir(self.data_dir)
+            logcomment = logcomment + '\n' + f'{self.data_dir} has been created!'
+
         logger = generate_logger(logname='odf_'+self.odfid, log_dir=self.data_dir)
         logger.log('info', f'Data directory = {self.data_dir}')
-        logger.log('info', f'Existing directory for {self.odfid} found ...')
-        logger.log('info', f'Searching {self.data_dir}/{self.odfid} for ccf.cif and *SUM.SAS files ...')
+        if len(logcomment) > 1:
+            logger.log('warning', logcomment)
 
-        # Looking for ccf.cif file.
-        exists = self.get_ccf_cif(logger)
-        if not exists:
-            print('ccf.cif file not present! User must run calibrate_odf!')
-            return
+        # Deal with the rest of the inputs.
+        self.level = level
+        self.repo = repo
 
-        # Set 'SAS_CCF' enviroment variable.
-        os.environ['SAS_CCF'] = self.files['sas_ccf']
-        logger.log('info', 'SAS_CCF = {0}'.format(self.files['sas_ccf']))
-        print('SAS_CCF = {}'.format(self.files['sas_ccf']))
+        # Checking LHEASOFT, SAS_DIR and SAS_CCFPATH
 
-        # Looking for *SUM.SAS file.
-        exists = self.get_SUM_SAS(logger)
-        if not exists:
-            print('*SUM.SAS file not present! User must run calibrate_odf!')
-            return
+        lheasoft = os.environ.get('LHEASOFT')
+        if not lheasoft:
+            logger.log('error', 'LHEASOFT is not set. Please initialise HEASOFT')
+            raise Exception('LHEASOFT is not set. Please initialise HEASOFT')
+        else:
+            logger.log('info', f'LHEASOFT = {lheasoft}')
+
+        sasdir = os.environ.get('SAS_DIR')
+        if not sasdir:
+            logger.log('error', 'SAS_DIR is not defined. Please initialise SAS.')
+            raise Exception('SAS_DIR is not defined. Please initialise SAS.')
+        else:
+            logger.log('info', f'SAS_DIR = {sasdir}') 
+
+        sas_ccfpath = os.environ.get('SAS_CCFPATH')
+        if not sas_ccfpath:
+            logger.log('error', 'SAS_CCFPATH not set. Please define it.')
+            raise Exception('SAS_CCFPATH not set. Please define it.')
+        else:
+            logger.log('info',f'SAS_CCFPATH = {sas_ccfpath}')
         
-        # Set 'SAS_ODF' enviroment variable.
-        os.environ['SAS_ODF'] = self.files['sas_odf']
-        logger.log('info', 'SAS_ODF = {0}'.format(self.files['sas_odf']))
-        print('SAS_ODF = {0}'.format(self.files['sas_odf']))
+        os.chdir(self.data_dir)
+        logger.log('info', f'Changed directory to {self.data_dir}')
 
-        # Check for previously generated event lists.
-        self.find_event_list_files()
-        self.find_rgs_spectra_files()
+        print(f'''
 
-        # Change to work directory.
-        os.chdir(self.work_dir)
+        Starting SAS session
 
-        # Exit the __set_obsid function. Everything is set.
+        Data directory = {self.data_dir}
+
+        ''')
+
+
+        self.download_data(repo             = self.repo,
+                           level            = self.level,
+                           data_dir         = self.data_dir,
+                           overwrite        = overwrite,
+                           logger           = logger,
+                           proprietary      = kwargs.get('proprietary', False),
+                           credentials_file = kwargs.get('credentials_file', None),
+                           encryption_key   = kwargs.get('encryption_key', None),
+                           PPS_subset       = kwargs.get('PPS_subset', False),
+                           instname         = kwargs.get('instname', None),
+                           expflag          = kwargs.get('expflag', None),
+                           expno            = kwargs.get('expno', None),
+                           product_type     = kwargs.get('product_type', None),
+                           datasubsetno     = kwargs.get('datasubsetno', None),
+                           sourceno         = kwargs.get('sourceno', None),
+                           extension        = kwargs.get('extension', None),
+                           filename         = kwargs.get('filename', None))
+        
+        if hasattr(self, 'odf_dir'):
+            if os.path.exists(self.odf_dir):
+                self.files['ODF'] = self.__get_list_of_ODF_files()
+        if hasattr(self, 'pps_dir'):
+            if os.path.exists(self.pps_dir):
+                self.files['PPS'] = self.__get_list_of_PPS_files()
+
+        self.work_dir = os.path.join(self.obs_dir,'work')
+        if not os.path.exists(self.work_dir): os.mkdir(self.work_dir)
+        
+        # If only PPS files requested, no processing needed.
+        if self.level == 'PPS': return
+
+        self.calibrate_odf(obs_dir        = self.data_dir,
+                           sas_ccf        = kwargs.get('sas_ccf', None),
+                           sas_odf        = kwargs.get('sas_odf', None),
+                           cifbuild_opts  = kwargs.get('cifbuild_opts', []),
+                           odfingest_opts = kwargs.get('odfingest_opts', []),
+                           recalibrate    = recalibrate)
+
+        if run_epproc and not run_epchain:
+            self.__run_analysis('epproc',
+                                kwargs.get('epproc_args', []),
+                                rerun   = rerun,
+                                logFile = 'epproc.log')
+        
+        if run_epchain:
+            self.__run_analysis('epchain',
+                                kwargs.get('epchain_args', []),
+                                rerun   = rerun,
+                                logFile = 'epchain.log')
+
+        if run_emproc and not run_emchain:
+            self.__run_analysis('emproc',
+                                kwargs.get('emproc_args', []),
+                                rerun   = rerun,
+                                logFile = 'emproc.log')
+            
+        if run_emchain:
+            self.__run_analysis('emchain',
+                                kwargs.get('emchain_args', []),
+                                rerun   = rerun,
+                                logFile = 'emchain.log')
+            
+        if run_rgsproc:
+            self.__run_analysis('rgsproc',
+                                kwargs.get('rgsproc_args', []),
+                                rerun   = rerun,
+                                logFile = 'rgsproc.log')
+        
+        if run_omichain:
+            self.__run_analysis('omichain',
+                                kwargs.get('omichain_args', []),
+                                rerun   = rerun,
+                                logFile = 'omichain.log')
+        
         return
     
-    def __parse_obs_dir(self):
-        """
-        --Not intended to be used by the end user. Internal use only.--
-
-        Parses the obs_dir for what is present.
-
-        Returns a dictionary with information on what exists.
-        """
-        exists = {}
-        items = ['obs_dir','odf_dir','pps_dir','work_dir',
-                 'ccfcif','SUMSAS','manifest',
-                 'ODF_files','PPS_files']
-        
-        for item in items: exists[item] = False
-
-        # Set directories for the observation, odf, pps, and work.
-        obs_dir  = os.path.join(self.data_dir,self.odfid)
-        odf_dir  = os.path.join(obs_dir,'ODF')
-        pps_dir  = os.path.join(obs_dir,'PPS')
-        work_dir = os.path.join(obs_dir,'work')
-
-        if os.path.exists(obs_dir): exists['obs_dir']  = True
-        if os.path.exists(odf_dir): 
-            exists['odf_dir']  = True
-            # Just checks if files are there. Doesn't check if they
-            # are real or correct.
-            if len(os.listdir(odf_dir)) != 0:
-                exists['ODF_files'] = True
-        if os.path.exists(pps_dir):
-            exists['pps_dir']  = True
-            # Just checks if files are there. Doesn't check if they
-            # are real or correct.
-            if len(os.listdir(pps_dir)) != 0:
-                exists['PPS_files'] = True
-        if os.path.exists(work_dir): exists['work_dir'] = True
-        exists['ccfcif'] = self.__check_for_ccf_cif()
-        exists['SUMSAS'] = self.__check_for_SUM_SAS()
-        exists['manifest'] = self.__check_for_manifest()
-
-        return exists
-
-    def sas_talk(self,verbosity=4,suppress_warning=1):
-        """
-        Simple function to set general SAS veriables 'verbosity' 
-        and 'suppress_warning'.
-        """
-
-        self.verbosity = verbosity
-        self.suppress_warning = suppress_warning
-
-        os.environ['SAS_VERBOSITY'] = '{}'.format(self.verbosity)
-        os.environ['SAS_SUPPRESS_WARNING'] = '{}'.format(self.suppress_warning)
-
     def download_data(self,repo='esa',level='ODF',
                       data_dir=None,overwrite=False,logger=None,
                       proprietary=False,credentials_file=None,
@@ -607,6 +708,405 @@ class ODFobject(object):
             self.files['ODF'] = self.__get_list_of_ODF_files()
 
         return
+    
+    def get_active_instruments(self):
+        """
+        Checks odf summary file for which instruments were active for that odf.
+
+        Assumes that 'sas_odf' already exists and contains the correct path.
+
+        Also assumes file name and path are stored in self.files['sas_odf'].
+        """
+
+        # Get information about the instruments.
+        self.active_instruments = {}
+        with open(self.files['sas_odf']) as inf:
+            lines = inf.readlines()
+            for i,line in enumerate(lines):
+                if '// Instrument Record' in line:
+                    active = lines[i+4][0]
+                    if active == 'N': active = False
+                    if active == 'Y': active = True
+                    self.active_instruments[lines[i+3][0:2]] = active
+
+        # Basic sanity checks
+        bad_sum_file = False
+        inst_list = list(self.active_instruments.keys())
+        true_list = ['M1', 'M2', 'R1', 'R2', 'PN', 'OM']
+        diff = set(inst_list) ^ set(true_list)
+        if len(diff) > 0: bad_sum_file = True
+
+        if bad_sum_file:
+            print('Something is wrong with the odf summary file: {0}'.format(self.files['sas_odf']))
+
+        return
+    
+    def inisas(self,sas_dir,sas_ccfpath,verbosity=4,suppress_warning=1):
+        """
+        --Not intended to be used by the end user. Internal use only.--
+
+        Simple wrapper for 'initializesas' defined in init_sas.py.
+
+        SAS initialization should happen automatically.
+        """
+        self.sas_dir = sas_dir
+        self.sas_ccfpath = sas_ccfpath
+        self.verbosity = verbosity
+        self.suppress_warning = suppress_warning
+
+        return_info = initializesas(self.sas_dir, self.sas_ccfpath, 
+                                    verbosity = self.verbosity, 
+                                    suppress_warning = self.suppress_warning)
+        print(return_info)
+
+    def sas_talk(self,verbosity=4,suppress_warning=1):
+        """
+        Simple function to set general SAS veriables 'verbosity' 
+        and 'suppress_warning'.
+        """
+
+        self.verbosity = verbosity
+        self.suppress_warning = suppress_warning
+
+        os.environ['SAS_VERBOSITY'] = '{}'.format(self.verbosity)
+        os.environ['SAS_SUPPRESS_WARNING'] = '{}'.format(self.suppress_warning)
+    
+    def find_event_list_files(self,print_output=True):
+        """
+        Checks the observation directory (obs_dir) for basic unfiltered 
+        event list files created by 'epproc', 'emproc', 'rgsproc', and 
+        'omichain'. Stores paths and file names in self.files.
+
+        'self.files' is a dictionary with the following keys:
+
+            'PNevt_list'
+            'M1evt_list'
+            'M2evt_list'
+            'R1evt_list'
+            'R2evt_list'
+            'OMevt_list'
+        """
+
+        self.get_active_instruments()
+
+        # Check if events lists have already been made from the odf files.
+
+        inst_list = list(self.active_instruments.keys())
+        evt_list_list = {'PN': 'PNevt_list',
+                         'M1': 'M1evt_list',
+                         'M2': 'M2evt_list',
+                         'R1': 'R1evt_list',
+                         'R2': 'R2evt_list',
+                         'OM': 'OMevt_list'}
+        find_list =     {'PN': 'EPN',
+                         'M1': 'EMOS1',
+                         'M2': 'EMOS2',
+                         'R1': 'R1',
+                         'R2': 'R2',
+                         'OM': 'OM'}
+        inst_name =     {'PN': 'EPIC-pn',
+                         'M1': 'EPIC-MOS1',
+                         'M2': 'EPIC-MOS2',
+                         'R1': 'RGS1',
+                         'R2': 'RGS2',
+                         'OM': 'OM'}
+        for item in inst_list: self.files[evt_list_list[item]] = []
+
+        for inst in inst_list:
+            exists = False
+            # Checking for EPIC event lists.
+            files = glob.glob(self.obs_dir+'/**/*.ds', recursive=True)
+            for filename in files:
+                if (filename.find(find_list[inst]) != -1) and filename.endswith('Evts.ds'):
+                    self.files[evt_list_list[inst]].append(os.path.abspath(filename))
+                    exists = True
+            # Checking for RGS event lists.
+            files = glob.glob(self.obs_dir+'/**/*EVENLI*FIT', recursive=True)
+            for filename in files:
+                if (filename.find(find_list[inst]) != -1):
+                    self.files[evt_list_list[inst]].append(os.path.abspath(filename))
+                    exists = True
+            if exists:
+                self.files[evt_list_list[inst]].sort()
+                if print_output:
+                    print(" > {0} {1} event list(s) found.\n".format(len(self.files[evt_list_list[inst]]),inst_name[inst]))
+                    for x in self.files[evt_list_list[inst]]:
+                        print("    " + x + "\n")
+
+        return
+    
+    def find_rgs_spectra_files(self,print_output=True):
+        """
+        --Not intended to be used by the end user. Internal use only.--
+
+        Check for RGS spectra files created by rgsproc. Adds them to 
+        'files' dictrionary with the keys:
+
+            'R1SPEC'
+            'R2SPEC'
+        """
+
+        self.get_active_instruments()
+
+        # Check if events lists have already been made from the odf files.
+
+        inst_list = list(self.active_instruments.keys())
+        rgs_list = []
+        if 'R1' in inst_list: rgs_list.append('R1')
+        if 'R2' in inst_list: rgs_list.append('R2')
+
+        dict_key  = {'R1': 'R1spectra',
+                     'R2': 'R2spectra'}
+        file_key  = {'R1': 'R1',
+                     'R2': 'R2'}
+        inst_name = {'R1': 'RGS1',
+                     'R2': 'RGS2'}
+        
+        for item in rgs_list: self.files[dict_key[item]] = []
+
+        for inst in rgs_list:
+            exists = False
+            # Checking for RGS spectra.
+            files = glob.glob(self.obs_dir+'/**/*RSPEC*FIT', recursive=True)
+            for filename in files:
+                if (filename.find(file_key[inst]) != -1):
+                    self.files[dict_key[inst]].append(os.path.abspath(filename))
+                    exists = True
+            if exists:
+                self.files[dict_key[inst]].sort()
+                if print_output:
+                    print(" > {0} {1} spectra found.\n".format(len(self.files[dict_key[inst]]),inst_name[inst]))
+                    for x in self.files[dict_key[inst]]:
+                        print("    " + x + "\n")
+
+        return
+    
+    def get_ccf_cif(self,logger):
+        """
+        --Not intended to be used by the end user. Internal use only.--
+
+        Checks for the ccf.cif file. If it exists, inserts file name in 
+        'files' dict.
+        """
+
+        exists = False
+
+        # Looking for ccf.cif file.
+        self.files['sas_ccf'] = os.path.join('does','not','exist')
+        logger.log('info', f'Searching for ccf.cif.')
+        for path, directories, files in os.walk(self.obs_dir):
+            for file in files:
+                if 'ccf.cif' in file:
+                    logger.log('info', f'Found ccf.cif file in {path}.')
+                    self.files['sas_ccf'] = os.path.join(path,file)
+        
+        # Check if ccf.cif file exists.
+        if os.path.exists(self.files['sas_ccf']):
+            logger.log('info', '{0} is present'.format(self.files['sas_ccf']))
+            exists = True
+        else:
+            logger.log('warning', 'ccf.cif file not present! User must run calibrate_odf!')
+
+        return exists
+    
+    def get_SUM_SAS(self,logger,user_defined_file=None):
+        """
+        --Not intended to be used by the end user. Internal use only.--
+
+        Checks for the *SUM.SAS file. Making this a function since it is 
+        used in several places.
+        """
+
+        exists = False
+
+        if user_defined_file == None:
+            # Looking for *SUM.SAS file.
+            self.files['sas_odf'] = os.path.join('does','not','exist')
+            logger.log('info', f'Path to *SUM.SAS file not given. Will search for it.')
+            for path, directories, files in os.walk(self.obs_dir):
+                for file in files:
+                    if 'SUM.SAS' in file:
+                        logger.log('info', f'Found *SUM.SAS file in {path}.')
+                        self.files['sas_odf'] = os.path.join(path,file)
+        # Check if *SUM.SAS file exists.
+        if os.path.exists(self.files['sas_odf']):
+            logger.log('info', '{0} is present'.format(self.files['sas_odf']))
+            exists = True
+        else:
+            logger.log('warning', 'sas_odf file not present! User must run calibrate_odf!')
+            return exists
+        
+        # Check that the SUM.SAS file PATH keyword points to a real ODF directory
+        with open(self.files['sas_odf']) as inf:
+            lines = inf.readlines()
+            for line in lines:
+                if 'PATH' in line:
+                    key, path = line.split()
+                    if not os.path.exists(path):
+                        logger.log('error', f'Summary file PATH {path} does not exist. Rerun calibrate_odf with overwrite=True.')
+                        print(f'\nSummary file PATH {path} does not exist. \n\n>>>>Rerun calibrate_odf with overwrite=True.')
+                        exists = False
+                    MANIFEST = glob.glob(os.path.join(path, 'MANIFEST*'))
+                    if not os.path.exists(MANIFEST[0]):
+                        logger.log('error', f'Missing {MANIFEST[0]} file in {path}. Missing ODF components? Rerun calibrate_odf with overwrite=True.')
+                        print(f'\nMissing {MANIFEST[0]} file in {path}. Missing ODF components? \n\n>>>>Rerun calibrate_odf with overwrite=True.')
+                        exists = False
+
+        return exists
+    
+    def __set_obsid(self):
+        """
+        --Not intended to be used by the end user. Internal use only.--
+
+        Basic method for setting the environment variables for a single 
+        'ObsID'.
+
+        Checks for the existence of various directories. If a directory 
+        is not found then __set_obsid will stop and use 'return' command.
+        Directories that will be checked for (in this order):
+            
+            data_dir
+            obs_dir
+            odf_dir -or- pps_dir
+            work_dir
+
+        Then checks for the ccf.cif, *SUM.SAS files and event lists.
+
+        Similar to download_data, but will not download any data, 
+        or do anything other than link to files and directories. 
+        """
+
+        # Where are we?
+        startdir = os.getcwd()
+
+        # Brief check to see if data_dir was 
+        # given on odfobject creation.
+        if self.data_dir != None:
+            data_dir = self.data_dir
+        else:
+            data_dir = sas_cfg.get("sas", "data_dir")
+
+        # Start checking data_dir
+        if os.path.exists(data_dir):
+            self.data_dir = data_dir
+        else:
+            # Nothing can be done! User must run download_data!
+            return
+
+        # Set directories for the observation, odf, pps, and work.
+        self.obs_dir  = os.path.join(self.data_dir,self.odfid)
+        self.odf_dir  = os.path.join(self.obs_dir,'ODF')
+        self.pps_dir  = os.path.join(self.obs_dir,'PPS')
+        self.work_dir = os.path.join(self.obs_dir,'work')
+
+        if os.path.exists(self.obs_dir):
+            print(f'obs_dir found at {self.obs_dir}.')
+        else:
+            # obs_dir not found! Nothing can be done!
+            # User must run download_data!
+            return
+        
+        if os.path.exists(self.odf_dir):
+            print(f'odf_dir found at {self.odf_dir}.')
+            if os.path.exists(self.pps_dir):
+                print(f'pps_dir found at {self.pps_dir}.')
+        else:
+            if os.path.exists(self.pps_dir):
+                print(f'pps_dir found at {self.pps_dir}.')
+            else:
+                print(f'ODF and PPS directories not found! User must download data!')
+                return
+            
+        # Get lists of ODF and PPS files.
+        if os.path.exists(self.odf_dir):
+            self.files['ODF'] = self.__get_list_of_ODF_files()
+        if os.path.exists(self.pps_dir):
+            self.files['PPS'] = self.__get_list_of_PPS_files()
+        
+        if os.path.exists(self.work_dir):
+            print(f'work_dir found at {self.work_dir}.')
+        else:
+            print(f'Default work_dir not found! User must create it!')
+            return
+
+        # Only generate logger if observation directory exists.
+        logger = generate_logger(logname='odf_'+self.odfid, log_dir=self.data_dir)
+        logger.log('info', f'Data directory = {self.data_dir}')
+        logger.log('info', f'Existing directory for {self.odfid} found ...')
+        logger.log('info', f'Searching {self.data_dir}/{self.odfid} for ccf.cif and *SUM.SAS files ...')
+
+        # Looking for ccf.cif file.
+        exists = self.get_ccf_cif(logger)
+        if not exists:
+            print('ccf.cif file not present! User must run calibrate_odf!')
+            return
+
+        # Set 'SAS_CCF' enviroment variable.
+        os.environ['SAS_CCF'] = self.files['sas_ccf']
+        logger.log('info', 'SAS_CCF = {0}'.format(self.files['sas_ccf']))
+        print('SAS_CCF = {}'.format(self.files['sas_ccf']))
+
+        # Looking for *SUM.SAS file.
+        exists = self.get_SUM_SAS(logger)
+        if not exists:
+            print('*SUM.SAS file not present! User must run calibrate_odf!')
+            return
+        
+        # Set 'SAS_ODF' enviroment variable.
+        os.environ['SAS_ODF'] = self.files['sas_odf']
+        logger.log('info', 'SAS_ODF = {0}'.format(self.files['sas_odf']))
+        print('SAS_ODF = {0}'.format(self.files['sas_odf']))
+
+        # Check for previously generated event lists.
+        self.find_event_list_files()
+        self.find_rgs_spectra_files()
+
+        # Change to work directory.
+        os.chdir(self.work_dir)
+
+        # Exit the __set_obsid function. Everything is set.
+        return
+    
+    def __parse_obs_dir(self):
+        """
+        --Not intended to be used by the end user. Internal use only.--
+
+        Parses the obs_dir for what is present.
+
+        Returns a dictionary with information on what exists.
+        """
+        exists = {}
+        items = ['obs_dir','odf_dir','pps_dir','work_dir',
+                 'ccfcif','SUMSAS','manifest',
+                 'ODF_files','PPS_files']
+        
+        for item in items: exists[item] = False
+
+        # Set directories for the observation, odf, pps, and work.
+        obs_dir  = os.path.join(self.data_dir,self.odfid)
+        odf_dir  = os.path.join(obs_dir,'ODF')
+        pps_dir  = os.path.join(obs_dir,'PPS')
+        work_dir = os.path.join(obs_dir,'work')
+
+        if os.path.exists(obs_dir): exists['obs_dir']  = True
+        if os.path.exists(odf_dir): 
+            exists['odf_dir']  = True
+            # Just checks if files are there. Doesn't check if they
+            # are real or correct.
+            if len(os.listdir(odf_dir)) != 0:
+                exists['ODF_files'] = True
+        if os.path.exists(pps_dir):
+            exists['pps_dir']  = True
+            # Just checks if files are there. Doesn't check if they
+            # are real or correct.
+            if len(os.listdir(pps_dir)) != 0:
+                exists['PPS_files'] = True
+        if os.path.exists(work_dir): exists['work_dir'] = True
+        exists['ccfcif'] = self.__check_for_ccf_cif()
+        exists['SUMSAS'] = self.__check_for_SUM_SAS()
+        exists['manifest'] = self.__check_for_manifest()
+
+        return exists
 
     def __run_calibration(self,cifbuild_opts,odfingest_opts,logger):
         """
@@ -799,433 +1299,6 @@ class ODFobject(object):
             print("Something has gone wrong. I cant find any event list files after running rgsproc. \n")
         self.find_rgs_spectra_files(print_output=False)
 
-    def basic_setup(self,data_dir=None,level='ODF',repo='esa',
-                    overwrite=False,recalibrate=False,rerun=False,
-                    run_epproc=True,run_emproc=True,run_rgsproc=True,
-                    run_omichain=False,run_epchain=False,run_emchain=False,
-                    **kwargs):
-        """
-        Function to do all basic analysis tasks. The function will:
-
-            1. Download data by calling 'download_data'
-            2. Call the function 'calibrate_odf'
-                A. Run 'cifbuild'
-                B. Run 'odfingest'
-            2. Run 'epproc' -OR- 'epchain'
-            3. Run 'emproc' -OR- 'emchain'
-            4. Run 'rgsproc'
-            5. Run 'omichain' (not run by default)
-
-        If 'run_epchain' is set to 'True', then 'epproc' will not run.
-        If 'run_emchain' is set to 'True', then 'emproc' will not run.
-
-        Inputs:
-
-            data_dir:    Data directory.
-            level:       Level of data products ('ODF','PPS','ALL').
-            repo:        Download repository ('esa','heasarc','sciserver').
-            overwrite:   Remove previous data files and download again.
-            recalibrate: Rerun 'cifbuild' and 'odfingest'.
-            rerun:       Rerun the *procs or *chains.
-
-        All input arguments for 'download_data' and 'calibrate_odf'
-        can be passed to 'basic_setup'.
-
-        'download_data' inputs (with defaults):
-
-            repo            = 'esa'
-            level           = 'ODF'
-            data_dir        = None
-            overwrite       = False
-            logger          = None
-            proprietary     = False
-            credentials_file= None
-            encryption_key  = None
-            PPS_subset      = False
-            instname        = None
-            expflag         = None
-            expno           = None
-            product_type    = None
-            datasubsetno    = None
-            sourceno        = None
-            extension       = None
-            **kwargs
-
-        'calibrate_odf' inputs (with defaults):
-               
-            obs_dir        = None
-            sas_ccf        = None
-            sas_odf        = None
-            cifbuild_opts  = []
-            odfingest_opts = []
-            recalibrate    = False
-            logger         = None
-
-        Input arguments for 'epproc', 'emproc', and 'rgsproc' can also be 
-        passed in using 'epproc_args', 'emproc_args', or 'rgsproc_args' 
-        respectively (or 'epchain_args' and 'emchain_args'). By defaut 
-        'epproc', 'emproc', and 'rgsproc' will not rerun if output files 
-        are found, but they can be forced to rerun by setting 'rerun=True' 
-        as an input to 'basic_setup'.
-
-        Examples for use:
-
-            odf.basic_setup()
-
-                - Uses the defaults.
-
-            odf.basic_setup(repo='heasarc')
-
-                - Uses the defaults, but downloads data from the HEASARC.
-
-            odf.basic_setup(overwrite=True)
-
-                - Will erase any previous data files for the Obs ID and 
-                  download a fresh set of data files.
-
-            odf.basic_setup(recalibrate=True)
-
-                - Will rerun cifbuild and odfingest to generate new 
-                  ccf.cif and *SUM.SAS files.
-
-            odf.basic_setup(rerun=True)
-
-                - Will **not** download new files, but will rerun 'epproc',
-                  'emproc', and 'rgsproc' and create new event lists.
-
-            odf.basic_setup(repo='heasarc',
-                            epproc_args=['withoutoftime=yes'])
-
-                - Downloads data from the HEASARC and runs 'epproc' with the
-                  'withoutoftime' option.
-
-            odf.basic_setup(run_epchain=True,
-                            run_emchain=True)
-
-                - Will run 'epchain' and 'emchain' instead of 'epproc' and
-                  'emproc'.
-
-            odf.basic_setup(run_epproc=False,
-                            run_emproc=False)
-
-                - Will not run 'epproc' or 'emproc'. Will only run 'rgsproc'
-                  by default.
-
-            odf.basic_setup(run_epproc=False,
-                            run_emproc=True,
-                            run_rgsproc=False)
-
-                - Will only run 'emproc', **not** 'epproc' or 'rgsproc'.
-
-            odf.basic_setup(repo='heasarc',encryption_key='XXXXXXXXXXXXXXX')
-
-                - Uses the defaults, but downloads *proprietary* data from 
-                  the HEASARC. Must provide an encryption key, an alpha-numeric
-                  string with 30 characters.
-
-            odf.basic_setup(proprietary=True)
-
-                - Uses the defaults, but downloads *proprietary* data from 
-                  the XSA at ESA. Astroquery will ask for user's Cosmos
-                  username and password.
-
-        """
-
-        # Where are we?
-        startdir = os.getcwd()
-
-        # Brief check to see if data_dir was 
-        # given on odfobject creation.
-        if self.data_dir != None:
-            data_dir = self.data_dir
-
-        # Start checking data_dir
-        if data_dir == None:
-            data_dir = sas_cfg.get("sas", "data_dir")
-            if os.path.exists(data_dir):
-                self.data_dir = data_dir
-            else:
-                self.data_dir = startdir
-        else:
-            self.data_dir = data_dir
-
-        # If data_dir was not given as an absolute path, it is interpreted
-        # as a subdirectory of startdir.
-        if self.data_dir[0] != '/':
-            self.data_dir = os.path.join(startdir, self.data_dir)
-        elif self.data_dir[:2] == './':
-            self.data_dir = os.path.join(startdir, self.data_dir[2:])
-
-        # Check if data_dir exists. If not then create it.
-        # Save comments for the logger created later.
-        logcomment = ''
-        if not os.path.isdir(self.data_dir):
-            logcomment = f'{self.data_dir} does not exist. Creating it!'
-            os.mkdir(self.data_dir)
-            logcomment = logcomment + '\n' + f'{self.data_dir} has been created!'
-
-        logger = generate_logger(logname='odf_'+self.odfid, log_dir=self.data_dir)
-        logger.log('info', f'Data directory = {self.data_dir}')
-        if len(logcomment) > 1:
-            logger.log('warning', logcomment)
-
-        # Deal with the rest of the inputs.
-        self.level = level
-        self.repo = repo
-
-        # Checking LHEASOFT, SAS_DIR and SAS_CCFPATH
-
-        lheasoft = os.environ.get('LHEASOFT')
-        if not lheasoft:
-            logger.log('error', 'LHEASOFT is not set. Please initialise HEASOFT')
-            raise Exception('LHEASOFT is not set. Please initialise HEASOFT')
-        else:
-            logger.log('info', f'LHEASOFT = {lheasoft}')
-
-        sasdir = os.environ.get('SAS_DIR')
-        if not sasdir:
-            logger.log('error', 'SAS_DIR is not defined. Please initialise SAS.')
-            raise Exception('SAS_DIR is not defined. Please initialise SAS.')
-        else:
-            logger.log('info', f'SAS_DIR = {sasdir}') 
-
-        sas_ccfpath = os.environ.get('SAS_CCFPATH')
-        if not sas_ccfpath:
-            logger.log('error', 'SAS_CCFPATH not set. Please define it.')
-            raise Exception('SAS_CCFPATH not set. Please define it.')
-        else:
-            logger.log('info',f'SAS_CCFPATH = {sas_ccfpath}')
-        
-        os.chdir(self.data_dir)
-        logger.log('info', f'Changed directory to {self.data_dir}')
-
-        print(f'''
-
-        Starting SAS session
-
-        Data directory = {self.data_dir}
-
-        ''')
-
-
-        self.download_data(repo             = self.repo,
-                           level            = self.level,
-                           data_dir         = self.data_dir,
-                           overwrite        = overwrite,
-                           logger           = logger,
-                           proprietary      = kwargs.get('proprietary', False),
-                           credentials_file = kwargs.get('credentials_file', None),
-                           encryption_key   = kwargs.get('encryption_key', None),
-                           PPS_subset       = kwargs.get('PPS_subset', False),
-                           instname         = kwargs.get('instname', None),
-                           expflag          = kwargs.get('expflag', None),
-                           expno            = kwargs.get('expno', None),
-                           product_type     = kwargs.get('product_type', None),
-                           datasubsetno     = kwargs.get('datasubsetno', None),
-                           sourceno         = kwargs.get('sourceno', None),
-                           extension        = kwargs.get('extension', None),
-                           filename         = kwargs.get('filename', None))
-        
-        if hasattr(self, 'odf_dir'):
-            if os.path.exists(self.odf_dir):
-                self.files['ODF'] = self.__get_list_of_ODF_files()
-        if hasattr(self, 'pps_dir'):
-            if os.path.exists(self.pps_dir):
-                self.files['PPS'] = self.__get_list_of_PPS_files()
-
-        self.work_dir = os.path.join(self.obs_dir,'work')
-        if not os.path.exists(self.work_dir): os.mkdir(self.work_dir)
-        
-        # If only PPS files requested, no processing needed.
-        if self.level == 'PPS': return
-
-        self.calibrate_odf(obs_dir        = self.data_dir,
-                           sas_ccf        = kwargs.get('sas_ccf', None),
-                           sas_odf        = kwargs.get('sas_odf', None),
-                           cifbuild_opts  = kwargs.get('cifbuild_opts', []),
-                           odfingest_opts = kwargs.get('odfingest_opts', []),
-                           recalibrate    = recalibrate)
-
-        if run_epproc and not run_epchain:
-            self.__run_analysis('epproc',
-                                kwargs.get('epproc_args', []),
-                                rerun   = rerun,
-                                logFile = 'epproc.log')
-        
-        if run_epchain:
-            self.__run_analysis('epchain',
-                                kwargs.get('epchain_args', []),
-                                rerun   = rerun,
-                                logFile = 'epchain.log')
-
-        if run_emproc and not run_emchain:
-            self.__run_analysis('emproc',
-                                kwargs.get('emproc_args', []),
-                                rerun   = rerun,
-                                logFile = 'emproc.log')
-            
-        if run_emchain:
-            self.__run_analysis('emchain',
-                                kwargs.get('emchain_args', []),
-                                rerun   = rerun,
-                                logFile = 'emchain.log')
-            
-        if run_rgsproc:
-            self.__run_analysis('rgsproc',
-                                kwargs.get('rgsproc_args', []),
-                                rerun   = rerun,
-                                logFile = 'rgsproc.log')
-        
-        if run_omichain:
-            self.__run_analysis('omichain',
-                                kwargs.get('omichain_args', []),
-                                rerun   = rerun,
-                                logFile = 'omichain.log')
-        
-        return
-    
-    def get_active_instruments(self):
-        """
-        Checks odf summary file for which instruments were active for that odf.
-
-        Assumes that 'sas_odf' already exists and contains the correct path.
-
-        Also assumes file name and path are stored in self.files['sas_odf'].
-        """
-
-        # Get information about the instruments.
-        self.active_instruments = {}
-        with open(self.files['sas_odf']) as inf:
-            lines = inf.readlines()
-            for i,line in enumerate(lines):
-                if '// Instrument Record' in line:
-                    active = lines[i+4][0]
-                    if active == 'N': active = False
-                    if active == 'Y': active = True
-                    self.active_instruments[lines[i+3][0:2]] = active
-
-        # Basic sanity checks
-        bad_sum_file = False
-        inst_list = list(self.active_instruments.keys())
-        true_list = ['M1', 'M2', 'R1', 'R2', 'PN', 'OM']
-        diff = set(inst_list) ^ set(true_list)
-        if len(diff) > 0: bad_sum_file = True
-
-        if bad_sum_file:
-            print('Something is wrong with the odf summary file: {0}'.format(self.files['sas_odf']))
-
-        return
-    
-    def find_event_list_files(self,print_output=True):
-        """
-        Checks the observation directory (obs_dir) for basic unfiltered 
-        event list files created by 'epproc', 'emproc', 'rgsproc', and 
-        'omichain'. Stores paths and file names in self.files.
-
-        'self.files' is a dictionary with the following keys:
-
-            'PNevt_list'
-            'M1evt_list'
-            'M2evt_list'
-            'R1evt_list'
-            'R2evt_list'
-            'OMevt_list'
-        """
-
-        self.get_active_instruments()
-
-        # Check if events lists have already been made from the odf files.
-
-        inst_list = list(self.active_instruments.keys())
-        evt_list_list = {'PN': 'PNevt_list',
-                         'M1': 'M1evt_list',
-                         'M2': 'M2evt_list',
-                         'R1': 'R1evt_list',
-                         'R2': 'R2evt_list',
-                         'OM': 'OMevt_list'}
-        find_list =     {'PN': 'EPN',
-                         'M1': 'EMOS1',
-                         'M2': 'EMOS2',
-                         'R1': 'R1',
-                         'R2': 'R2',
-                         'OM': 'OM'}
-        inst_name =     {'PN': 'EPIC-pn',
-                         'M1': 'EPIC-MOS1',
-                         'M2': 'EPIC-MOS2',
-                         'R1': 'RGS1',
-                         'R2': 'RGS2',
-                         'OM': 'OM'}
-        for item in inst_list: self.files[evt_list_list[item]] = []
-
-        for inst in inst_list:
-            exists = False
-            # Checking for EPIC event lists.
-            files = glob.glob(self.obs_dir+'/**/*.ds', recursive=True)
-            for filename in files:
-                if (filename.find(find_list[inst]) != -1) and filename.endswith('Evts.ds'):
-                    self.files[evt_list_list[inst]].append(os.path.abspath(filename))
-                    exists = True
-            # Checking for RGS event lists.
-            files = glob.glob(self.obs_dir+'/**/*EVENLI*FIT', recursive=True)
-            for filename in files:
-                if (filename.find(find_list[inst]) != -1):
-                    self.files[evt_list_list[inst]].append(os.path.abspath(filename))
-                    exists = True
-            if exists:
-                self.files[evt_list_list[inst]].sort()
-                if print_output:
-                    print(" > {0} {1} event list(s) found.\n".format(len(self.files[evt_list_list[inst]]),inst_name[inst]))
-                    for x in self.files[evt_list_list[inst]]:
-                        print("    " + x + "\n")
-
-        return
-    
-    def find_rgs_spectra_files(self,print_output=True):
-        """
-        --Not intended to be used by the end user. Internal use only.--
-
-        Check for RGS spectra files created by rgsproc. Adds them to 
-        'files' dictrionary with the keys:
-
-            'R1SPEC'
-            'R2SPEC'
-        """
-
-        self.get_active_instruments()
-
-        # Check if events lists have already been made from the odf files.
-
-        inst_list = list(self.active_instruments.keys())
-        rgs_list = []
-        if 'R1' in inst_list: rgs_list.append('R1')
-        if 'R2' in inst_list: rgs_list.append('R2')
-
-        dict_key  = {'R1': 'R1spectra',
-                     'R2': 'R2spectra'}
-        file_key  = {'R1': 'R1',
-                     'R2': 'R2'}
-        inst_name = {'R1': 'RGS1',
-                     'R2': 'RGS2'}
-        
-        for item in rgs_list: self.files[dict_key[item]] = []
-
-        for inst in rgs_list:
-            exists = False
-            # Checking for RGS spectra.
-            files = glob.glob(self.obs_dir+'/**/*RSPEC*FIT', recursive=True)
-            for filename in files:
-                if (filename.find(file_key[inst]) != -1):
-                    self.files[dict_key[inst]].append(os.path.abspath(filename))
-                    exists = True
-            if exists:
-                self.files[dict_key[inst]].sort()
-                if print_output:
-                    print(" > {0} {1} spectra found.\n".format(len(self.files[dict_key[inst]]),inst_name[inst]))
-                    for x in self.files[dict_key[inst]]:
-                        print("    " + x + "\n")
-
-        return
-
     def __check_for_ccf_cif(self):
         """
         --Not intended to be used by the end user. Internal use only.--
@@ -1269,79 +1342,6 @@ class ODFobject(object):
         if len(MANIFEST) > 0:
             if os.path.exists(MANIFEST[0]): exists = True
         
-        return exists
-
-    def get_ccf_cif(self,logger):
-        """
-        --Not intended to be used by the end user. Internal use only.--
-
-        Checks for the ccf.cif file. If it exists, inserts file name in 
-        'files' dict.
-        """
-
-        exists = False
-
-        # Looking for ccf.cif file.
-        self.files['sas_ccf'] = os.path.join('does','not','exist')
-        logger.log('info', f'Searching for ccf.cif.')
-        for path, directories, files in os.walk(self.obs_dir):
-            for file in files:
-                if 'ccf.cif' in file:
-                    logger.log('info', f'Found ccf.cif file in {path}.')
-                    self.files['sas_ccf'] = os.path.join(path,file)
-        
-        # Check if ccf.cif file exists.
-        if os.path.exists(self.files['sas_ccf']):
-            logger.log('info', '{0} is present'.format(self.files['sas_ccf']))
-            exists = True
-        else:
-            logger.log('warning', 'ccf.cif file not present! User must run calibrate_odf!')
-
-        return exists
-    
-    def get_SUM_SAS(self,logger,user_defined_file=None):
-        """
-        --Not intended to be used by the end user. Internal use only.--
-
-        Checks for the *SUM.SAS file. Making this a function since it is 
-        used in several places.
-        """
-
-        exists = False
-
-        if user_defined_file == None:
-            # Looking for *SUM.SAS file.
-            self.files['sas_odf'] = os.path.join('does','not','exist')
-            logger.log('info', f'Path to *SUM.SAS file not given. Will search for it.')
-            for path, directories, files in os.walk(self.obs_dir):
-                for file in files:
-                    if 'SUM.SAS' in file:
-                        logger.log('info', f'Found *SUM.SAS file in {path}.')
-                        self.files['sas_odf'] = os.path.join(path,file)
-        # Check if *SUM.SAS file exists.
-        if os.path.exists(self.files['sas_odf']):
-            logger.log('info', '{0} is present'.format(self.files['sas_odf']))
-            exists = True
-        else:
-            logger.log('warning', 'sas_odf file not present! User must run calibrate_odf!')
-            return exists
-        
-        # Check that the SUM.SAS file PATH keyword points to a real ODF directory
-        with open(self.files['sas_odf']) as inf:
-            lines = inf.readlines()
-            for line in lines:
-                if 'PATH' in line:
-                    key, path = line.split()
-                    if not os.path.exists(path):
-                        logger.log('error', f'Summary file PATH {path} does not exist. Rerun calibrate_odf with overwrite=True.')
-                        print(f'\nSummary file PATH {path} does not exist. \n\n>>>>Rerun calibrate_odf with overwrite=True.')
-                        exists = False
-                    MANIFEST = glob.glob(os.path.join(path, 'MANIFEST*'))
-                    if not os.path.exists(MANIFEST[0]):
-                        logger.log('error', f'Missing {MANIFEST[0]} file in {path}. Missing ODF components? Rerun calibrate_odf with overwrite=True.')
-                        print(f'\nMissing {MANIFEST[0]} file in {path}. Missing ODF components? \n\n>>>>Rerun calibrate_odf with overwrite=True.')
-                        exists = False
-
         return exists
     
     def __get_list_of_ODF_files(self):
