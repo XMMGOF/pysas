@@ -104,6 +104,15 @@ Q: What version of pySAS is installed on SciServer?
 
 A: The version 1.4.1a. Some changes to pySAS have been made since the HEASARC image was created for SciServer. The next time a new HEASARC image is created for SciServer all new changes to pySAS will be incorporated.
 
+To install the latest version of pySAS on SciServer from the launcher open a terminal and run the following commands:
+
+```bash
+conda activate xmmsas
+cd /home/idies/miniconda3/envs/xmmsas/lib/python3.10/
+rm -rf ./pysas
+pip install xmmpysas --target=/home/idies/miniconda3/envs/xmmsas/lib/python3.10/
+```
+
 Q: Why have this version of pySAS separate from the standard version you can download from ESA when you download SAS?
 
 A: Because of the realities of developing across multiple systems. Changes were needed to make pySAS run on systems such as SciServer (and other future online systems that are in the works, stay tuned!). The development timetable for SciServer did not match up with the development timetable for SAS. This allows us to continuously develop pySAS to match *all* of the development timetables. This also allows us to get feedback from the XMM-Newton user community about what they want to see in pySAS.
