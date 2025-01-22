@@ -378,7 +378,7 @@ def download_data(odfid,
     else:
         logger.log('info','No encrypted files found.')
 
-    for file in glob.glob('**/*.gz', recursive=True):
+    for file in glob.glob(odf_dir + f'/**/*.gz', recursive=True):
         logger.log('info', f'Unpacking {file} ...')
         print(f'Unpacking {file} ...')
         with gzip.open(f'{file}', 'rb') as f_in:
@@ -388,7 +388,15 @@ def download_data(odfid,
         os.remove(file)
         logger.log('info', f'{file} removed')
 
-    for file in glob.glob('**/*.TAR', recursive=True):
+    for file in glob.glob(odf_dir + f'/**/*.tar', recursive=True):
+        logger.log('info', f'Unpacking {file} ...')
+        print(f'Unpacking {file} ...')
+        with tarfile.open(file,"r") as tar:
+            tar.extractall(path=odf_dir)
+        os.remove(file)
+        logger.log('info', f'{file} removed')
+
+    for file in glob.glob(odf_dir + f'/**/*.TAR', recursive=True):
         logger.log('info', f'Unpacking {file} ...')
         print(f'Unpacking {file} ...')
         with tarfile.open(file,"r") as tar:
