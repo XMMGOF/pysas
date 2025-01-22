@@ -25,6 +25,7 @@ Utility functions specific to SAS or pySAS.
 
 # Standard library imports
 import os, sys, subprocess, shutil, glob, tarfile, gzip, time, platform, re
+from distutils.dir_util import copy_tree
 
 # Third party imports
 from astroquery.esa.xmm_newton import XMMNewton
@@ -207,7 +208,11 @@ def download_data(odfid,
                             tar.extractall(path=odf_dir)
                         elif levl == 'PPS':
                             tar.extractall(path=data_dir)
-                            os.rename('pps','PPS')
+                            if os.path.exists(pps_dir):
+                                copy_tree('pps','PPS')
+                                shutil.rmtree('pps')
+                            else:
+                                os.rename('pps','PPS')
                     os.remove(odftar)
                     logger.log('info', f'{odftar} extracted successfully!')
                     logger.log('info', f'{odftar} removed')
@@ -286,7 +291,35 @@ def download_data(odfid,
         else:
             logger.log('info', f'Copying data from {archive_data} ...')
             print(f'\nCopying data from {archive_data} ...')
-            shutil.copytree(archive_data,dest_dir,dirs_exist_ok=True)
+            if levl == 'ODF':
+                # Check if ALL ODF files already exist, if not copy the missing ones
+                archive_tar_file = glob.glob(archive_data + f'/**/*.tar.gz', recursive=True)[0]
+                odf_files = glob.glob(odf_dir + f'/**/*', recursive=True)
+                if len(odf_files) > 0:
+                    missing_files = []
+                    odf_files_names = []
+                    for file in odf_files:
+                        odf_files_names.append(os.path.basename(file))
+                    archive_files = glob.glob(archive_data + f'/**/*', recursive=True)
+                    for file in archive_files:
+                        file_name = os.path.basename(file)
+                        if file_name.endswith('.gz'):
+                            if not file_name.endswith('.tar.gz'):
+                                if file_name[:-3] not in odf_files_names:
+                                    missing_files.append(file)
+                        else:
+                            if file_name not in odf_files_names:
+                                missing_files.append(file)
+                    for file in missing_files:
+                        file_name = os.path.basename(file)
+                        logger.log('info', f'Copying file {file_name} from {archive_data} ...')
+                        print(f'\nCopying file {file_name} from {archive_data} ...')
+                        shutil.copy(file, os.path.join(odf_dir,file_name))
+                else:
+                    tar_file_name = os.path.basename(archive_tar_file)
+                    shutil.copy(archive_tar_file, os.path.join(odf_dir,tar_file_name))
+            else:
+                shutil.copytree(archive_data,dest_dir,dirs_exist_ok=True)      
 
     # Check if data is encrypted. Decrypt the data.
     encrypted = glob.glob('**/*.gpg', recursive=True)
