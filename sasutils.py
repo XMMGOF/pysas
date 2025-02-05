@@ -300,6 +300,9 @@ def download_data(odfid,
             if not os.path.exists(pps_dir): os.mkdir(pps_dir)
             archive_data = f'/home/idies/workspace/headata/FTP/xmm/data/rev0//{odfid}/PPS'
             files = glob.glob(archive_data + f'/**/{PPSfile}', recursive=True)
+            print(files)
+            logger.log('info', f'Copying data from {archive_data} ...')
+            print(f'\nCopying data from {archive_data} ...')
             for file in files:
                 file_name = os.path.basename(file)
                 logger.log('info', f'Copying file {file_name} from {archive_data} ...')
