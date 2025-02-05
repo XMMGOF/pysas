@@ -299,26 +299,16 @@ def download_data(odfid,
         if PPS_subset:
             if not os.path.exists(pps_dir): os.mkdir(pps_dir)
             archive_data = f'/home/idies/workspace/headata/FTP/xmm/data/rev0//{odfid}/PPS'
-            files = glob.glob(archive_data + f'/**/{PPSfile}', recursive=True)
-            print(files)
-            logger.log('info', f'Copying data from {archive_data} ...')
-            print(f'\nCopying data from {archive_data} ...')
+            file_pattern = archive_data + f'/**/{PPSfile}'
+            files = glob.glob(file_pattern, recursive=True)
+            if len(files) == 0:
+                logger.log('warning', f'No files of the pattern {file_pattern} found!')
+                print(f'Warning! No files of the pattern {file_pattern} found!')
             for file in files:
                 file_name = os.path.basename(file)
                 logger.log('info', f'Copying file {file_name} from {archive_data} ...')
                 print(f'\nCopying file {file_name} from {archive_data} ...')
                 shutil.copy(file, os.path.join(pps_dir,file_name))
-
-        # dest_dir = obs_dir
-        # if level == 'ALL':
-        #     levl = ''
-        # else:
-        #     levl = level
-        #     dest_dir = os.path.join(dest_dir,levl)
-        # if levl == 'ODF':    
-        #     if not os.path.exists(odf_dir): os.mkdir(odf_dir)
-        # elif levl == 'PPS':
-        #     if not os.path.exists(pps_dir): os.mkdir(pps_dir)
         
         # else:
         #     logger.log('info', f'Copying data from {archive_data} ...')
