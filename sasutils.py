@@ -29,6 +29,7 @@ from distutils.dir_util import copy_tree
 
 # Third party imports
 from astroquery.esa.xmm_newton import XMMNewton
+from astroquery.heasarc import Heasarc
 
 # Local application imports
 # from .version import VERSION, SAS_RELEASE, SAS_AKA
@@ -63,8 +64,11 @@ def download_data(odfid,
 
     Downloads, or copies, data from chosen repository. 
 
+    !!!! WARNING !!!!
     Will silently overwrite any preexisting data files and remove any existing
     pipeline products. Will create directory structure in 'data_dir' for odf.
+
+    Only the download_data function in ODFobject will check for preexisting files.
 
     Inputs:
 
@@ -126,10 +130,7 @@ def download_data(odfid,
         print(f'\nCreating observation directory {obs_dir} ...')
         os.mkdir(obs_dir)
 
-    logger.log('info', 'Requesting odfid = {} from XMM-Newton Science Archive\n'.format(odfid))
-    print('Requesting odfid = {} from XMM-Newton Science Archive\n'.format(odfid))
-
-    if level == 'PPS' and PPS_subset:
+    if level == 'PPS' and PPS_subset and not filename:
         PPSfile = generate_PPS_filename(obsid=odfid,instname=instname,
                                         expflag=expflag,expno=expno,
                                         product_type=product_type,
@@ -137,6 +138,8 @@ def download_data(odfid,
                                         sourceno=sourceno,extension=extension)
         
     if repo == 'esa':
+        logger.log('info', 'Requesting odfid = {} from ESA XMM-Newton Science Archive\n'.format(odfid))
+        print('Requesting odfid = {} from ESA XMM-Newton Science Archive\n'.format(odfid))
         logger.log('info', f'Changed directory to {obs_dir}')
         os.chdir(obs_dir)
         if level == 'ALL':
@@ -219,107 +222,129 @@ def download_data(odfid,
                 except tarfile.ExtractError:
                     logger.log('error', 'tar file extraction failed')
                     raise Exception('tar file extraction failed')
+
     elif repo == 'heasarc':
-        #Download the odfid from HEASARC, using wget
+        #Download the odfid from HEASARC, using Astroquery
+        logger.log('info', 'Requesting XMM-Newton odfid = {} from the HEASARC\n'.format(odfid))
+        print('Requesting XMM-Newton odfid = {} from the HEASARC\n'.format(odfid))
+
         logger.log('info', f'Changed directory to {data_dir}')
         os.chdir(data_dir)
-        clear_dirs = True
-        if os.path.exists(odf_dir) and level == 'PPS': clear_dirs = False
-        if os.path.exists(pps_dir) and level == 'ODF': clear_dirs = False
-        if level == 'ALL':
-            levl = ''
-        else:
-            levl = level
 
-        if PPS_subset:
-            PPS_subset_note = f' using file pattern {PPSfile}'
-            wgetA = f"-A '{PPSfile}'"
-        else:
-            PPS_subset_note = ''
-            wgetA = ''
-
-        wgetf = ''
-        if filename != None:
-            wgetf = filename
-            PPS_subset_note = f', file {wgetf}'
+        if filename: PPS_subset = True
         
-        logger.log('info', f'Downloading {odfid}, level {levl}{PPS_subset_note}')
-        print(f'\nDownloading {odfid}, level {level}{PPS_subset_note}. Please wait ...\n')
-        cmd = f'wget -m -nH -e robots=off --cut-dirs=4 -l 2 -np {wgetA} https://heasarc.gsfc.nasa.gov/FTP/xmm/data/rev0/{odfid}/{levl}/{wgetf}'
-        logger.log('info', f'Using the command:\n{cmd}')
-        result = subprocess.run(cmd, shell=True)
-        if result.returncode != 0:
-            print(f'Problem downloading data!')
-            logger.log('error', f'File download failed!')
-            raise Exception('File download failed!')
-        for path, directories, files in os.walk(obs_dir):
-            for file in files:
-                if 'index.html' in file:
-                    os.remove(os.path.join(path,file))
-            for direc in directories:
-                if '4XMM' in direc:
-                    shutil.rmtree(os.path.join(path,direc))
-                if level == 'ODF' and direc == 'PPS' and clear_dirs:
-                    shutil.rmtree(os.path.join(path,direc))
-                if level == 'PPS' and direc == 'ODF' and clear_dirs:
-                    shutil.rmtree(os.path.join(path,direc))
-                if 'om_mosaic' in direc:
-                    shutil.rmtree(os.path.join(path,direc))
+        if level in ['ALL','ODF','PPS','4XMM','om_mosaic'] and not PPS_subset:
+            logger.log('info', f'Downloading {odfid}, level {level}')
+            print(f'\nDownloading {odfid}, level {level}. Please wait ...\n')
+            query = """SELECT * FROM xmmmaster WHERE obsid='{0}'""".format(odfid)
+            tab = Heasarc.query_tap(query).to_table()
+            if level == 'ALL':
+                for lvl in ['ODF','PPS']:
+                    data_source = Heasarc.locate_data(tab, catalog_name='xmmmaster')
+                    data_source['access_url'] = data_source['access_url']+lvl
+                    Heasarc.download_data(data_source,host=repo,location=data_dir)
+            else:
+                data_source = Heasarc.locate_data(tab, catalog_name='xmmmaster')
+                data_source['access_url'] = data_source['access_url']+level
+                Heasarc.download_data(data_source,host=repo,location=data_dir)
+        elif PPS_subset:
+            # Only if PPS_subset = True or a single file name is passed in.
+            wgetf = ''
+            if filename != None:
+                wgetf = filename
+                PPS_subset_note = f', file {wgetf}'
+                wgetA = ''
+            else:
+                PPS_subset_note = f' using file pattern {PPSfile}'
+                wgetA = f"-A '{PPSfile}'"
+
+            logger.log('info', f'Downloading {odfid}, level {level}{PPS_subset_note}')
+            print(f'\nDownloading {odfid}, level {level}{PPS_subset_note}. Please wait ...\n')
+
+            cmd = f'wget -m -nH -e robots=off --cut-dirs=4 -l 2 -np {wgetA} https://heasarc.gsfc.nasa.gov/FTP/xmm/data/rev0/{odfid}/{level}/{wgetf}'
+            logger.log('info', f'Using the command:\n{cmd}')
+            result = subprocess.run(cmd, shell=True)
+
+            if result.returncode != 0:
+                print(f'Problem downloading data!')
+                print('Tried using the command:')
+                print(cmd)
+                logger.log('error', f'File download failed!')
+                raise Exception('File download failed!')
+
     elif repo == 'sciserver':
         # Copies data into personal storage space.
-        dest_dir = obs_dir
-        if level == 'ALL':
-            levl = ''
-        else:
-            levl = level
-            dest_dir = os.path.join(dest_dir,levl)
-        if levl == 'ODF':    
-            if not os.path.exists(odf_dir): os.mkdir(odf_dir)
-        elif levl == 'PPS':
-            if not os.path.exists(pps_dir): os.mkdir(pps_dir)
-        archive_data = f'/home/idies/workspace/headata/FTP/xmm/data/rev0//{odfid}/{levl}'
-        if filename: 
-            PPS_subset = True
-            PPSfile = filename
-        if PPS_subset:
-            files = glob.glob(archive_data + f'/**/{PPSfile}', recursive=True)
-            for file in files:
-                file_name = os.path.basename(file)
-                logger.log('info', f'Copying file {file_name} from {archive_data} ...')
-                print(f'\nCopying file {file_name} from {archive_data} ...')
-                shutil.copy(file, os.path.join(pps_dir,file_name))
-        else:
-            logger.log('info', f'Copying data from {archive_data} ...')
-            print(f'\nCopying data from {archive_data} ...')
-            if levl == 'ODF':
-                # Check if ALL ODF files already exist, if not copy the missing ones
-                archive_tar_file = glob.glob(archive_data + f'/**/*.tar.gz', recursive=True)[0]
-                odf_files = glob.glob(odf_dir + f'/**/*', recursive=True)
-                if len(odf_files) > 0:
-                    missing_files = []
-                    odf_files_names = []
-                    for file in odf_files:
-                        odf_files_names.append(os.path.basename(file))
-                    archive_files = glob.glob(archive_data + f'/**/*', recursive=True)
-                    for file in archive_files:
-                        file_name = os.path.basename(file)
-                        if file_name.endswith('.gz'):
-                            if not file_name.endswith('.tar.gz'):
-                                if file_name[:-3] not in odf_files_names:
-                                    missing_files.append(file)
-                        else:
-                            if file_name not in odf_files_names:
-                                missing_files.append(file)
-                    for file in missing_files:
-                        file_name = os.path.basename(file)
-                        logger.log('info', f'Copying file {file_name} from {archive_data} ...')
-                        print(f'\nCopying file {file_name} from {archive_data} ...')
-                        shutil.copy(file, os.path.join(odf_dir,file_name))
-                else:
-                    tar_file_name = os.path.basename(archive_tar_file)
-                    shutil.copy(archive_tar_file, os.path.join(odf_dir,tar_file_name))
+        logger.log('info', 'Requesting XMM-Newton odfid = {} from the HEASARC on SciServer\n'.format(odfid))
+        print('Requesting XMM-Newton odfid = {} from the HEASARC on SciServer\n'.format(odfid))
+
+        if level in ['ALL','ODF','PPS','4XMM','om_mosaic'] and not PPS_subset:
+            logger.log('info', f'Downloading {odfid}, level {level}')
+            print(f'\nDownloading {odfid}, level {level}. Please wait ...\n')
+            query = """SELECT * FROM xmmmaster WHERE obsid='{0}'""".format(odfid)
+            tab = Heasarc.query_tap(query).to_table()
+            if level == 'ALL':
+                for lvl in ['ODF','PPS']:
+                    data_source = Heasarc.locate_data(tab, catalog_name='xmmmaster')
+                    data_source['sciserver'] = data_source['sciserver']+lvl
+                    Heasarc.download_data(data_source,host=repo,location=data_dir)
             else:
-                shutil.copytree(archive_data,dest_dir,dirs_exist_ok=True)      
+                data_source = Heasarc.locate_data(tab, catalog_name='xmmmaster')
+                data_source['sciserver'] = data_source['sciserver']+level
+                Heasarc.download_data(data_source,host=repo,location=data_dir)
+
+        # dest_dir = obs_dir
+        # if level == 'ALL':
+        #     levl = ''
+        # else:
+        #     levl = level
+        #     dest_dir = os.path.join(dest_dir,levl)
+        # if levl == 'ODF':    
+        #     if not os.path.exists(odf_dir): os.mkdir(odf_dir)
+        # elif levl == 'PPS':
+        #     if not os.path.exists(pps_dir): os.mkdir(pps_dir)
+        # archive_data = f'/home/idies/workspace/headata/FTP/xmm/data/rev0//{odfid}/{levl}'
+        # if filename: 
+        #     PPS_subset = True
+        #     PPSfile = filename
+        # if PPS_subset:
+        #     files = glob.glob(archive_data + f'/**/{PPSfile}', recursive=True)
+        #     for file in files:
+        #         file_name = os.path.basename(file)
+        #         logger.log('info', f'Copying file {file_name} from {archive_data} ...')
+        #         print(f'\nCopying file {file_name} from {archive_data} ...')
+        #         shutil.copy(file, os.path.join(pps_dir,file_name))
+        # else:
+        #     logger.log('info', f'Copying data from {archive_data} ...')
+        #     print(f'\nCopying data from {archive_data} ...')
+        #     if levl == 'ODF':
+        #         # Check if ALL ODF files already exist, if not copy the missing ones
+        #         archive_tar_file = glob.glob(archive_data + f'/**/*.tar.gz', recursive=True)[0]
+        #         odf_files = glob.glob(odf_dir + f'/**/*', recursive=True)
+        #         if len(odf_files) > 0:
+        #             missing_files = []
+        #             odf_files_names = []
+        #             for file in odf_files:
+        #                 odf_files_names.append(os.path.basename(file))
+        #             archive_files = glob.glob(archive_data + f'/**/*', recursive=True)
+        #             for file in archive_files:
+        #                 file_name = os.path.basename(file)
+        #                 if file_name.endswith('.gz'):
+        #                     if not file_name.endswith('.tar.gz'):
+        #                         if file_name[:-3] not in odf_files_names:
+        #                             missing_files.append(file)
+        #                 else:
+        #                     if file_name not in odf_files_names:
+        #                         missing_files.append(file)
+        #             for file in missing_files:
+        #                 file_name = os.path.basename(file)
+        #                 logger.log('info', f'Copying file {file_name} from {archive_data} ...')
+        #                 print(f'\nCopying file {file_name} from {archive_data} ...')
+        #                 shutil.copy(file, os.path.join(odf_dir,file_name))
+        #         else:
+        #             tar_file_name = os.path.basename(archive_tar_file)
+        #             shutil.copy(archive_tar_file, os.path.join(odf_dir,tar_file_name))
+        #     else:
+        #         shutil.copytree(archive_data,dest_dir,dirs_exist_ok=True)      
 
     # Check if data is encrypted. Decrypt the data.
     encrypted = glob.glob('**/*.gpg', recursive=True)

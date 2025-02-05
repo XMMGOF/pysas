@@ -417,7 +417,7 @@ class ODFobject(object):
                                         current working directory.
 
             --overwrite:     (boolean): If True will force overwrite of data if odfid 
-                                        data already exists in data_dir/.
+                                        data already exists in data_dir/odfid.
 
             --logger:     (TaskLogger): Only used if called from inside 'basic_setup'.
 
@@ -458,6 +458,8 @@ class ODFobject(object):
         # Where are we?
         startdir = os.getcwd()
 
+        call_download_data = True
+
         # Brief check to see if data_dir was 
         # given on odfobject creation.
         if self.data_dir != None:
@@ -476,8 +478,22 @@ class ODFobject(object):
         if logger == None:
             logger = generate_logger(logname=f'download_{self.odfid}', log_dir=self.data_dir)
 
-        # Check what exists in the obs_dir.
+        # Identify the download level.
+        levelopts = ['ALL','ODF','PPS','4XMM','om_mosaic']
+        if level not in levelopts:
+            logger.log('error', 'Obs ID request level is undefined!')
+            print(f'Options for level are {levelopts[0]}, {levelopts[1]}, or {levelopts[2]}')
+            raise Exception('ODF request level is undefined!')
+        
+        # Set the obs_dir.
         self.obs_dir = os.path.join(self.data_dir,self.odfid)
+
+        # Set odf_dir and pps_dir
+        if level == 'ODF' or level == 'ALL':
+            self.odf_dir = os.path.join(self.obs_dir,'ODF')
+        if level == 'PPS' or level == 'ALL':
+            self.pps_dir = os.path.join(self.obs_dir,'PPS')
+        self.level = level
 
         # Checks if obs_dir exists. 
         # Removes it if overwrite = True. Default overwrite = False.
@@ -488,58 +504,64 @@ class ODFobject(object):
                 logger.log('info', f'Removing existing directory {self.obs_dir} ...')
                 print(f'\n\nRemoving existing directory {self.obs_dir} ...')
                 shutil.rmtree(self.obs_dir)
-
-        # Identify the download level.
-        levelopts = ['ODF', 'PPS', 'ALL']
-        if level not in levelopts:
-            logger.log('error', 'Obs ID request level is undefined!')
-            print(f'Options for level are {levelopts[0]}, {levelopts[1]}, or {levelopts[2]}')
-            raise Exception('ODF request level is undefined!')
-        else:
-            logger.log('info', f'Will download Obs ID data with level {level}') 
-
-        if level == 'ODF' or level == 'ALL':
-            self.odf_dir = os.path.join(self.obs_dir,'ODF')
-        if level == 'PPS' or level == 'ALL':
-            self.pps_dir = os.path.join(self.obs_dir,'PPS')
-        self.level = level
+            else:
+                # Check for files
+                what_exists = self.__parse_obs_dir()
+                if what_exists['odf_dir'] and what_exists['manifest'] and level == 'ODF':
+                    logger.log('info', f'Existing ODF directory {self.odf_dir} found ...')
+                    call_download_data = False
+                if what_exists['pps_dir'] and what_exists['PPS_files'] and level == 'PPS':
+                    logger.log('info', f'Existing PPS directory {self.pps_dir} found ...')
+                    call_download_data = False
+                if (what_exists['odf_dir'] and what_exists['manifest'] and 
+                    what_exists['pps_dir'] and what_exists['PPS_files'] and level == 'ALL'):
+                    logger.log('info', f'Existing data directories {self.odf_dir} and {self.pps_dir} found ...')
+                    call_download_data = False
+                if not call_download_data:
+                    logger.log('info', f'Data found in {self.obs_dir} not downloading again.')
+                    print(f'Data found in {self.obs_dir} not downloading again.')
 
         # Set work directory.
         self.work_dir = os.path.join(self.obs_dir,'work')
-        
-        # Check chosen repository.
-        repo_opts = ['esa','heasarc','sciserver']
-        if repo not in repo_opts:
-            logger.log('error', 'Download repository not found!')
-            print(f'Options for repo are {repo_opts[0]}, {repo_opts[1]}, or {repo_opts[2]}')
-            raise Exception('Download repository not found!')
-        else:
-            logger.log('info', f'Will download data from {repo}.')
-        
-        self.repo = repo
 
-        print(self.data_dir)
+        if call_download_data:
+            logger.log('info', f'Will download Obs ID data with level {level}')
 
-        # Function for downloading a single odfid set.
-        dl_data(self.odfid,
-                self.data_dir,
-                level=self.level,
-                encryption_key=encryption_key,
-                repo=self.repo,
-                logger=logger,
-                proprietary=proprietary,
-                credentials_file=credentials_file,
-                overwrite=overwrite,
-                PPS_subset=PPS_subset,
-                instname=instname,
-                expflag=expflag,
-                expno=expno,
-                product_type=product_type,
-                datasubsetno=datasubsetno,
-                sourceno=sourceno,
-                extension=extension,
-                filename=filename,
-                **kwargs)
+            # Check chosen repository.
+            repo_opts = ['esa','heasarc','sciserver']
+            if repo not in repo_opts:
+                logger.log('error', 'Download repository not found!')
+                print(f'Options for repo are {repo_opts[0]}, {repo_opts[1]}, or {repo_opts[2]}')
+                raise Exception('Download repository not found!')
+            else:
+                logger.log('info', f'Will download data from {repo}.')
+
+            self.repo = repo
+
+            # Function for downloading a single odfid set.
+            dl_data(self.odfid,
+                    self.data_dir,
+                    level=self.level,
+                    encryption_key=encryption_key,
+                    repo=self.repo,
+                    logger=logger,
+                    proprietary=proprietary,
+                    credentials_file=credentials_file,
+                    overwrite=overwrite,
+                    PPS_subset=PPS_subset,
+                    instname=instname,
+                    expflag=expflag,
+                    expno=expno,
+                    product_type=product_type,
+                    datasubsetno=datasubsetno,
+                    sourceno=sourceno,
+                    extension=extension,
+                    filename=filename,
+                    **kwargs)
+            
+        logger.log('info', f'Data directory: {self.data_dir}')
+        logger.log('info', f'ObsID directory: {self.obs_dir}')
+        print(f'Data directory: {self.data_dir}')
         
         if hasattr(self, 'odf_dir'):
             if os.path.exists(self.odf_dir):
@@ -849,13 +871,32 @@ class ODFobject(object):
                 if (filename.find(find_list[inst]) != -1):
                     self.files[evt_list_list[inst]].append(os.path.abspath(filename))
                     exists = True
+            # # Need to do something different for optical monitor images.
+            # # Checking for OM sky aligned image.
+            # files = glob.glob(self.obs_dir+'/**/*SIMAGE*FIT', recursive=True)
+            # for filename in files:
+            #     if (filename.find(find_list[inst]) != -1):
+            #         self.files[evt_list_list[inst]].append(os.path.abspath(filename))
+            #         exists = True
+            # # Checking for OM full-frame sky image.
+            # files = glob.glob(self.obs_dir+'/**/*FSIMAG*FIT', recursive=True)
+            # for filename in files:
+            #     if (filename.find(find_list[inst]) != -1):
+            #         self.files[evt_list_list[inst]].append(os.path.abspath(filename))
+            #         exists = True
+            # # Checking for OM sky image mosaic.
+            # files = glob.glob(self.obs_dir+'/**/*RSIMAG*FIT', recursive=True)
+            # for filename in files:
+            #     if (filename.find(find_list[inst]) != -1):
+            #         self.files[evt_list_list[inst]].append(os.path.abspath(filename))
+            #         exists = True
             if exists:
                 self.files[evt_list_list[inst]].sort()
                 if print_output:
                     print(" > {0} {1} event list(s) found.\n".format(len(self.files[evt_list_list[inst]]),inst_name[inst]))
                     for x in self.files[evt_list_list[inst]]:
                         print("    " + x + "\n")
-
+            
         return
     
     def find_rgs_spectra_files(self,print_output=True):
