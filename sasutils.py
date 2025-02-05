@@ -277,6 +277,10 @@ def download_data(odfid,
         logger.log('info', 'Requesting XMM-Newton odfid = {} from the HEASARC on SciServer\n'.format(odfid))
         print('Requesting XMM-Newton odfid = {} from the HEASARC on SciServer\n'.format(odfid))
 
+        if filename: 
+            PPS_subset = True
+            PPSfile = filename
+
         if level in ['ALL','ODF','PPS','4XMM','om_mosaic'] and not PPS_subset:
             logger.log('info', f'Downloading {odfid}, level {level}')
             print(f'\nDownloading {odfid}, level {level}. Please wait ...\n')
@@ -286,11 +290,21 @@ def download_data(odfid,
                 for lvl in ['ODF','PPS']:
                     data_source = Heasarc.locate_data(tab, catalog_name='xmmmaster')
                     data_source['sciserver'] = data_source['sciserver']+lvl
-                    Heasarc.download_data(data_source,host=repo,location=data_dir)
+                    Heasarc.download_data(data_source,host=repo,location=obs_dir)
             else:
                 data_source = Heasarc.locate_data(tab, catalog_name='xmmmaster')
                 data_source['sciserver'] = data_source['sciserver']+level
-                Heasarc.download_data(data_source,host=repo,location=data_dir)
+                Heasarc.download_data(data_source,host=repo,location=obs_dir)
+
+        if PPS_subset:
+            if not os.path.exists(pps_dir): os.mkdir(pps_dir)
+            archive_data = f'/home/idies/workspace/headata/FTP/xmm/data/rev0//{odfid}/{levl}'
+            files = glob.glob(archive_data + f'/**/{PPSfile}', recursive=True)
+            for file in files:
+                file_name = os.path.basename(file)
+                logger.log('info', f'Copying file {file_name} from {archive_data} ...')
+                print(f'\nCopying file {file_name} from {archive_data} ...')
+                shutil.copy(file, os.path.join(pps_dir,file_name))
 
         # dest_dir = obs_dir
         # if level == 'ALL':
@@ -302,17 +316,7 @@ def download_data(odfid,
         #     if not os.path.exists(odf_dir): os.mkdir(odf_dir)
         # elif levl == 'PPS':
         #     if not os.path.exists(pps_dir): os.mkdir(pps_dir)
-        # archive_data = f'/home/idies/workspace/headata/FTP/xmm/data/rev0//{odfid}/{levl}'
-        # if filename: 
-        #     PPS_subset = True
-        #     PPSfile = filename
-        # if PPS_subset:
-        #     files = glob.glob(archive_data + f'/**/{PPSfile}', recursive=True)
-        #     for file in files:
-        #         file_name = os.path.basename(file)
-        #         logger.log('info', f'Copying file {file_name} from {archive_data} ...')
-        #         print(f'\nCopying file {file_name} from {archive_data} ...')
-        #         shutil.copy(file, os.path.join(pps_dir,file_name))
+        
         # else:
         #     logger.log('info', f'Copying data from {archive_data} ...')
         #     print(f'\nCopying data from {archive_data} ...')
