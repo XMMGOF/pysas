@@ -118,13 +118,25 @@ def run_config():
     nasa = ['nasa','n','na','nas','ns','nsa','us','usa']
 
     ############## Getting sas_dir ##############
-    script_path = path = os.path.normpath(os.path.abspath(__file__))
-    split_path = path.split(os.sep)
+    sas_dir_found = False
+    script_path = os.path.normpath(os.path.abspath(__file__))
+    split_path = script_path.split(os.sep)
+
+    
 
     if split_path[-2] == 'pysas' and split_path[-3] == 'python' and split_path[-4] == 'lib' and split_path[-5][0:7] == 'xmmsas_':
         psas_dir = os.sep
         for folder in split_path[:-4]:
             psas_dir = os.path.join(psas_dir,folder)
+        sas_dir_found = True
+    
+    # If sas_dir is already set
+    sasdir = os.environ.get('SAS_DIR')
+    if sasdir:
+        sas_dir_found = True
+        psas_dir = sasdir
+
+    if sas_dir_found:
         print('Is this the correct SAS directory?')
         print('\n    {0}\n'.format(psas_dir))
         response = input('y/n: ')
@@ -165,16 +177,42 @@ def run_config():
 
     ############## Getting sas_ccfpath ##############
 
-    scomment = """
-        SAS_CCFPATH not set.
+    ccf_path_set = False
 
-        Please provide the full path to the SAS calibration directory (SAS_CCFPATH).
+    psas_ccfpath = os.environ.get('SAS_CCFPATH')
 
-    """
-    print(scomment)
-    sas_ccfpath = input('Full path to calibration files: ')
-    if not sas_ccfpath.startswith('/'): sas_ccfpath = os.path.abspath(sas_ccfpath)
-    if sas_ccfpath.endswith('/'): sas_ccfpath = sas_ccfpath[:-1]
+    if psas_ccfpath:
+        ccf_path_set = True
+
+    if ccf_path_set:
+        print('Is this the correct directory for the calibration files?')
+        print('\n    {0}\n'.format(psas_ccfpath))
+        response = input('y/n: ')
+        response = response.lower()
+        if response in positive:
+            sas_ccfpath = psas_ccfpath
+            print(f'Setting SAS_CCFPATH = {sas_ccfpath}')
+        elif response in negative:
+            # Ask for SAS_DIR path
+            scomment = '\nPlease provide the full path to the SAS install directory (SAS_DIR).\n'
+            print(scomment)
+            sas_dir = input('Full path to SAS: ')
+        else:
+            print(f'Your response, {response}, is not recognized.')
+            print(f'Try any of these: {positive}')
+            print(f'-or any of these: {negative}')
+            raise Exception('Input not recognized!')
+    else:
+        scomment = """
+            SAS_CCFPATH not set.
+
+            Please provide the full path to the SAS calibration directory (SAS_CCFPATH).
+
+        """
+        print(scomment)
+        sas_ccfpath = input('Full path to calibration files: ')
+        if not sas_ccfpath.startswith('/'): sas_ccfpath = os.path.abspath(sas_ccfpath)
+        if sas_ccfpath.endswith('/'): sas_ccfpath = sas_ccfpath[:-1]
 
     create_ccf = False
     if not os.path.exists(sas_ccfpath):
