@@ -105,6 +105,23 @@ def download_data(odfid,
                                        for username and password if filename
                                        not given.)
 
+        --overwrite:     (boolean): If True will force overwrite of data if odfid 
+                                        data already exists in data_dir/odfid.
+
+        The remaining inputs are used for downloading groups of PPS files using a 
+        particular file pattern. Using these requires an understanding of PPS 
+        filenames.
+            
+            instname: instrument name
+            expflag: Exposure flag
+            expno: Exposure number
+            product_type: Product type
+            datasubsetno: data subset number/character
+            sourceno: Source number or slew step number
+            extension: File format
+
+            filename: Filename with no wildcards
+
         
     """
 
