@@ -194,9 +194,9 @@ def run_config():
             print(f'Setting SAS_CCFPATH = {sas_ccfpath}')
         elif response in negative:
             # Ask for SAS_DIR path
-            scomment = '\nPlease provide the full path to the SAS install directory (SAS_DIR).\n'
+            scomment = '\nPlease provide the full path to the calibration files (SAS_CCFPATH).\n'
             print(scomment)
-            sas_dir = input('Full path to SAS: ')
+            sas_ccfpath = input('Full path to the calibration files: ')
         else:
             print(f'Your response, {response}, is not recognized.')
             print(f'Try any of these: {positive}')
