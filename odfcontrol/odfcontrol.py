@@ -97,7 +97,7 @@ class ODFobject(object):
     def basic_setup(self,data_dir=None,level='ODF',repo='esa',
                     overwrite=False,recalibrate=False,rerun=False,
                     run_epproc=True,run_emproc=True,run_rgsproc=True,
-                    run_omichain=False,run_epchain=False,run_emchain=False,
+                    run_epchain=False,run_emchain=False,
                     **kwargs):
         """
         Function to do all basic analysis tasks. The function will:
@@ -109,7 +109,6 @@ class ODFobject(object):
             2. Run 'epproc' -OR- 'epchain'
             3. Run 'emproc' -OR- 'emchain'
             4. Run 'rgsproc'
-            5. Run 'omichain' (not run by default)
 
         If 'run_epchain' is set to 'True', then 'epproc' will not run.
         If 'run_emchain' is set to 'True', then 'emproc' will not run.
@@ -371,11 +370,11 @@ class ODFobject(object):
                                 rerun   = rerun,
                                 logFile = 'rgsproc.log')
         
-        if run_omichain:
-            self.__run_analysis('omichain',
-                                kwargs.get('omichain_args', []),
-                                rerun   = rerun,
-                                logFile = 'omichain.log')
+        #if run_omichain:
+        #    self.__run_analysis('omichain',
+        #                        kwargs.get('omichain_args', []),
+        #                        rerun   = rerun,
+        #                        logFile = 'omichain.log')
         
         return
     
@@ -819,8 +818,8 @@ class ODFobject(object):
     def find_event_list_files(self,print_output=True):
         """
         Checks the observation directory (obs_dir) for basic unfiltered 
-        event list files created by 'epproc', 'emproc', 'rgsproc', and 
-        'omichain'. Stores paths and file names in self.files.
+        event list files created by 'epproc', 'emproc', and 'rgsproc'. 
+        Stores paths and file names in self.files.
 
         'self.files' is a dictionary with the following keys:
 
@@ -829,7 +828,6 @@ class ODFobject(object):
             'M2evt_list'
             'R1evt_list'
             'R2evt_list'
-            'OMevt_list'
         """
 
         self.get_active_instruments()
@@ -841,20 +839,17 @@ class ODFobject(object):
                          'M1': 'M1evt_list',
                          'M2': 'M2evt_list',
                          'R1': 'R1evt_list',
-                         'R2': 'R2evt_list',
-                         'OM': 'OMevt_list'}
+                         'R2': 'R2evt_list'}
         find_list =     {'PN': 'EPN',
                          'M1': 'EMOS1',
                          'M2': 'EMOS2',
                          'R1': 'R1',
-                         'R2': 'R2',
-                         'OM': 'OM'}
+                         'R2': 'R2'}
         inst_name =     {'PN': 'EPIC-pn',
                          'M1': 'EPIC-MOS1',
                          'M2': 'EPIC-MOS2',
                          'R1': 'RGS1',
-                         'R2': 'RGS2',
-                         'OM': 'OM'}
+                         'R2': 'RGS2'}
         for item in inst_list: self.files[evt_list_list[item]] = []
 
         for inst in inst_list:
