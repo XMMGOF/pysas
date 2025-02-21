@@ -36,6 +36,76 @@ import pickle
 from pypdf import PdfMerger
 from matplotlib.patches import Rectangle
 from matplotlib.collections import PatchCollection
+from matplotlib.ticker import StrMethodFormatter
+import xspec
+
+def plot_spectra_model(spectrum,plot_file_name='spectra_model_plot.png'):
+    """
+    Convenient function to plot a spectrum and XSPEC model.
+
+    Inputs:
+        spectrum - pyXSPEC Spectrum object created using xspec.Spectrum.
+                   Spectrum object must contain at least one model 
+                   created using xspec.Model.
+        plot_file_name - File name of the plot.
+    
+    Returns:
+        Matplotlib figure object and two axis objects.
+    """
+    xspec.Plot.device='/null'
+    xspec.Plot.xAxis = 'keV'
+
+    # Pull off data for main plot
+    xspec.Plot('data')
+    energy = xspec.Plot.x()
+    counts = xspec.Plot.y()
+    folded = xspec.Plot.model()
+    xErrs = xspec.Plot.xErr()
+    yErrs = xspec.Plot.yErr()
+
+    # Pull off data for ratio plot
+    xspec.Plot('ratio')
+    ratio = xspec.Plot.y()
+    r_xerror = xspec.Plot.xErr()
+    r_yerror = xspec.Plot.yErr()
+
+    # Get bin edges for "stairs" plot
+    bin_edges = []
+    for i in spectrum.energies: bin_edges.append(i[0])
+    bin_edges.append(spectrum.energies[-1][1])
+
+    # Make the figure and two subplots
+    fig, (ax0, ax1) = plt.subplots(nrows=2, sharex=True, height_ratios=[2.5, 1],figsize=(9, 7))
+
+    # Main plot
+    ax0.errorbar(energy, counts, yerr=yErrs, xerr=xErrs, linestyle='', marker='')
+    ax0.stairs(folded,bin_edges, color='r')
+    ax0.set_xscale('log')
+    ax0.set_yscale('log')
+    ax0.set_xlim([bin_edges[0], bin_edges[-1]])
+    ax0.tick_params(top=True,axis="x",direction="in",which='both')
+    ax0.tick_params(axis="y",direction="in",which='both',right=True)
+    ax0.set_ylabel('counts sec$^{-1}$ keV$^{-1}$')
+    ax0.set_title('Data and Folded Model')
+
+    # Ratio plot
+    ax1.errorbar(energy, ratio, yerr=r_yerror, xerr=r_xerror, linestyle='', marker='')
+    ax1.axhline(y=1, color='g')
+    ax1.set_xscale('log')
+    ax1.tick_params(top=True,axis="x",direction="in",which='both')
+    ax1.tick_params(axis="y",direction="in",which='both')
+    ax1.xaxis.set_major_formatter(StrMethodFormatter('{x:.1f}'))
+    ax1.xaxis.set_minor_formatter(StrMethodFormatter('{x:.1f}'))
+    ax1.set_xlabel('Energy (keV)')
+    ax1.set_ylabel('Ratio')
+
+    # This puts the plots together with no space in between
+    plt.subplots_adjust(hspace=.0)
+
+    # Save plot to file
+    fig.savefig(plot_file_name)
+
+    return fig, ax0, ax1
 
 def text_plot(fits_file, extra_text = ''):
     """
