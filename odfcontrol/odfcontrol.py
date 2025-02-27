@@ -833,27 +833,30 @@ class ODFobject(object):
         self.get_active_instruments()
 
         # Check if events lists have already been made from the odf files.
-
+        # Have dummy value for the OM because it should be handled 
+        # differently. But if not included here then too many checks 
+        # will be needed later on.
         inst_list = list(self.active_instruments.keys())
         evt_list_list = {'PN': 'PNevt_list',
                          'M1': 'M1evt_list',
                          'M2': 'M2evt_list',
                          'R1': 'R1evt_list',
-                         'R2': 'R2evt_list'}
+                         'R2': 'R2evt_list',
+                         'OM': 'XXXXXXXXXX'}
         find_list =     {'PN': 'EPN',
                          'M1': 'EMOS1',
                          'M2': 'EMOS2',
                          'R1': 'R1',
-                         'R2': 'R2'}
+                         'R2': 'R2',
+                         'OM': 'OM'}
         inst_name =     {'PN': 'EPIC-pn',
                          'M1': 'EPIC-MOS1',
                          'M2': 'EPIC-MOS2',
                          'R1': 'RGS1',
-                         'R2': 'RGS2'}
+                         'R2': 'RGS2',
+                         'OM': 'OM'}
         
-        for item in inst_list:
-            if item in evt_list_list.keys():
-                self.files[evt_list_list[item]] = []
+        for item in inst_list: self.files[evt_list_list[item]] = []
 
         for inst in inst_list:
             exists = False
