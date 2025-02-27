@@ -850,7 +850,10 @@ class ODFobject(object):
                          'M2': 'EPIC-MOS2',
                          'R1': 'RGS1',
                          'R2': 'RGS2'}
-        for item in inst_list: self.files[evt_list_list[item]] = []
+        
+        for item in inst_list:
+            if item in evt_list_list.keys():
+                self.files[evt_list_list[item]] = []
 
         for inst in inst_list:
             exists = False
