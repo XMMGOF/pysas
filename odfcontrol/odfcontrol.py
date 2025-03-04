@@ -39,7 +39,7 @@ from ..wrapper import Wrapper as w
 from ..sasutils import generate_logger
 from ..sasutils import download_data as dl_data
 
-__version__ = 'odfcontrol (odfcontrol-1.1.0)'
+__version__ = 'odfcontrol (odfcontrol-1.2.0)'
 __all__ = ['ODFobject']
 
 
