@@ -516,6 +516,9 @@ class ODFobject(object):
                     what_exists['pps_dir'] and what_exists['PPS_files'] and level == 'ALL'):
                     logger.log('info', f'Existing data directories {self.odf_dir} and {self.pps_dir} found ...')
                     call_download_data = False
+                if (filename or PPS_subset) and level == 'PPS':
+                    logger.log('info', f'Downloading subset of PPS data. Will silently overwrite any pre-existing files.')
+                    call_download_data = True
                 if not call_download_data:
                     logger.log('info', f'Data found in {self.obs_dir} not downloading again.')
                     print(f'Data found in {self.obs_dir} not downloading again.')
