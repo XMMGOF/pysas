@@ -1022,6 +1022,22 @@ class ODFobject(object):
 
         return exists
     
+    def clear_obs_dir(self):
+        """
+        Function to remove all files and subdirectories from the obs_dir.
+        """
+        if os.path.exists(self.obs_dir):
+            print(f'\n\nRemoving existing directory {self.obs_dir} ...')
+            shutil.rmtree(self.obs_dir)
+
+    def clear_work_dir(self):
+        """
+        Function to remove all files and subdirectories from the obs_dir.
+        """
+        if os.path.exists(self.work_dir):
+            print(f'\n\nRemoving existing directory {self.work_dir} ...')
+            shutil.rmtree(self.work_dir)
+    
     def __set_obsid(self):
         """
         --Not intended to be used by the end user. Internal use only.--
