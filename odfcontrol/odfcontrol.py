@@ -1032,7 +1032,7 @@ class ODFobject(object):
 
     def clear_work_dir(self):
         """
-        Function to remove all files and subdirectories from the obs_dir.
+        Function to remove all files and subdirectories from the work_dir.
         """
         if os.path.exists(self.work_dir):
             print(f'\n\nRemoving existing directory {self.work_dir} ...')
