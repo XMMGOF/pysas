@@ -25,7 +25,7 @@ Utility functions specific to SAS or pySAS.
 
 # Standard library imports
 import os, sys, subprocess, shutil, glob, tarfile, gzip, time, platform, re
-from distutils.dir_util import copy_tree
+from shutil import copytree
 
 # Third party imports
 from astroquery.esa.xmm_newton import XMMNewton
@@ -229,7 +229,7 @@ def download_data(odfid,
                         elif levl == 'PPS':
                             tar.extractall(path=data_dir)
                             if os.path.exists(pps_dir):
-                                copy_tree('pps','PPS')
+                                copytree('pps','PPS')
                                 shutil.rmtree('pps')
                             else:
                                 os.rename('pps','PPS')
