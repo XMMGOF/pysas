@@ -18,13 +18,70 @@
 
 
 # Standard library imports
+import copy
 import logging
 import os
+import sys
+from pathlib import Path
 
 # Third party imports
+from loguru import logger, Logger
 
+logger.remove()
 # Local application imports
 
+def get_logger(taskname: str) -> Logger:
+    task_logger = copy.deepcopy(logger)
+    
+    # SAS_TASKLOGDIR allows to set the directory for the logging file
+    sas_tasklogdir = os.getenv('SAS_TASKLOGDIR')
+    if(sas_tasklogdir and os.path.isdir(sas_tasklogdir)):
+        task_logdir = Path(sas_tasklogdir)
+    else:
+        task_logdir = Path.cwd()
+
+    task_logfile = task_logdir / f"{taskname}.log"
+
+    # SAS_TASKLOGFMODE allows to set the write mode for the logging file
+    # Allowed modes are : w (new file each invocation of logger),
+    # a (append to any existing file)A That is the default mode.
+    sastasklogfmode = os.getenv("SAS_TASKLOGFMODE", "a")
+    if sastasklogfmode != 'a' and sastasklogfmode != 'w':
+        sastasklogfmode = 'a'
+    
+    # Add file sink
+    task_logger.add(
+        sink=task_logfile,
+        level="DEBUG",
+        mode=sastasklogfmode,
+        enqueue=True,
+        format="<green>{time:DD-MM-YYYY HH:mm:ss.SSS Z}</green> - <cyan>{name}</cyan> - <level>{level: <8}</level> - <level>{message}</level>"
+    )
+
+    # Add console sink
+    verbosity = int(os.getenv('SAS_VERBOSITY', '4'))
+    match(verbosity):
+        case 1:
+            level = "CRITICAL"
+        case 2 | 3:
+            level = "ERROR"
+        case 4 | 5:
+            level = "WARNING"
+        case 6 | 7:
+            level = "INFO"
+        case 8 | 9 | 10:
+            level = "DEBUG"
+        case _:
+            level = "DEBUG"
+
+    task_logger.add(
+        sink=sys.stderr,
+        level=level,
+        enqueue=True,
+        format="<cyan>{name}</cyan> - <level>{level: <8}</level> - <level>{message}</level>"
+    )
+
+    return task_logger
 
 class TaskLogger:
     """
