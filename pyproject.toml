@@ -1,0 +1,16 @@
+[project]
+name = "pysas"
+version = "1.4.7"
+description = "pySAS is a python wrapper for the Science Analysis Software (SAS) used for analyzing XMM-Newton data."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "astropy>=6.1.7",
+    "astroquery>=0.4.10",
+    "beautifultable>=1.1.0",
+    "matplotlib>=3.10.3",
+    "pyds9>=1.8.1",
+    "pypdf>=5.6.0",
+    "pyqt5>=5.15.11",
+    "scipy>=1.15.3",
+]
