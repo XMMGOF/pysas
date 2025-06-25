@@ -20,8 +20,10 @@ __version__ = f'pysas - (pysas-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]'
 from .configutils import sas_cfg
 from .init_sas import initializesas
 import os
-sas_dir_config     = sas_cfg.get("sas", "sas_dir")
-sas_ccfpath_config = sas_cfg.get("sas", "sas_ccfpath")
+sas_dir_config       = sas_cfg.get("sas", "sas_dir")
+sas_ccfpath_config   = sas_cfg.get("sas", "sas_ccfpath")
+sas_verbosity        = sas_cfg.get("sas", "verbosity")
+sas_suppress_warning = sas_cfg.get("sas", "suppress_warning")
 sas_initialize = True
 
 # Check if SAS_DIR, SAS_PATH, and SAS_CCFPATH are already set.
@@ -39,7 +41,8 @@ if sas_dir and sas_ccfpath and sas_path:
 # Checks if defaults from config file work. Initializes SAS if needed.
 if sas_cfg['DEFAULT']['on_sci_server'] == 'False' and sas_initialize:
     if os.path.exists(sas_dir_config) and os.path.exists(sas_ccfpath_config):
-        initializesas(sas_dir_config, sas_ccfpath_config)
+        initializesas(sas_dir_config, sas_ccfpath_config, 
+                      verbosity = sas_verbosity,suppress_warning = sas_suppress_warning)
     elif sas_dir_config != '/does/not/exist' and sas_ccfpath_config != '/does/not/exist':
         print('There is a problem with either SAS_DIR or SAS_CCFPATH in the config file.')
         print('Please set manually to initialize SAS.')
