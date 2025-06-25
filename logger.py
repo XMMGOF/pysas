@@ -25,12 +25,12 @@ import sys
 from pathlib import Path
 
 # Third party imports
-from loguru import logger, Logger
+from loguru import logger#, Logger
 
 logger.remove()
 # Local application imports
 
-def get_logger(taskname: str) -> Logger:
+def get_logger(taskname: str):# -> Logger:
     task_logger = copy.deepcopy(logger)
     
     # SAS_TASKLOGDIR allows to set the directory for the logging file
