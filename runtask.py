@@ -41,10 +41,12 @@ import subprocess
 
 # Local application imports
 
+from pysas.logger import get_logger
 
 
 class RunTask:
-    """Class RunTask
+    """
+    Class RunTask
     
     Parameters are entered in dictionary iparsdic.
 
@@ -53,21 +55,27 @@ class RunTask:
     
     """
 
-    def __init__(self, taskname, iparsdic,logFile):
-        self.taskname = taskname
-        self.iparsdic = iparsdic
-        self.logFile = logFile
+    def __init__(self, taskname, iparsdic, 
+                 logFile = 'DEFAULT', 
+                 output_to_terminal = True, 
+                 output_to_file = False):
+        self.taskname    = taskname
+        self.iparsdic    = iparsdic
+        self.logFile     = logFile
+        self.output_to_terminal = output_to_terminal
+        self.output_to_file     = output_to_file
 
     def run(self):
-        """"Method run
+        """
+        Method run
 
-            If taskname is a Python module, therefore it is in the
-            list pysaspkgs, then import it and pass to its run
-            function the dictionary of parameters, iparsdic
+        If taskname is a Python module, therefore it is in the
+        list pysaspkgs, then import it and pass to its run
+        function the dictionary of parameters, iparsdic
 
-            If taskname is not a Python SAS task, there will not be
-            a run function, so we will invoke subprocess
-            """
+        If taskname is not a Python SAS task, there will not be
+        a run function, so we will invoke subprocess
+        """
 
         sas_path = os.environ.get('SAS_PATH')
 
@@ -121,33 +129,34 @@ class RunTask:
             self.p= None
             self.stdoutFile = None
 
-            if self.logFile == 'DEFAULT':
-                with subprocess.Popen(cmd,
-                                      bufsize=1,
-                                      shell=True,
-                                      text=True,
-                                      stdout=subprocess.PIPE,
-                                      stderr=subprocess.STDOUT,
-                                      universal_newlines=True) as p:
-                    for line in p.stdout:
-                        print(line, end='')
-            else:
-                self.stdoutFile=open(self.logFile,'w')
-                p = subprocess.Popen(cmd, 
-                                     bufsize=1,
-                                     shell=True,
-                                     text=True,
-                                     stdout=self.stdoutFile,
-                                     stderr=subprocess.STDOUT,
-                                     universal_newlines=True)                              
-                p.wait()
-                # for line in p.stdout:
-                #     self.stdoutFile.write(line)                   
-            
-            if p.returncode != 0:
-                if self.logFile != 'DEFAULT':
-                    self.stdoutFile.close()
-                raise subprocess.CalledProcessError(p.returncode, p.args)
+            try:
+                logger = get_logger(self.taskname,
+                                    toterminal = self.output_to_terminal, 
+                                    tofile = self.output_to_file, 
+                                    logfilename = self.logFile)
+                # Start the subprocess
+                process = subprocess.Popen(cmd, 
+                                           bufsize=1,
+                                           shell=True,
+                                           text=True,
+                                           stdout=subprocess.PIPE,
+                                           stderr=subprocess.STDOUT,
+                                           universal_newlines=True)
 
-            if self.logFile != 'DEFAULT':
-                self.stdoutFile.close()
+                # Log stdout and stderr in real-time
+                # For non-Python SAS tasks the stout and stderr are combined
+                for line in process.stdout:
+                    logger.info(f"{line.strip()}")
+                # for line in process.stderr:
+                #     logger.info(f"{line.strip()}")
+
+                # Wait for the process to complete and get the return code
+                process.wait()
+                if process.returncode == 0:
+                    logger.success(f"{self.taskname} executed successfully!")
+                else:
+                    logger.critical(f"{self.taskname} failed!")
+
+            except Exception as e:
+                logger.exception(f"An error occurred while running the command: {e}")
+

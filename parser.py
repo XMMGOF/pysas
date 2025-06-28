@@ -54,6 +54,7 @@ from contextlib import suppress
 
 # Local application imports
 from pysas.param import paramXmlInfoReader
+from .configutils import sas_cfg
 
 class ParseArgs:
     def __init__(self, taskname, arglist):
@@ -119,11 +120,14 @@ class ParseArgs:
         #    -i/--ccf (SAS_CCF), -o/--odf (SAS_ODF), -f/--ccffiles,
         #    -w/--warning, -t/--trace.
 
+        # Get default verbosity
+        default_verbosity = sas_cfg.get("sas", "verbosity")
+
         parser.add_argument('-V',
                             '--verbosity',
                             dest='verbosity',
                             type=int,
-                            default=4,
+                            default=default_verbosity,
                             choices=range(11),
                             action='store')
 

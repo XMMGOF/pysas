@@ -1092,6 +1092,7 @@ class ODFobject(object):
         
         if os.path.exists(self.odf_dir):
             print(f'odf_dir found at {self.odf_dir}.')
+            os.environ['SAS_ODF'] = self.odf_dir
             if os.path.exists(self.pps_dir):
                 print(f'pps_dir found at {self.pps_dir}.')
         else:

@@ -23,7 +23,7 @@ sessions
 """
 
 # Standard library imports
-import subprocess
+import subprocess,os
 
 # Third party imports
 
@@ -37,13 +37,22 @@ class Wrapper:
     Method run instantiates MyTask to read the parameter file,
     process the input arguments and run the task.
     """
-    def __init__(self, taskname, inargs,logFile='DEFAULT'):
+    def __init__(self, taskname, inargs, 
+                 logFile='DEFAULT', 
+                 output_to_terminal = True, 
+                 output_to_file = False):
         self.taskname = taskname
-        self.inargs = inargs
-        self.logFile = logFile
+        self.inargs   = inargs
+        self.logFile  = logFile
+        self.output_to_terminal = output_to_terminal
+        self.output_to_file     = output_to_file
 
     def run(self):
-        t = MyTask(self.taskname, self.inargs,self.logFile)
+        t = MyTask(self.taskname, self.inargs, 
+                   logFile = self.logFile, 
+                   output_to_terminal = self.output_to_terminal, 
+                   output_to_file = self.output_to_file)
+
         t.readparfile()
         t.processargs()
         t.runtask()

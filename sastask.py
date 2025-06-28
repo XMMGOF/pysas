@@ -168,11 +168,16 @@ class MyTask(SASTask):
     they can be used in the ' runtask' instance method.
     """
 
-    def __init__(self, taskname, inargs,logFile='DEFAULT'):
+    def __init__(self, taskname, inargs, 
+                 logFile = 'DEFAULT', 
+                 output_to_terminal = True, 
+                 output_to_file = False):
         super().__init__(taskname, inargs)
-        self.taskname = taskname
-        self.inargs = inargs
-        self.logFile = logFile
+        self.taskname    = taskname
+        self.inargs      = inargs
+        self.logFile     = logFile
+        self.output_to_terminal = output_to_terminal
+        self.output_to_file     = output_to_file
 
         # Check if inargs is a 'dict'. If it is then convert to list format.
         if isinstance(self.inargs, dict):
@@ -350,7 +355,10 @@ class MyTask(SASTask):
     def runtask(self):
         if self.Exit:
             return self.Exit
-        r = RunTask(self.taskname, self.iparsdic,self.logFile)
+        r = RunTask(self.taskname, self.iparsdic, 
+                    logFile = self.logFile, 
+                    output_to_terminal = self.output_to_terminal, 
+                    output_to_file = self.output_to_file)
         r.run()
 
     def printHelp(self):
