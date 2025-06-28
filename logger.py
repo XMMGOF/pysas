@@ -25,12 +25,26 @@ import sys
 from pathlib import Path
 
 # Third party imports
-from loguru import logger#, Logger
+from loguru import logger
 
 logger.remove()
 # Local application imports
 
-def get_logger(taskname: str):# -> Logger:
+# Functions
+
+def get_logger(taskname: str, toterminal = True, tofile = False, 
+               logfilename = None):
+    """
+    Function to get a loguru logger object.
+
+    get_logger  : For all non-Python SAS tasks
+    pyget_logger: For all Python SAS tasks
+
+    Note from RT (6/28/2025): At the present time having a single 
+    get_logger function for both Python and non-Python SAS tasks 
+    requires a change in the SAS source code. This change will be 
+    incprorated at some future date.
+    """
     task_logger = copy.deepcopy(logger)
     
     # SAS_TASKLOGDIR allows to set the directory for the logging file
@@ -40,7 +54,10 @@ def get_logger(taskname: str):# -> Logger:
     else:
         task_logdir = Path.cwd()
 
-    task_logfile = task_logdir / f"{taskname}.log"
+    if logfilename:
+        task_logfile = task_logdir / logfilename
+    else:
+        task_logfile = task_logdir / f"{taskname}.log"
 
     # SAS_TASKLOGFMODE allows to set the write mode for the logging file
     # Allowed modes are : w (new file each invocation of logger),
@@ -48,18 +65,72 @@ def get_logger(taskname: str):# -> Logger:
     sastasklogfmode = os.getenv("SAS_TASKLOGFMODE", "a")
     if sastasklogfmode != 'a' and sastasklogfmode != 'w':
         sastasklogfmode = 'a'
+
+    # Set verbosity
+    # For non-Python SAS tasks the verbosity is set separately
+    level = "INFO"
     
     # Add file sink
-    task_logger.add(
-        sink=task_logfile,
-        level="DEBUG",
-        mode=sastasklogfmode,
-        enqueue=True,
-        format="<green>{time:DD-MM-YYYY HH:mm:ss.SSS Z}</green> - <cyan>{name}</cyan> - <level>{level: <8}</level> - <level>{message}</level>"
-    )
+    if tofile:
+        task_logger.add(
+            sink=task_logfile,
+            level=level,
+            mode=sastasklogfmode,
+            enqueue=True,
+            format="<green>{time:DD-MM-YYYY HH:mm:ss.SSS Z}</green> - <level>{message}</level>"
+        )
 
     # Add console sink
-    verbosity = int(os.getenv('SAS_VERBOSITY', '4'))
+    if toterminal:
+        task_logger.add(
+            sink=sys.stdout,
+            level=level,
+            enqueue=True,
+            format="<level>{message}</level>",
+        )
+
+    return task_logger
+
+def pyget_logger(taskname: str, toterminal = True, tofile = False, 
+               logfilename = None):
+    """
+    Function to get a loguru logger object.
+
+    Similar to the get_logger function.
+
+    !!!! To be used exclusively for Python tasks !!!!
+
+    get_logger  : For all non-Python SAS tasks
+    pyget_logger: For all Python SAS tasks
+
+    Note from RT (6/28/2025): At the present time having a single 
+    get_logger function for both Python and non-Python SAS tasks 
+    requires a change in the SAS source code. This change will be 
+    incprorated at some future date.
+    """
+    task_logger = copy.deepcopy(logger)
+    
+    # SAS_TASKLOGDIR allows to set the directory for the logging file
+    sas_tasklogdir = os.getenv('SAS_TASKLOGDIR')
+    if(sas_tasklogdir and os.path.isdir(sas_tasklogdir)):
+        task_logdir = Path(sas_tasklogdir)
+    else:
+        task_logdir = Path.cwd()
+
+    if logfilename:
+        task_logfile = task_logdir / logfilename
+    else:
+        task_logfile = task_logdir / f"{taskname}.log"
+
+    # SAS_TASKLOGFMODE allows to set the write mode for the logging file
+    # Allowed modes are : w (new file each invocation of logger),
+    # a (append to any existing file)A That is the default mode.
+    sastasklogfmode = os.getenv("SAS_TASKLOGFMODE", "a")
+    if sastasklogfmode != 'a' and sastasklogfmode != 'w':
+        sastasklogfmode = 'a'
+
+    # Set verbosity
+    verbosity = int(os.getenv('SAS_VERBOSITY'))
     match(verbosity):
         case 1:
             level = "CRITICAL"
@@ -73,13 +144,25 @@ def get_logger(taskname: str):# -> Logger:
             level = "DEBUG"
         case _:
             level = "DEBUG"
+    
+    # Add file sink
+    if tofile:
+        task_logger.add(
+            sink=task_logfile,
+            level=level,
+            mode=sastasklogfmode,
+            enqueue=True,
+            format="<green>{time:DD-MM-YYYY HH:mm:ss.SSS Z}</green> - <cyan>{name}</cyan> - <level>{level: <8}</level> - <level>{message}</level>"
+        )
 
-    task_logger.add(
-        sink=sys.stderr,
-        level=level,
-        enqueue=True,
-        format="<cyan>{name}</cyan> - <level>{level: <8}</level> - <level>{message}</level>"
-    )
+    # Add console sink
+    if toterminal:
+        task_logger.add(
+            sink=sys.stderr,
+            level=level,
+            enqueue=True,
+            format="<cyan>{name}</cyan> - <level>{level: <8}</level> - <level>{message}</level>"
+        )
 
     return task_logger
 
