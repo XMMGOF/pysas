@@ -43,7 +43,7 @@ def get_logger(taskname: str, toterminal = True, tofile = False,
     Note from RT (6/28/2025): At the present time having a single 
     get_logger function for both Python and non-Python SAS tasks 
     requires a change in the SAS source code. This change will be 
-    incprorated at some future date.
+    incorporated  at some future date.
     """
     task_logger = copy.deepcopy(logger)
     
@@ -106,7 +106,7 @@ def pyget_logger(taskname: str, toterminal = True, tofile = False,
     Note from RT (6/28/2025): At the present time having a single 
     get_logger function for both Python and non-Python SAS tasks 
     requires a change in the SAS source code. This change will be 
-    incprorated at some future date.
+    incorporated  at some future date.
     """
     task_logger = copy.deepcopy(logger)
     
