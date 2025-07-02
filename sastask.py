@@ -391,12 +391,14 @@ class MyTask(SASTask):
     """
 
     def __init__(self, taskname, inargs, 
-                 logFile = 'DEFAULT', 
+                 logfilename = None, 
+                 tasklogdir  = None,
                  output_to_terminal = True, 
-                 output_to_file = False):
+                 output_to_file     = False):
         self.taskname    = taskname
         self.inargs      = inargs
-        self.logFile     = logFile
+        self.logfilename = logfilename
+        self.tasklogdir  = tasklogdir
         self.output_to_terminal = output_to_terminal
         self.output_to_file     = output_to_file
 
@@ -575,9 +577,10 @@ class MyTask(SASTask):
         if self.Exit:
             return self.Exit
         r = RunTask(self.taskname, self.iparsdic, 
-                    logFile = self.logFile, 
+                    logfilename = self.logfilename, 
+                    tasklogdir  = self.tasklogdir,
                     output_to_terminal = self.output_to_terminal, 
-                    output_to_file = self.output_to_file)
+                    output_to_file     = self.output_to_file)
         r.run()
 
     def printHelp(self):

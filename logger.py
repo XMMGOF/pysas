@@ -33,12 +33,31 @@ logger.remove()
 # Functions
 
 def get_logger(taskname: str, toterminal = True, tofile = False, 
-               logfilename = None):
+               logfilename = None, tasklogdir = None):
     """
     Function to get a loguru logger object.
 
     get_logger  : For all non-Python SAS tasks
     pyget_logger: For all Python SAS tasks
+
+    Inputs:
+    (required)
+        - taskname   : Name of the task to be run. By default will
+                       name log file "{taskname}.log"
+    (optional)
+        - toterminal : (default: True) Output will be written to 
+                        the terminal.
+        - tofile     : (default: False) Output will be written to 
+                        a log file.
+        - logfilename: Designated log file name. Will be used instead
+                       of "{taskname}.log". Useful for putting all 
+                       output from multiple tasks into the same file.
+        - tasklogdir : (default: cwd) Directory where to write the log 
+                        file.
+                        Priority of defaults for task_logdir
+                        1. tasklogdir (passed in to function)
+                        2. SAS_TASKLOGDIR (envirnment variable)
+                        3. cwd (final default)
 
     Note from RT (6/28/2025): At the present time having a single 
     get_logger function for both Python and non-Python SAS tasks 
@@ -48,11 +67,19 @@ def get_logger(taskname: str, toterminal = True, tofile = False,
     task_logger = copy.deepcopy(logger)
     
     # SAS_TASKLOGDIR allows to set the directory for the logging file
+    # Priority of defaults for task_logdir
+    #   1. tasklogdir (passed in to function)
+    #   2. SAS_TASKLOGDIR (envirnment variable)
+    #   3. cwd (final default)
     sas_tasklogdir = os.getenv('SAS_TASKLOGDIR')
-    if(sas_tasklogdir and os.path.isdir(sas_tasklogdir)):
-        task_logdir = Path(sas_tasklogdir)
+
+    if (tasklogdir and os.path.isdir(tasklogdir)):
+        task_logdir = Path(tasklogdir)
     else:
-        task_logdir = Path.cwd()
+        if(sas_tasklogdir and os.path.isdir(sas_tasklogdir)):
+            task_logdir = Path(sas_tasklogdir)
+        else:
+            task_logdir = Path.cwd()
 
     if logfilename:
         task_logfile = task_logdir / logfilename
@@ -92,7 +119,7 @@ def get_logger(taskname: str, toterminal = True, tofile = False,
     return task_logger
 
 def pyget_logger(taskname: str, toterminal = True, tofile = False, 
-               logfilename = None):
+               logfilename = None, tasklogdir = None):
     """
     Function to get a loguru logger object.
 
@@ -103,6 +130,24 @@ def pyget_logger(taskname: str, toterminal = True, tofile = False,
     get_logger  : For all non-Python SAS tasks
     pyget_logger: For all Python SAS tasks
 
+    Inputs:
+    (required)
+        - taskname   : Name of the task to be run. By default will
+                       name log file "{taskname}.log"
+    (optional)
+        - toterminal : (default: True) Output will be written to 
+                        the terminal.
+        - tofile     : (default: False) Output will be written to 
+                        a log file.
+        - logfilename: Designated log file name. Will be used instead
+                       of "{taskname}.log". Useful for putting all 
+                       output from multiple tasks into the same file.
+        - tasklogdir : (default: cwd) Directory where to write the log 
+                        file. The environment variable 'SAS_TASKLOGDIR'
+                        will be used as the default instead of cwd, 
+                        but if a directory is passed in to 'tasklogdir'
+                        that will override 'SAS_TASKLOGDIR'.
+
     Note from RT (6/28/2025): At the present time having a single 
     get_logger function for both Python and non-Python SAS tasks 
     requires a change in the SAS source code. This change will be 
@@ -112,10 +157,14 @@ def pyget_logger(taskname: str, toterminal = True, tofile = False,
     
     # SAS_TASKLOGDIR allows to set the directory for the logging file
     sas_tasklogdir = os.getenv('SAS_TASKLOGDIR')
-    if(sas_tasklogdir and os.path.isdir(sas_tasklogdir)):
-        task_logdir = Path(sas_tasklogdir)
+
+    if (tasklogdir and os.path.isdir(tasklogdir)):
+        task_logdir = Path(tasklogdir)
     else:
-        task_logdir = Path.cwd()
+        if(sas_tasklogdir and os.path.isdir(sas_tasklogdir)):
+            task_logdir = Path(sas_tasklogdir)
+        else:
+            task_logdir = Path.cwd()
 
     if logfilename:
         task_logfile = task_logdir / logfilename
