@@ -72,8 +72,8 @@ if __name__ == '__main__':
     
     pkgdir = '../../'
 
-    with open(os.path.join(pkgdir, 'VERSION')) as f:
-        v = f.readline().strip()
+    # with open(os.path.join(pkgdir, 'VERSION')) as f:
+    #     v = f.readline().strip()
 
 # reads the SasVersion.h
 
@@ -81,18 +81,18 @@ if __name__ == '__main__':
 
 # writes version.py taking version.py.in as template
 
-    with open('version.py.in') as inf, open('version.py', 'w') as outf:
-        template = inf.read()
-        outf.write(template.format(
-            creationdate=creationdate,
-            creationyear=creationyear,
-            release=svh['sas_release'], 
-            aka=svh['sas_aka'], 
-            date=svh['sas_compilation_date'], 
-            host=svh['sas_compilation_host'],
-            user=svh['sas_compilation_user'],
-            platform=svh['sas_platform'],
-            version=v)
-            )
-    inf.close()
-    outf.close()
+    # with open('version.py.in') as inf, open('version.py', 'w') as outf:
+    #     template = inf.read()
+    #     outf.write(template.format(
+    #         creationdate=creationdate,
+    #         creationyear=creationyear,
+    #         release=svh['sas_release'], 
+    #         aka=svh['sas_aka'], 
+    #         date=svh['sas_compilation_date'], 
+    #         host=svh['sas_compilation_host'],
+    #         user=svh['sas_compilation_user'],
+    #         platform=svh['sas_platform'],
+    #         version=v)
+    #         )
+    # inf.close()
+    # outf.close()

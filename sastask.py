@@ -109,7 +109,9 @@ The runtask method uses class RunTask.
 
 # Standard library imports
 from abc import ABC, abstractmethod
-import os, numbers
+import os, numbers, sys, subprocess
+from importlib import import_module
+# import importlib.resources
 
 # Third party imports
 
@@ -117,6 +119,228 @@ import os, numbers
 from pysas.param import paramXmlInfoReader
 from pysas.parser import ParseArgs
 from pysas.runtask import RunTask
+# from pysas.logger import get_logger
+
+# Class BaseTask
+
+# class BaseTask:
+#     """
+#     Class MyTask is a children of SASTask which 
+#     implements all its abstract methods.
+
+#     In the class initialization, the task name and
+#     the input args to run it are passed from the 
+#     instatiation of MyTask. Task parameters as
+#     identified by the '=' sign are separated of 
+#     task options, to reorder them to avoid conflicts 
+#     at the time of parsing them.
+
+#     The instance method 'readparfile' gets a full
+#     picture of the task parameter file, receiving
+#     a bunch of information abouth subparameters and
+#     their relationship with its predecessors.
+
+#     The instance method 'processargs' performs the
+#     processing of any immediate options and filter out
+#     the legitimate and mandatory parameters so as
+#     they can be used in the ' runtask' instance method.
+#     """
+
+#     def __init__(self, taskname, inargs, 
+#                  logFile = 'DEFAULT', 
+#                  output_to_terminal = True, 
+#                  output_to_file = False):
+#         self.taskname    = taskname
+#         self.inargs      = inargs
+#         self.logFile     = logFile
+#         self.output_to_terminal = output_to_terminal
+#         self.output_to_file     = output_to_file
+
+#         # Check if inargs is a 'dict'. If it is then convert to list format.
+#         if isinstance(self.inargs, dict):
+#             # Get dict of default inputs for the task.
+#             t = paramXmlInfoReader(self.taskname)
+#             t.xmlParser()
+#             defdict = t.defaultValues()
+#             defkeys = defdict.keys()
+#             inkeys = self.inargs.keys()
+#             outparams = []
+            
+#             # Loop over all keys in the inargs dict and add values in 
+#             # the outdict, but only if different from default values. 
+#             # Build outparams.
+#             for key in list(inkeys):
+#                 if key == 'options':
+#                     # Only if 'options' is not empty.
+#                     if self.inargs[key] != '':
+#                         outparams.append(self.inargs[key])
+#                 else:
+#                     # Safety check to see if a number was passed in.
+#                     if isinstance(self.inargs[key], numbers.Number):
+#                         self.inargs[key] = str(self.inargs[key])
+#                     outparams.append(key+'='+self.inargs[key])
+#             self.inargs = outparams
+
+#         # Reorder self.inargs to group together all options and 
+#         # all args of type param=value, in that order.
+#         sasparams = []
+#         options = []
+#         for a in self.inargs:
+#             if '=' in a.split('=',1):
+#                 sasparams.append(a)
+#             else:
+#                 options.append(a)
+#         self.inargs = [*options, *sasparams]
+
+#     def __repr__(self):
+#         return f'{self.__class__.__name__}({self.taskname} - {self.inargs})'
+
+#     def readparfile(self):
+#         t = paramXmlInfoReader(self.taskname)
+#         t.xmlParser()
+#         self.allparams = t.allparams
+#         self.mandparams = t.mandpar
+#         self.mainparams = t.mainparams
+#         self.parmap = t.parmap
+#         self.mandpar_dict = t.mandpar_dict
+#         self.rev_mandpar_dict = t.rev_mandpar_dict
+#         self.rev_mandpar_string_dict = t.rev_mandpar_string_dict
+
+#     def processargs(self):
+#         p = ParseArgs(self.taskname, self.inargs)
+#         p.taskparser()
+#         # tparams is a list with the left hands of param=value, if any
+#         self.tparams = p.tparams
+
+#         # Execute options which require immediate action
+#         # Options which are for environment (which are cumulative) 
+#         # do not change default False value of Exit.
+#         self.Exit = p.procopt()
+#         if self.Exit:
+#             return self.Exit
+
+#         # 1st check: Whether or not parameters in inargs are defined in the parameter file
+#         for p in self.tparams:
+#             if p.strip() not in self.allparams.keys():
+#                 raise Exception(f'Parameter {p} is not defined in the parameter file')
+
+ 
+#         # 2nd check: Whether we have mandatory parameters and subparameters
+#         for k, v in self.rev_mandpar_dict.items():
+#             if k.strip() in v and k.strip() not in self.tparams:
+#                 raise Exception(f'Missing, at least, mandatory parameter {k}')
+#             if k not in v:
+#                 for p in self.tparams:
+#                     if p in v:
+#                         implicit = 'yes'
+#                         for c in v:
+#                             if c not in self.tparams:
+#                                 implicit = 'no'
+#                                 raise Exception(f'Besides {p}, mandatory subparameter {c} must also be present')
+#                         if implicit == 'yes':
+#                             defval = self.allparams[k]['default']
+#                             if self.allparams[k]['type'] == 'string':
+#                                 self.rev_mandpar_string_dict[k].remove(defval)
+#                                 alt = self.rev_mandpar_string_dict[k].pop()
+#                             elif self.allparams[k]['type'] == 'bool' and defval == 'no':
+#                                 alt = 'yes'
+#                             elif self.allparams[k]['type'] == 'bool' and defval == 'yes':
+#                                 alt = 'no'
+#                             newinarg = k + '=' + alt
+#                             self.inargs.append(newinarg)
+#                             if k in self.tparams:
+#                                 print(f'Warning: No need to include {k}. Assumed {newinarg}')
+#                             break
+#                     elif p in v and k not in self.tparams:
+#                         raise Exception(f'Mandatory sub-parameter {p} requires {k} be present')
+
+#         # If any subparameters of a parent parameter are set in the command
+# 	    # line or the arguments list, the parent can not keep its default
+# 	    # value. This is typical for parent parameters of type 'boolean' whose
+# 	    # default value is 'no' (or 'yes'). In such a case the parent value must 
+#         # be changed to 'yes' (or 'no'). This is known as 'implicit' behaviour. 
+# 	    # The previous code takes this behaviour in consideration but
+# 	    # only for mandatory parameters. Now it will be applied to all
+# 	    # parameters having subparameters. 
+# 	    # The final effect of this will be visible below when merging 
+# 	    # the parsdic (the dictionary with the default values for 
+# 	    # all the parameters) and the argsdic to pass all task  
+# 	    # parameters for execution.
+
+# 	    # Now compute a dictionary for all implicit parameters. 
+# 	    # keys are the parent parameters having any subparameters and
+# 	    # values are lists with these subparameters as elements.
+# 	    # Neither the keys nor the elements of the lists can be mandatory.
+
+#         implicitparams = {}
+#         for d in self.parmap:
+#             for k, v in d.items():
+#                 if v != [] and k not in self.mandparams:
+#                     for sp in v:
+#                         if sp not in self.mandparams:
+#                             implicitparams[k] = v
+
+#         # At this point in inargs there should be only optional modifiers
+#         # and true task parameters
+
+#         # Given that we know all parameters for the task (self.allparams) with
+#         # their default values, and the parameters and their values entered 
+#         # in the command line, let us produce now a single object with all 
+#         # parameters which we can pass to the module to run.
+
+#         # argsdic is a dictionary with the pairs param, value 
+#         # as entered from the command line from 'param=value'
+
+#         argsdic = {}
+#         for a in self.inargs:
+#             if '=' in a:
+#                 k, v = a.split('=', 1)
+#                 argsdic[k] = v
+
+#         # Load defaults with all parameters default values.
+#         # Use dictionary method 'setdefault' to set the value for a given key;
+#         # here the key is 'default'.
+#         # If the value for that key is not defined, fill it with ''.
+
+#         defaults = {}
+#         for a in self.allparams.values():
+#             defaults[a['id']] = a.setdefault('default', '')
+
+#         # 3rd Check: Whether any subparameter is set in argsdic or not.
+#         # We assume the parent is boolean ('yes'/'no').
+
+#         for a in argsdic.keys():
+#             for k, v in implicitparams.items():
+#                 if a in v:
+#                     #print(f'parent = {k}')
+#                     if self.allparams[k]['default'] == 'no':
+#                         defaults[k] = 'yes'
+#                     elif self.allparams[k]['default']  == 'yes':
+#                         defaults[k] = 'no'
+#                     #print(k, a,  defaults[k])
+#                     break
+
+#         # Merge argsdic onto parsdic. Those values set in command line, 
+#         # from argsdic, will overwrite the defaults obtained from the par file, 
+#         # from parsdic. The resulting dictionary, self.iparsdic, is what we will 
+#         # pass to method runtask.
+
+#         self.iparsdic = {**defaults, **argsdic}
+
+#     def printHelp(self):
+#         self.paramXmlInfo.printHelp()
+    
+#     def runtask(self):
+#         self.readparfile()
+#         self.processargs()
+#         if self.Exit:
+#             return self.Exit
+#         r = RunTask(self.taskname, self.iparsdic, 
+#                     logFile = self.logFile, 
+#                     output_to_terminal = self.output_to_terminal, 
+#                     output_to_file = self.output_to_file)
+#         r.run()
+
 
 
 # Class SASTask
@@ -142,8 +366,6 @@ class SASTask(ABC):
     @abstractmethod
     def runtask(self):
         pass
-
-
 
 class MyTask(SASTask):
     """
@@ -172,7 +394,6 @@ class MyTask(SASTask):
                  logFile = 'DEFAULT', 
                  output_to_terminal = True, 
                  output_to_file = False):
-        super().__init__(taskname, inargs)
         self.taskname    = taskname
         self.inargs      = inargs
         self.logFile     = logFile
@@ -228,7 +449,6 @@ class MyTask(SASTask):
         self.mandpar_dict = t.mandpar_dict
         self.rev_mandpar_dict = t.rev_mandpar_dict
         self.rev_mandpar_string_dict = t.rev_mandpar_string_dict
-
 
     def processargs(self):
         p = ParseArgs(self.taskname, self.inargs)
@@ -350,7 +570,6 @@ class MyTask(SASTask):
         # pass to method runtask.
 
         self.iparsdic = {**defaults, **argsdic}
-
 
     def runtask(self):
         if self.Exit:
