@@ -33,9 +33,10 @@ run function defined there.
 
 # Standard library imports
 from importlib import import_module
-import pkgutil
+import importlib.resources
 import os, sys
 import subprocess
+# import time
 
 # Third party imports
 
@@ -84,18 +85,11 @@ class RunTask:
         if not sas_path:
             raise Exception('SAS_PATH is undefined! SAS not initialised?')
 
-        saspath = sas_path.split(':')
-
-        sasdev = saspath[0]
-
-        pysasdevdir = os.path.join(sasdev, 'lib', 'python', 'pysas')
-
         pysaspkgs = []
 
-        for p in pkgutil.walk_packages([pysasdevdir]):
-            if p.ispkg:
-                pysaspkgs.append(p.name)
-
+        my_resources = importlib.resources.files("pysas")
+        for line in (my_resources / "pysaspkgs").read_text().splitlines():
+            pysaspkgs.append(line)
 
         if self.taskname in pysaspkgs:
 
@@ -141,12 +135,14 @@ class RunTask:
                                            shell=True,
                                            text=True,
                                            stdout=subprocess.PIPE,
-                                           stderr=subprocess.STDOUT,
+                                           stderr=subprocess.PIPE,
                                            universal_newlines=True)
 
                 # Log stdout and stderr in real-time
                 # For non-Python SAS tasks the stout and stderr are combined
                 for line in process.stdout:
+                    logger.info(f"{line.strip()}")
+                for line in process.stderr:
                     logger.info(f"{line.strip()}")
 
                 # Wait for the process to complete and get the return code

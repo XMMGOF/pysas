@@ -22,7 +22,7 @@ The parser module implements the class ParseArgs which includes
 all the methods required to parse any arguments entered either 
 via the command line or through a list.
 
-The class initialization  checks for the existence of SAS_PATH.
+The class initialization checks for the existence of SAS_PATH.
 Then it populates the pysaspkgs list with all packages below pysas.
 This is used to get the version of the package.
 
@@ -46,9 +46,9 @@ import os
 import sys
 import subprocess
 import argparse
-import pkgutil
 from importlib import import_module
 from contextlib import suppress
+import importlib.resources
 
 # Third party imports
 
@@ -66,15 +66,11 @@ class ParseArgs:
         if not sas_path:
             raise Exception('SAS_PATH is undefined. SAS not initialised?')
 
-        saspath = sas_path.split(':')
-        sasdev = saspath[0]
-        pysasdevdir = os.path.join(sasdev, 'lib', 'python', 'pysas')
         pysaspkgs = []
 
-        # pysaspkgs will list all Python packages
-        for p in pkgutil.walk_packages([pysasdevdir]):
-            if p.ispkg:
-                pysaspkgs.append(p.name)
+        my_resources = importlib.resources.files("pysas")
+        for line in (my_resources / "pysaspkgs").read_text().splitlines():
+            pysaspkgs.append(line)
 
         # If taskname is not in pysaspkgs it is a non Python SAS task
         # then its version must be obtained differently.
@@ -204,8 +200,6 @@ class ParseArgs:
             self.tparams.append(a)
 
         #print(f'self.tparams                   = {self.tparams}')
-
-
 
     # Depending on the options entered, performs actions
     def procopt(self):

@@ -23,7 +23,7 @@ sessions
 """
 
 # Standard library imports
-import subprocess,os
+import subprocess,os,sys
 
 # Third party imports
 
@@ -55,7 +55,6 @@ class Wrapper:
                    tasklogdir  = self.tasklogdir,
                    output_to_terminal = self.output_to_terminal, 
                    output_to_file     = self.output_to_file)
-
         t.readparfile()
         t.processargs()
         t.runtask()
