@@ -38,20 +38,23 @@ class Wrapper:
     process the input arguments and run the task.
     """
     def __init__(self, taskname, inargs, 
-                 logFile='DEFAULT', 
+                 logfilename = None, 
+                 tasklogdir  = None,
                  output_to_terminal = True, 
-                 output_to_file = False):
-        self.taskname = taskname
-        self.inargs   = inargs
-        self.logFile  = logFile
+                 output_to_file     = False):
+        self.taskname    = taskname
+        self.inargs      = inargs
+        self.logfilename = logfilename
+        self.tasklogdir  = tasklogdir
         self.output_to_terminal = output_to_terminal
         self.output_to_file     = output_to_file
 
     def run(self):
         t = MyTask(self.taskname, self.inargs, 
-                   logFile = self.logFile, 
+                   logfilename = self.logfilename, 
+                   tasklogdir  = self.tasklogdir,
                    output_to_terminal = self.output_to_terminal, 
-                   output_to_file = self.output_to_file)
+                   output_to_file     = self.output_to_file)
 
         t.readparfile()
         t.processargs()

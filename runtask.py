@@ -56,12 +56,14 @@ class RunTask:
     """
 
     def __init__(self, taskname, iparsdic, 
-                 logFile = 'DEFAULT', 
+                 logfilename = None, 
+                 tasklogdir  = None,
                  output_to_terminal = True, 
-                 output_to_file = False):
+                 output_to_file     = False):
         self.taskname    = taskname
         self.iparsdic    = iparsdic
-        self.logFile     = logFile
+        self.logfilename = logfilename
+        self.tasklogdir  = tasklogdir
         self.output_to_terminal = output_to_terminal
         self.output_to_file     = output_to_file
 
@@ -126,14 +128,13 @@ class RunTask:
                     cmd += k + '=' + v + ' '
                 
             print(f'Executing: \n{cmd}')
-            self.p= None
-            self.stdoutFile = None
 
             try:
                 logger = get_logger(self.taskname,
-                                    toterminal = self.output_to_terminal, 
-                                    tofile = self.output_to_file, 
-                                    logfilename = self.logFile)
+                                    toterminal  = self.output_to_terminal, 
+                                    tofile      = self.output_to_file, 
+                                    logfilename = self.logfilename,
+                                    tasklogdir  = self.tasklogdir)
                 # Start the subprocess
                 process = subprocess.Popen(cmd, 
                                            bufsize=1,
@@ -147,16 +148,15 @@ class RunTask:
                 # For non-Python SAS tasks the stout and stderr are combined
                 for line in process.stdout:
                     logger.info(f"{line.strip()}")
-                # for line in process.stderr:
-                #     logger.info(f"{line.strip()}")
 
                 # Wait for the process to complete and get the return code
                 process.wait()
-                if process.returncode == 0:
-                    logger.success(f"{self.taskname} executed successfully!")
-                else:
-                    logger.critical(f"{self.taskname} failed!")
 
             except Exception as e:
                 logger.exception(f"An error occurred while running the command: {e}")
+
+            if process.returncode == 0:
+                logger.success(f"{self.taskname} executed successfully!")
+            else:
+                logger.critical(f"{self.taskname} failed!")
 
