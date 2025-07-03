@@ -17,7 +17,8 @@
 
 # pyrgsimplot.py
 
-from .version import VERSION, SAS_RELEASE, SAS_AKA
+from .version import VERSION
+from pysas import SAS_RELEASE, SAS_AKA
 
 __version__ = f'pyrgsimplot (pyrgsimplot-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]' 
 

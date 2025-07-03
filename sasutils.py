@@ -32,7 +32,6 @@ from astroquery.esa.xmm_newton import XMMNewton
 from astroquery.heasarc import Heasarc
 
 # Local application imports
-# from .version import VERSION, SAS_RELEASE, SAS_AKA
 from .logger import TaskLogger as TL
 
 # Third party imports

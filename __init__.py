@@ -10,10 +10,8 @@ from . import configutils
 from . import init_sas
 from . import sasutils
 from . import config_pysas
-from .version import *
+from .version import VERSION, get_sas_version
 from .odfcontrol import odfcontrol
-
-__version__ = f'pysas - (pysas-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]'
 
 ## For initialization of pySAS from configuration file.
 from .configutils import sas_cfg
@@ -47,6 +45,21 @@ if sas_cfg['DEFAULT']['on_sci_server'] == 'False' and sas_initialize:
         print('Please set manually to initialize SAS.')
         print('sas_dir....: {}'.format(sas_dir_config))
         print('sas_ccfpath: {}'.format(sas_ccfpath_config))
+
+# Get SAS version information
+return_list = get_sas_version()
+
+SAS_RELEASE          = return_list[0]
+SAS_AKA              = return_list[1]
+SAS_COMPILATION_DATE = return_list[2]
+SAS_COMPILATION_HOST = return_list[3]
+SAS_COMPILATION_USER = return_list[4]
+SAS_PLATFORM         = return_list[5]
+SAS_COMMIT_ID        = return_list[6]
+
+__version__ = f'pysas - (pysas-{VERSION}) [{SAS_RELEASE}]'
+
+from .print_version import print_sas_version
 
 # Get rid of temporary variables to prevent possible conflicts.
 del sas_dir_config, sas_ccfpath_config, sas_initialize, sas_dir, sas_path, sas_ccfpath

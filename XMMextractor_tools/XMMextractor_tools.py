@@ -17,8 +17,6 @@
 
 # XMMextractor_tools
 
-
-
 import os
 from astropy.coordinates import SkyCoord
 from astropy import units as u
@@ -31,7 +29,7 @@ from pysas.logger import TaskLogger as TL
 tool_log = TL('aux.log')
 import glob
 import shutil
-from pysas.wrapper import Wrapper as W
+from pysas.sastask import MyTask as W
 import warnings
 import tarfile
 import urllib.request

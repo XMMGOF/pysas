@@ -31,7 +31,6 @@ import os, sys, shutil, glob, numbers
 # Third party imports
 
 # Local application imports
-# from .version import VERSION, SAS_RELEASE, SAS_AKA
 from ..logger import TaskLogger as TL
 from ..configutils import sas_cfg
 from ..init_sas import initializesas
@@ -39,7 +38,6 @@ from ..wrapper import Wrapper as w
 from ..sasutils import generate_logger
 from ..sasutils import download_data as dl_data
 
-__version__ = 'odfcontrol (odfcontrol-1.2.0)'
 __all__ = ['ODFobject']
 
 

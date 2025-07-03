@@ -27,7 +27,7 @@ from warnings import warn
 # Third party imports
 
 # Local application imports
-from pysas.sastask import SASTask
+from pysas.sastask import MyTask
 
 class Wrapper:
     """Class Wrapper
@@ -50,14 +50,17 @@ class Wrapper:
         self.output_to_file     = output_to_file
         warn(
              """
-             The wrapper class has been depricated. Use SASTask instead.
-             ex: from pysas.sastask import SASTask
+             The wrapper class has been depricated. Use MyTask instead.
+             ex: 
+                 from pysas.sastask import MyTask
+             instead of
+                 from pysas.wrapper import Wrapper
              """)
 
     def run(self):
-        SASTask(self.taskname, self.inargs, 
-                logfilename = self.logfilename, 
-                tasklogdir  = self.tasklogdir,
-                output_to_terminal = self.output_to_terminal, 
-                output_to_file     = self.output_to_file
-                ).run()
+        MyTask(self.taskname, self.inargs, 
+               logfilename = self.logfilename, 
+               tasklogdir  = self.tasklogdir,
+               output_to_terminal = self.output_to_terminal, 
+               output_to_file     = self.output_to_file
+               ).run()

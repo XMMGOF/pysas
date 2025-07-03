@@ -111,6 +111,7 @@ The runtask method uses class RunTask.
 import os, numbers, subprocess
 from importlib import import_module
 import importlib.resources
+from warnings import warn
 
 # Third party imports
 
@@ -119,11 +120,32 @@ from pysas.param import paramXmlInfoReader
 from pysas.parser import ParseArgs
 from pysas.logger import get_logger
 
-# Class SASTask
-class SASTask:
+# Class MyTask
+class MyTask:
     """
     The SASTask class replaces the Wrapper class from
-     wrapper.py.
+    wrapper.py.
+
+    Inputs:
+    (required)
+        - taskname   : Name of the task to be run.
+        - inargs     : Input arguments.
+    (optional)
+        - logfilename: Designated log file name. Will be used instead
+                        of "{taskname}.log". Useful for putting all 
+                        output from multiple tasks into the same file.
+        - tasklogdir : (default: cwd) Directory where to write the log 
+                        file.
+                        Priority of defaults for task_logdir
+                        1. tasklogdir (passed in to function)
+                        2. SAS_TASKLOGDIR (envirnment variable)
+                        3. cwd (final default)
+
+        - output_to_terminal : (default: True) Output will be written to 
+                                the terminal.
+        - output_to_file     : (default: False) Output will be written to 
+                                a log file.
+
 
     In the class initialization, the task name and
     the input args to run it are processed. 
@@ -419,17 +441,6 @@ class SASTask:
             else:
                 logger.critical(f"{self.taskname} failed!")
 
-class MyTask(SASTask):
-    """
-    Class MyTask is a child of SASTask and has access to all
-    of the methods in SASTask. It's only purpose is to act as
-    a placeholder for legacy code.
-
-    The method 'run' in the SASTask class replaces the 'run'
-    method in the RunTask class in runtask.py (now removed). 
-    There is no need to create a RunTask object in pySAS v2.
-    """
-
     def runtask(self):
         """
         This method is here for legacy reasons since some Python
@@ -442,3 +453,17 @@ class MyTask(SASTask):
             t.runtask()
         """
         self.run()
+
+
+class SASTask(MyTask):
+    """
+    Class SASTask is a child of MyTask and has access to all
+    of the methods in SASTask. It's only purpose is to act as
+    a placeholder for legacy code.
+    """
+    def __init__(self, taskname, inargs):
+        warn(
+             """
+             The class SASTask has been depricated. Use MyTask instead.
+             ex: from pysas.sastask import MyTask
+             """)

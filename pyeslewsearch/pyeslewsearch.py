@@ -33,7 +33,8 @@ import glob
 
 logger = get_logger('pyeslewsearch')
 
-from .version import VERSION, SAS_RELEASE, SAS_AKA
+from .version import VERSION
+from pysas import SAS_RELEASE, SAS_AKA
 
 __version__ = f'pyeslewsearch (pyeslewchain-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]'
 

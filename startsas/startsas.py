@@ -96,10 +96,11 @@ import os, sys, subprocess, shutil, glob
 # (se below for astroquery)
 
 # Local application imports
-from .version import VERSION, SAS_RELEASE, SAS_AKA
-#from pysas.wrapper import Wrapper as wrap
+#from pysas.sastask import MyTask as wrap
 from pysas.logger import TaskLogger as TL
 
+from .version import VERSION
+from pysas import SAS_RELEASE, SAS_AKA
 
 __version__ = f'startsas (startsas-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]' 
 
