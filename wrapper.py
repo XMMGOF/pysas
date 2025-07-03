@@ -17,25 +17,25 @@
 
 """wrapper.py
 
-This is a wrapper for SAS tasks which are not based on Python.
-This code can be used from Jupyter Notebooks and ipython interactive
-sessions
+This file is only here for legacy reasons. Its only purpose
+is to point to the SASTask class in sastask.py.
 """
 
 # Standard library imports
-import subprocess,os,sys
+from warnings import warn
 
 # Third party imports
 
 # Local application imports
-from pysas.sastask import MyTask
-
+from pysas.sastask import SASTask
 
 class Wrapper:
     """Class Wrapper
 
-    Method run instantiates MyTask to read the parameter file,
-    process the input arguments and run the task.
+    This class is only here for legacy reasons. Its only purpose
+    is to point to the SASTask class in sastask.py.
+
+    Method run instantiates SASTask and calls 'run' from SASTask.
     """
     def __init__(self, taskname, inargs, 
                  logfilename = None, 
@@ -48,13 +48,16 @@ class Wrapper:
         self.tasklogdir  = tasklogdir
         self.output_to_terminal = output_to_terminal
         self.output_to_file     = output_to_file
+        warn(
+             """
+             The wrapper class has been depricated. Use SASTask instead.
+             ex: from pysas.sastask import SASTask
+             """)
 
     def run(self):
-        t = MyTask(self.taskname, self.inargs, 
-                   logfilename = self.logfilename, 
-                   tasklogdir  = self.tasklogdir,
-                   output_to_terminal = self.output_to_terminal, 
-                   output_to_file     = self.output_to_file)
-        t.readparfile()
-        t.processargs()
-        t.runtask()
+        SASTask(self.taskname, self.inargs, 
+                logfilename = self.logfilename, 
+                tasklogdir  = self.tasklogdir,
+                output_to_terminal = self.output_to_terminal, 
+                output_to_file     = self.output_to_file
+                ).run()
