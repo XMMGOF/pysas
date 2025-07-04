@@ -31,7 +31,6 @@ import os, sys, shutil, glob, numbers
 # Third party imports
 
 # Local application imports
-from ..logger import TaskLogger as TL
 from ..configutils import sas_cfg
 from ..init_sas import initializesas
 from ..wrapper import Wrapper as w
