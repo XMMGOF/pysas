@@ -97,14 +97,14 @@ import os, sys, subprocess, shutil, glob
 
 # Local application imports
 #from pysas.sastask import MyTask as wrap
-from pysas.logger import TaskLogger as TL
+from logger import get_logger
 
 from .version import VERSION
 from pysas import SAS_RELEASE, SAS_AKA
 
 __version__ = f'startsas (startsas-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]' 
 
-logger = TL('startsas')
+logger = get_logger('startsas')
 
 def run(iparsdic):
     """
@@ -119,35 +119,35 @@ def run(iparsdic):
     via the verbosity option  '-V/--verbosity.
     """
 
-    logger.log('warning', f'Executing {__file__} {iparsdic}')
+    logger.warning(f'Executing {__file__} {iparsdic}')
 
     # Checking LHEASOFT, SAS_DIR and SAS_CCFPATH
 
     lheasoft = os.environ.get('LHEASOFT')
     if not lheasoft:
-        logger.log('error', 'LHEASOFT is not set. Please initialise HEASOFT')
+        logger.error('LHEASOFT is not set. Please initialise HEASOFT')
         raise Exception('LHEASOFT is not set. Please initialise HEASOFT')
     else:
-        logger.log('info', f'LHEASOFT = {lheasoft}')
+        logger.info(f'LHEASOFT = {lheasoft}')
 
     sasdir = os.environ.get('SAS_DIR')
     if not sasdir:
-        logger.log('error', 'SAS_DIR is not defined. Please initialise SAS')
+        logger.error('SAS_DIR is not defined. Please initialise SAS')
         raise Exception('SAS_DIR is not defined. Please initialise SAS')
     else:
-        logger.log('info', f'SAS_DIR = {sasdir}') 
+        logger.info(f'SAS_DIR = {sasdir}') 
 
     sasccfpath = os.environ.get('SAS_CCFPATH')
     if not sasccfpath:
-        logger.log('error', 'SAS_CCFPATH not set. Please define it')
+        logger.error('SAS_CCFPATH not set. Please define it')
         raise Exception('SAS_CCFPATH not set. Please define it')
     else:
-        logger.log('info',f'SAS_CCFPATH = {sasccfpath}')
+        logger.info(f'SAS_CCFPATH = {sasccfpath}')
 
 
     # Where are we?
     startdir = os.getcwd()
-    logger.log('info',f'startsas was initiated from {startdir}')
+    logger.info(f'startsas was initiated from {startdir}')
 
     if iparsdic['workdir'] == 'pwd':
         workdirectory = startdir
@@ -161,15 +161,15 @@ def run(iparsdic):
         elif workdirectory[:2] == './':
             workdirectory = os.path.join(startdir, workdirectory[2:])
         
-        logger.log('info', f'Work directory = {workdirectory}')
+        logger.info(f'Work directory = {workdirectory}')
 
         if not os.path.isdir(workdirectory):
-            logger.log('warning', f'{workdirectory} does not exist. Creating it!')
+            logger.warning(f'{workdirectory} does not exist. Creating it!')
             os.mkdir(workdirectory)
-            logger.log('info', f'{workdirectory} has been created!')
+            logger.info(f'{workdirectory} has been created!')
         
         os.chdir(workdirectory)
-        logger.log('info', f'Changed directory to {workdirectory}')
+        logger.info(f'Changed directory to {workdirectory}')
 
         print(f'''
 
@@ -182,27 +182,27 @@ def run(iparsdic):
     # Identify the download level
     level = iparsdic['level']
     if level != 'ODF' and level != 'PPS':
-        logger.log('error', 'ODF request level is undefined!')
+        logger.error('ODF request level is undefined!')
         raise Exception('ODF request level is undefined!')
     else:
-        logger.log('info', f'Will download ODF with level {level}') 
+        logger.info(f'Will download ODF with level {level}') 
 
 
     # Processing odfid
     if iparsdic['odfid'] and level == 'ODF':
         
         if iparsdic['sas_ccf'] or iparsdic['sas_odf']:
-            logger.log('error', 'Parameter odfid icompatible with sas_ccf and sas_odf')
+            logger.error('Parameter odfid icompatible with sas_ccf and sas_odf')
             raise Exception('Parameter odfid icompatible with sas_ccf and sas_odf')
 
         odfid = iparsdic['odfid']
-        logger.log('info', 'Requesting odfid  = {} to XMM-Newton Science Archive\n'.format(iparsdic['odfid']))
-        print('Requesting odfid  = {} to XMM-Newton Science Archive\n'.format(iparsdic['odfid']))
+        logger.info('Requesting odfid  = {} to XMM-Newton Science Archive\n', iparsdic['odfid'])
+        print('Requesting odfid  = {} to XMM-Newton Science Archive\n', iparsdic['odfid'])
         
         # Download the odfid from XMM-Newton, using astroquery
 
         from astroquery.esa.xmm_newton import XMMNewton
-        logger.log('info', f'Downloading {odfid}, level {level}')
+        logger.info(f'Downloading {odfid}, level {level}')
         print(f'\nDownloading {odfid}, level {level}. Please wait ...\n')
         XMMNewton.download_data(odfid, level=level)
 
@@ -211,18 +211,18 @@ def run(iparsdic):
         # Check that the tar.gz file has been downloaded
         try:
             os.path.exists(tarfile)
-            logger.log('info', f'{tarfile} downloaded.') 
+            logger.info(f'{tarfile} downloaded.') 
         except FileExistsError:
-            logger.log('error', f'File {tarfile} is not present. Not downloaded?')
+            logger.error(f'File {tarfile} is not present. Not downloaded?')
             print(f'File {tarfile} is not present. Not downloaded?')
             sys.exit(1)
         
         # Creates subdirectory odfid to move and unpack the odfid.tar.gz file
         if os.path.exists(os.path.join(workdirectory, odfid)):
-            logger.log('info', f'Removing existing directory {odfid} ...')
+            logger.info(f'Removing existing directory {odfid} ...')
             print(f'\n\nRemoving existing directory {odfid} ...')
             shutil.rmtree(os.path.join(workdirectory, odfid))
-        logger.log('info', f'Creating directory {odfid} ...')
+        logger.info(f'Creating directory {odfid} ...')
         print(f'\nCreating directory {odfid} ...')
         os.mkdir(odfid)
         
@@ -234,42 +234,42 @@ def run(iparsdic):
         
         # Untars the odfid.tar.gz file
         cmd = ['tar', 'zxf', tarfile]
-        logger.log('info', f'Unpacking {tarfile} ...')
+        logger.info(f'Unpacking {tarfile} ...')
         print(f'\nUnpacking {tarfile} ...\n')
         rc = subprocess.run(cmd)
         if rc.returncode != 0:
-            logger.log('error', 'tar file extraction failed')
+            logger.error('tar file extraction failed')
             raise Exception('tar file extraction failed')
         else:
-            logger.log('info', f'{tarfile} extracted successfully!')
+            logger.info(f'{tarfile} extracted successfully!')
 
         os.remove(tarfile)
-        logger.log('info', f'{tarfile} removed')
+        logger.info(f'{tarfile} removed')
 
         # Obtains the name of the file with ext TAR
         TARFILE = glob.glob('*.TAR')
         cmd = ['tar', 'xf', TARFILE[0]]
         # Untars the TAR file
-        logger.log('info', f'Unpacking {TARFILE[0]} ...')
+        logger.info(f'Unpacking {TARFILE[0]} ...')
         print(f'Unpacking {TARFILE[0]} ...')
         rc = subprocess.run(cmd)
         
         os.remove(TARFILE[0])
-        logger.log('info', f'{TARFILE[0]} removed')
+        logger.info(f'{TARFILE[0]} removed')
 
         # Checks that the MANIFEST file is there
         MANIFEST = glob.glob('MANIFEST*')
         try:
             os.path.exists(MANIFEST[0])
-            logger.log('info', f'File {MANIFEST[0]} exists')
+            logger.info(f'File {MANIFEST[0]} exists')
         except FileExistsError:
-            logger.log('error', f'File {MANIFEST[0]} not present. Please check ODF!')
+            logger.error(f'File {MANIFEST[0]} not present. Please check ODF!')
             print(f'File {MANIFEST[0]} not present. Please check ODF!')
             sys.exit(1)
 
         # Here the ODF is fully untarred below odfid subdirectory
         # Now we start preparing the SAS_ODF and SAS_CCF
-        logger.log('info', f'Setting SAS_ODF = {os.getcwd()}')
+        logger.info(f'Setting SAS_ODF = {os.getcwd()}')
         print(f'\nSetting SAS_ODF = {os.getcwd()}')
         os.environ['SAS_ODF'] = os.getcwd()
 
@@ -282,31 +282,31 @@ def run(iparsdic):
             cifbuild_opts_list = cifbuild_opts.split(" ") 
             cmd = ['cifbuild']
             cmd = cmd + cifbuild_opts_list
-            logger.log('info', f'Running cifbuild with {cifbuild_opts} ...')
+            logger.info(f'Running cifbuild with {cifbuild_opts} ...')
             print(f'\nRunning cifbuild with {cifbuild_opts} ...')
         else:
             cmd = ['cifbuild']
-            logger.log('info', f'Running cifbuild...')
+            logger.info(f'Running cifbuild...')
             print(f'\nRunning cifbuild...')
         
         rc = subprocess.run(cmd)
         if rc.returncode != 0:
-            logger.log('error', 'cifbuild failed to complete')
+            logger.error('cifbuild failed to complete')
             raise Exception('cifbuild failed to complete')
         
         # Check whether ccf.cif is produced or not
         ccfcif = glob.glob('ccf.cif')
         try:
             os.path.exists(ccfcif[0])
-            logger.log('info', f'CIF file {ccfcif[0]} created')
+            logger.info(f'CIF file {ccfcif[0]} created')
         except FileExistsError:
-            logger.log('error','The ccf.cif was not produced')
+            logger.error('The ccf.cif was not produced')
             print('ccf.cif file is not produced')
             sys.exit(1)
         
         # Sets SAS_CCF variable
         fullccfcif = os.path.join(workdirectory, 'ccf.cif')
-        logger.log('info', f'Setting SAS_CCF = {fullccfcif}')
+        logger.info(f'Setting SAS_CCF = {fullccfcif}')
         print(f'\nSetting SAS_CCF = {fullccfcif}')
         os.environ['SAS_CCF'] = fullccfcif
 
@@ -316,34 +316,34 @@ def run(iparsdic):
             odfingest_opts_list = odfingest_opts.split(" ")
             cmd = ['odfingest'] 
             cmd = cmd + odfingest_opts_list
-            logger.log('info', f'Running odfingest with {odfingest_opts} ...')
+            logger.info(f'Running odfingest with {odfingest_opts} ...')
             print(f'\nRunning odfingest with {odfiingest_opts} ...')
         else:
             cmd = ['odfingest']
-            logger.log('info','Running odfingest...') 
+            logger.info('Running odfingest...') 
             print('\nRunning odfingest...')
         
         rc = subprocess.run(cmd)
         if rc.returncode != 0:
-            logger.log('error', 'odfingest failed to complete')
+            logger.error('odfingest failed to complete')
             raise Exception('odfingest failed to complete.')
         else:
-            logger.log('info', 'odfingest successfully completed')
+            logger.info('odfingest successfully completed')
 
         # Check whether the SUM.SAS has been produced or not
         sumsas = glob.glob('*SUM.SAS')
         try:
             os.path.exists(sumsas[0])
-            logger.log('info', f'SAS summary file {sumsas[0]} created')
+            logger.info(f'SAS summary file {sumsas[0]} created')
         except FileExistsError:
-            logger.log('error','SUM.SAS file was not produced') 
+            logger.error('SUM.SAS file was not produced') 
             print('SUM.SAS file was not produced')
             sys.exit(1)
         
         # Set the SAS_ODF to the SUM.SAS file
         fullsumsas = os.path.join(workdirectory, sumsas[0])
         os.environ['SAS_ODF'] = fullsumsas
-        logger.log('info', f'Setting SAS_ODF = {fullsumsas}')
+        logger.info(f'Setting SAS_ODF = {fullsumsas}')
         print(f'\nSetting SAS_ODF = {fullsumsas}')
 
         # sasodf is the dirname of fullsumsas + odfid. It will be used below.
@@ -356,10 +356,10 @@ def run(iparsdic):
             if 'PATH' in line:
                 key, path = line.split()
                 if path != sasodf:
-                    logger.log('error', f'SAS summary file PATH mismatchs {sasodf}')
+                    logger.error(f'SAS summary file PATH mismatchs {sasodf}')
                     raise Exception(f'SAS summary file PATH mismatchs {sasodf}')
                 else:
-                    logger.log('info', f'Summary file PATH keyword matches {sasodf}')
+                    logger.info(f'Summary file PATH keyword matches {sasodf}')
                     print(f'\nWarning: Summary file PATH keyword matches {sasodf}')
 
         print(f'''\n\n
@@ -371,17 +371,17 @@ def run(iparsdic):
     elif iparsdic['odfid'] and level == 'PPS':
         
         if iparsdic['sas_ccf'] or iparsdic['sas_ccf']:
-            logger.log('error', 'Parameter odfid icompatible with sas_ccf and sas_odf')
+            logger.error('Parameter odfid icompatible with sas_ccf and sas_odf')
             raise Exception('Parameter odfid icompatible with sas_ccf and sas_odf')
 
         odfid = iparsdic['odfid']
-        logger.log('info', 'Requesting odfid  = {} to XMM-Newton Science Archive\n'.format(iparsdic['odfid']))
+        logger.info('Requesting odfid  = {} to XMM-Newton Science Archive\n'.format(iparsdic['odfid']))
         print('Requesting odfid  = {} to XMM-Newton Science Archive\n'.format(iparsdic['odfid']))
 
         # Download the odfid from XMM-Newton, using astroquery
 
         from astroquery.esa.xmm_newton import XMMNewton
-        logger.log('info', f'Downloading {odfid}, level {level}.')
+        logger.info(f'Downloading {odfid}, level {level}.')
         print(f'\nDownloading {odfid}, level {level}. Please wait ...\n')
         XMMNewton.download_data(odfid, level=level)
 
@@ -390,9 +390,9 @@ def run(iparsdic):
         # Check that the tar file has been downloaded
         try:
             os.path.exists(tarfile)
-            logger.log('info', f'Tarfile {tarfile} downloaded')
+            logger.info(f'Tarfile {tarfile} downloaded')
         except FileExistsError:
-            logger.log('error', f'File {tarfile} is not present. Not downloaded?')
+            logger.error(f'File {tarfile} is not present. Not downloaded?')
             print(f'File {tarfile} is not present. Not downloaded?')
             sys.exit(1)
 
@@ -401,39 +401,39 @@ def run(iparsdic):
         odfid_dir = os.path.join(workdirectory, odfid)
         if not os.path.exists(odfid_dir):
             os.mkdir(odfid_dir)
-            logger.log('info',f'Directory {odfid_dir} created')
+            logger.info(f'Directory {odfid_dir} created')
         else:
-            logger.log('info', f'Directory {odfid_dir} already exists. Not removed!')
+            logger.info(f'Directory {odfid_dir} already exists. Not removed!')
 
         os.chdir(workdirectory)
-        logger.log('info', f'Changed directory to {workdirectory}')
+        logger.info(f'Changed directory to {workdirectory}')
 
 
         # Untars the odfid.tar.gz file
         cmd = ['tar', 'xf', tarfile]
-        logger.log('info', f'Unpacking {tarfile} ...')
+        logger.info(f'Unpacking {tarfile} ...')
         print(f'\nUnpacking {tarfile} ...\n')
         rc = subprocess.run(cmd)
         if rc.returncode != 0:
-            logger.log('error', 'tar file extraction failed')
+            logger.error('tar file extraction failed')
             raise Exception('tar file extraction failed')
         else:
-            logger.log('info', 'Tar file {tarfile} extracted successfully')
+            logger.info('Tar file {tarfile} extracted successfully')
 
         os.remove(tarfile)
-        logger.log('info', f'{tarfile} removed')
+        logger.info(f'{tarfile} removed')
 
         ppsdir = os.path.join(workdirectory, odfid, 'pps')
         ppssumhtml = 'P' + odfid + 'OBX000SUMMAR0000.HTM'
         ppssumhtmlfull = os.path.join(ppsdir, ppssumhtml)
         ppssumhtmllink = 'file://' + ppssumhtmlfull
-        logger.log('info', f'PPS products can be found in {ppsdir}')
+        logger.info(f'PPS products can be found in {ppsdir}')
         print(f'\nPPS products can be found in {ppsdir}\n\nLink to Observation Summary html: {ppssumhtmllink}')
 
     # Process sas_ccf and sas_odf parameters
     elif iparsdic['sasfiles'] == 'yes':
         if iparsdic['odfid']:
-            logger.log('error', 'Parameters sas_ccf and sas_odf incompatible with parameter odfid') 
+            logger.error('Parameters sas_ccf and sas_odf incompatible with parameter odfid') 
             raise Exception('Parameters sas_ccf and sas_odf incompatible with parameter odfid')
         
         sasccf = iparsdic['sas_ccf']
@@ -447,26 +447,26 @@ def run(iparsdic):
 
         try:
             os.path.exists(sasccf)
-            logger.log('info', f'{sasccf} is present')
+            logger.info(f'{sasccf} is present')
         except FileExistsError:
-            logger.log('error', f'File {sasccf} not found.')
+            logger.error(f'File {sasccf} not found.')
             print(f'File {sasccf} not found.')
             sys.exit(1)
 
         try:
             os.path.exists(sasodf)
-            logger.log('info', f'{sasodf} is present')
+            logger.info(f'{sasodf} is present')
         except FileExistsError:
-            logger.log('error', f'File {sasodf} not found.')
+            logger.error(f'File {sasodf} not found.')
             print(f'File {sasodf} not found.')
             sys.exit(1)
         
         os.environ['SAS_CCF'] = sasccf
-        logger.log('info', f'SAS_CCF = {sasccf}')
+        logger.info(f'SAS_CCF = {sasccf}')
         print(f'SAS_CCF = {sasccf}')
 
         if 'SUM.SAS' not in iparsdic['sas_odf']:
-            logger.log('error', '{} does not refer to a SAS SUM file'.format(iparsdic['sas_odf']))
+            logger.error('{} does not refer to a SAS SUM file', iparsdic['sas_odf'])
             raise Exception('{} does not refer to a SAS SUM file'.format(iparsdic['sas_odf']))
         
         # Check that the SUM.SAS file PATH keyword points to a real ODF directory
@@ -476,14 +476,14 @@ def run(iparsdic):
             if 'PATH' in line:
                 key, path = line.split()
                 if not os.path.exists(path):
-                    logger.log('error', f'Summary file PATH {path} does not exist.')
+                    logger.error(f'Summary file PATH {path} does not exist.')
                     raise Exception(f'Summary file PATH {path} does not exist.')
                 MANIFEST = glob.glob(os.path.join(path, 'MANIFEST*'))
                 if not os.path.exists(MANIFEST[0]):
-                    logger.log('error', f'Missing {MANIFEST[0]} file in {path}. Missing ODF components?')
+                    logger.error(f'Missing {MANIFEST[0]} file in {path}. Missing ODF components?')
                     raise Exception(f'\nMissing {MANIFEST[0]} file in {path}. Missing ODF components?')
         
         os.environ['SAS_ODF'] = sasodf
-        logger.log('info', f'SAS_ODF = {sasodf}')
+        logger.info(f'SAS_ODF = {sasodf}')
         print(f'SAS_ODF = {sasodf}')
 
