@@ -38,14 +38,14 @@ import warnings
 #warnings.filterwarnings("error")
 import glob
 import re
-from pysas.logger import TaskLogger as TL
+from logger import get_logger
 from astropy import units as u
 import matplotlib.pyplot as plt
 from astropy import constants as const
 from astropy.coordinates import Angle
 
 
-logger = TL('pyrgsspecplot')
+logger = get_logger('pyrgsspecplot')
 
 
 ##################################
@@ -69,7 +69,7 @@ def plot_spectrum(spec_data, axisunits, fits_info, t_labels, output, plot_info, 
         1 when finished.
     """
     
-    logger.log('debug', 'Starting graph processing...')
+    logger.debug('Starting graph processing...')
    
     if dark_mode:
         plt.style.use('dark_background')
@@ -79,13 +79,13 @@ def plot_spectrum(spec_data, axisunits, fits_info, t_labels, output, plot_info, 
     fig, ax1 = plt.subplots()
     t_xlabel, t_ylabel, t_elabel = t_labels
 
-    logger.log('debug', 'Getting passed data.')
+    logger.debug('Getting passed data.')
     
     try:
         spec_data, errors_t = spec_data
-        logger.log('debug', 'Rebinned - separated tables for error and data.')
+        logger.debug('Rebinned - separated tables for error and data.')
     except ValueError:
-        logger.log('debug', 'Only one table for error and data.')
+        logger.debug('Only one table for error and data.')
         errors_t = spec_data
 
     spec_pix, original_min_channel, original_channel_range, spec_val, spec_delta = beta_calc_info
@@ -109,7 +109,7 @@ def plot_spectrum(spec_data, axisunits, fits_info, t_labels, output, plot_info, 
     text_l = 'DATE-OBS: {0}. \nDATE-END: {1}.\n{2}.\n\n'.format(date_obs, date_end, rebin_tag)
     fig.text(0.1, 0.8, text_l)
     
-    logger.log('debug', '{} {}'.format(np.nanmin(spec_data[t_xlabel].data), np.nanmax(spec_data[t_xlabel].data)))
+    logger.debug('{} {}', np.nanmin(spec_data[t_xlabel].data), np.nanmax(spec_data[t_xlabel].data))
     ax1.set_xlim(np.nanmin(spec_data[t_xlabel].data), np.nanmax(spec_data[t_xlabel].data))
 
     if axisunits == 'rad':
@@ -221,10 +221,10 @@ def plot_spectrum(spec_data, axisunits, fits_info, t_labels, output, plot_info, 
         if os.getenv['DISPLAY']:
             plt.show()
         else:
-            logger.log('warning', 'Display not available.') 
+            logger.warning('Display not available.') 
     else:
         try:
-            logger.log('debug', 'Saving {}.{}.'.format(output, out_format))
+            logger.debug('Saving {}.{}.', output, out_format)
             plt.savefig(output + '.' + out_format)
         except FileNotFoundError:
             try:
@@ -232,7 +232,7 @@ def plot_spectrum(spec_data, axisunits, fits_info, t_labels, output, plot_info, 
                 os.makedirs(dirs)
                 plt.savefig(output + '.' + out_format)
             except:
-                logger.log('error', 'Could not create {}. Could not resolve the given path.'.format(output + '.' + out_format))
+                logger.error('Could not create {}. Could not resolve the given path.', output + '.' + out_format)
 
 
 ##################################
@@ -254,7 +254,7 @@ def rebin_min_counts(table, min_counts, xcol, ycol, errcol = None):
         t: the rebinned table.
     """
 
-    logger.log('debug', 'Running rebbin_min_counts.')
+    logger.debug('Running rebbin_min_counts.')
     t = table
     newcounts = [0] * len(t)
     newchannel = [0] * len(t)
@@ -298,11 +298,11 @@ def rebin_min_counts(table, min_counts, xcol, ycol, errcol = None):
 
     #if axisunits == 'angstrom':
      #   for j in range(0, len(newchannel)):
-      #      logger.log('debug', 'angs values: {} {} {}'.format(j, newchannel[j], (betaref + betawid * newchannel[j]) / order))
+      #      logger.debug('angs values: {} {} {}'.format(j, newchannel[j], (betaref + betawid * newchannel[j]) / order))
        #     newchannel[j] = (betaref + betawid * newchannel[j]) / order
         
 
-#    logger.log('debug', 'i data: {} {}'.format(len(low_bin), low_bin))
+#    logger.debug('i data: {} {}'.format(len(low_bin), low_bin))
     newchannel = newchannel[0:k-3]
     newcounts = newcounts[0:k-3]
     newyerror = newyerror[0:k-3]
@@ -312,7 +312,7 @@ def rebin_min_counts(table, min_counts, xcol, ycol, errcol = None):
     #    for j in range(0, len(newchannel)):
     #        newchannel[j] = (spec_val - spec_pix * spec_delta - 0.5 * spec_delta) + newchannel[j] * spec_delta
     
-#    logger.log('debug', 'total K: {}'.format(ts))
+#    logger.debug('total K: {}'.format(ts))
     
     
     copy_newe = []
@@ -372,7 +372,7 @@ def check_xmm_misc(spec_header):
         (d, alpha0): the line separation and the main angle.
     """
 
-    logger.log('debug', 'Looking for XMM misc data...')
+    logger.debug('Looking for XMM misc data...')
     
     instr = spec_header['INSTRUME']
 
@@ -394,7 +394,7 @@ def check_xmm_misc(spec_header):
     try:
         ccfpath = os.environ['SAS_CCFPATH']
     except KeyError:
-        logger.log('error', 'Could not locate variable SAS_CCFPATH. Quitting...')
+        logger.error('Could not locate variable SAS_CCFPATH. Quitting...')
         sys.exit(0)
 
     folders = ccfpath.split(':')
@@ -402,7 +402,7 @@ def check_xmm_misc(spec_header):
     if len(folders) == 1:
         xmm_ccf_file = glob.glob(os.environ['SAS_CCFPATH'] + '/XMM_MISCDATA*')
         xmm_ccf_file = get_more_recent_ccf(xmm_ccf_file)
-        logger.log('debug', 'CCF file used: {0}.'.format(xmm_ccf_file))
+        logger.debug('CCF file used: {}.', xmm_ccf_file)
         with fits.open(xmm_ccf_file) as xmm:
             try:
                 alpha0_data = xmm[1].data[xmm[1].data['PARM_ID'] == 'INCIDENCE_ANGLE'] 
@@ -413,20 +413,20 @@ def check_xmm_misc(spec_header):
                 d_data = xmm[1].data[xmm[1].data['PARM_ID'] == 'GRAT_LINE_DENS']
                 d = d_data[d_data['INSTRUMENT_ID'] == instr.upper()]['PARM_VAL'][0]
             except (KeyError, IndexError) as e:
-                logger.log('warning', 'Could not locate alpha0 and d in the XMM CCF file.')
+                logger.warning('Could not locate alpha0 and d in the XMM CCF file.')
     else:
         xmm_ccf_list = []
-        logger.log('debug', 'List of folders found in CCF path: {0}'.format(folders))
+        logger.debug('List of folders found in CCF path: {}', folders)
         for folder in folders:
             try:
                 xmm_ccf_file = os.path.abspath(glob.glob(folder + '/XMM_MISCDATA*')[0])
             except IndexError:
-                logger.log('debug', '{} does not contain XMM misc. data calibration file.'.format(folder))
+                logger.debug('{} does not contain XMM misc. data calibration file.', folder)
                 continue
             xmm_ccf_list.append(xmm_ccf_file)
-        logger.log('debug', 'Found the following XMM misc. data CCF compatible files: {0}'.format(xmm_ccf_list))
+        logger.debug('Found the following XMM misc. data CCF compatible files: {}', xmm_ccf_list)
         latest_ccf = get_more_recent_ccf(xmm_ccf_list)
-        logger.log('debug', 'CCF file used: {0}.'.format(latest_ccf))
+        logger.debug('CCF file used: {}.', latest_ccf)
 
         with fits.open(latest_ccf) as xmm:
             try:
@@ -434,18 +434,18 @@ def check_xmm_misc(spec_header):
                 alpha0 = alpha0_data[alpha0_data['INSTRUMENT_ID'] == instr.upper()]['PARM_VAL'][0]
                 alpha0_unit = alpha0_data[alpha0_data['INSTRUMENT_ID'] == instr.upper()]['PARM_UNIT'][0]
                 if alpha0_unit.lower() == 'deg':
-                    logger.log('debug', 'Original alpha in degrees')
+                    logger.debug('Original alpha in degrees')
                     alpha0 = alpha0 * np.pi / 180
                 d_data = xmm[1].data[xmm[1].data['PARM_ID'] == 'GRAT_LINE_DENS']
                 d = d_data[d_data['INSTRUMENT_ID'] == instr.upper()]['PARM_VAL'][0]
             except (KeyError, IndexError) as e:
-                logger.log('warning', 'Could not locate d and alpha0 in the XMM CCF file.')
+                logger.warning('Could not locate d and alpha0 in the XMM CCF file.')
 
     if alpha0 == 0 or d == 0:
-        logger.log('error', 'Could not locate d or alpha0 neither in the Spectrum file or the XMM CCF file.')
+        logger.error('Could not locate d or alpha0 neither in the Spectrum file or the XMM CCF file.')
         sys.exit(0)
 
-    logger.log('info', 'Line separation and alpha angle retrieved from ccf file. Values: {}, {}.'.format(alpha0, d))
+    logger.info('Line separation and alpha angle retrieved from ccf file. Values: {}, {}.', alpha0, d)
     return(float(d), float(alpha0))
     
 
@@ -465,7 +465,7 @@ def beta2lambda(d, alpha0, beta_values, order, offaxis):
     """
 
     if order == 0:
-        logger.log('warning', 'Cannot obtain lambda values with order 0')
+        logger.warning('Cannot obtain lambda values with order 0')
         return np.zeros(len(beta_values))
 
     lamb_values = (np.cos(beta_values) - np.cos(alpha0 + offaxis)) * (d / order)
@@ -538,26 +538,26 @@ def run(iparsdic):
         out_format = device
     else:
         if out_format.upper() != device.upper():
-            logger.log('warning', 'Mismatch between device parameter and the extension given in the plotfile parameter. {} will be used.'.format(device))
+            logger.warning('Mismatch between device parameter and the extension given in the plotfile parameter. {} will be used.', device)
         out_format = device
 
 #    if out_format == '':
 #        out_format = 'pdf'
-#        logger.log('warning', 'Could not find format. Using {0}.{1} as default.'.format(plotfile, out_format))
+#        logger.warning('Could not find format. Using {0}.{1} as default.'.format(plotfile, out_format))
 #    else:
 #        out_format = out_format.replace('.', '')
 #        if not out_format.upper() in ('PDF', 'PNG'):
-#            logger.log('error', 'Format {} not supported. Please use pdf or png.'.format(out_format))
+#            logger.error('Format {} not supported. Please use pdf or png.'.format(out_format))
 
     if out_format.upper() == 'PS':
         out_format = 'pdf'
-        logger.log('warning', 'PostScript format devaluated. Using PDF instead.')
+        logger.warning('PostScript format devaluated. Using PDF instead.')
 
     format_flag = sasplt.check_format_compatibility(out_format)
     if format_flag:
         pass
     else:
-        logger.log('warning', 'Format ({0}) not supported. Using PDF...'.format(out_format))
+        logger.warning('Format ({}) not supported. Using PDF...', out_format)
         out_format = 'pdf'
 
     global rebin
@@ -572,7 +572,7 @@ def run(iparsdic):
 
     nspectrumsets = len(spectrumsets)
     if nspectrumsets == 0:
-        logger.log('error', 'Empty list of spectra..')
+        logger.error('Empty list of spectra..')
         sys.exit(0)
 
     if 'T' in rebin.upper() or 'Y' in rebin.upper():
@@ -583,7 +583,7 @@ def run(iparsdic):
     global mincounts
     mincounts = int(iparsdic['mincounts'])
     if mincounts < 0:
-        logger.log('error', 'mincounts must be greater than zero.')
+        logger.error('mincounts must be greater than zero.')
         sys.exit(0)
 
     nspec = 0
@@ -594,10 +594,10 @@ def run(iparsdic):
         else:
             nspec = nspec + 1
             
-        logger.log('info', 'Evaluating file {}.'.format(spectrum))
+        logger.info('Evaluating file {}.', spectrum)
         with fits.open(spectrum) as f:
             spec_data = f[1].data
-            logger.log('debug', 'Filtering data using pyutils...')
+            logger.debug('Filtering data using pyutils...')
             spec_data = Table(spec_data)
             # commented out in order to use nan in the binning
             #spec_data = pyutils.filter_data(spec_data) 
@@ -606,7 +606,7 @@ def run(iparsdic):
         try:
             hduclas2 = spec_header['HDUCLAS2']
         except KeyError:
-            logger.log('warning', 'Keyword HDUCLAS2 missing in the spectrum file {}. Selecting BACKGROUND as default.'.format(spectrum))
+            logger.warning('Keyword HDUCLAS2 missing in the spectrum file {}. Selecting BACKGROUND as default.', spectrum)
             spectrumtype = 'BACKGROUND'
         if hduclas2 == 'TOTAL':
             spectrumtype = 'SRC+BKG'
@@ -622,7 +622,7 @@ def run(iparsdic):
             try:
                 tcuni = spec_header['TCUNI1']
             except KeyError:
-                logger.log('warning', 'Keyword TCUNI missing in the spectrum file {}. Selecting rad as default.'.format(spectrum))
+                logger.warning('Keyword TCUNI missing in the spectrum file {}. Selecting rad as default.', spectrum)
                 tcuni = 'rad'
                 axisunits = 'BACKGROUND'
         
@@ -642,19 +642,19 @@ def run(iparsdic):
         try:
             spec_delta = spec_header['SPECDELT']
         except KeyError:
-            logger.log('warning', 'SPECDELT not found')
+            logger.warning('SPECDELT not found')
             spec_delta = 1
         global spec_pix
         try:
             spec_pix = spec_header['SPECPIX']
         except KeyError:
-            logger.log('warning', 'SPECPIX not found')
+            logger.warning('SPECPIX not found')
             spec_pix = 0
         global spec_val
         try:
             spec_val = spec_header['SPECVAL']
         except KeyError:
-            logger.log('warning', 'SPECVAL not found')
+            logger.warning('SPECVAL not found')
             spec_val = 0
 
         detchans = spec_header['DETCHANS']
@@ -667,7 +667,7 @@ def run(iparsdic):
             try:
                 betaref = spec_header['TCRVL1']
             except KeyError:
-                logger.log('error', 'Could not locate reference in the input file.')
+                logger.error('Could not locate reference in the input file.')
                 sys.exit(0)
         global betawid
         try:
@@ -676,7 +676,7 @@ def run(iparsdic):
             try:
                 betawid = spec_header['TCDLT1']
             except KeyError:
-                logger.log('error', 'Could not locate width reference in the input file.')
+                logger.error('Could not locate width reference in the input file.')
                 sys.exit(0)
 
         channel_p = spec_data['CHANNEL']
@@ -699,13 +699,13 @@ def run(iparsdic):
             except KeyError:
                 yerror = np.sqrt(abs(counts_p))
         except KeyError:
-            logger.log('debug', 'RATE-like spectrum...')
+            logger.debug('RATE-like spectrum...')
             try:
                 rate_p = spec_data['RATE']
                 try:
                     counts_p = exposuret * rate_p
                 except RuntimeError:
-                    logger.log('error', '{} {}'.format(exposuret, rate_p))
+                    logger.error('{} {}', exposuret, rate_p)
                     raise RuntimeError
                 try:
                     yerror = np.sqrt(abs(counts_p))
@@ -713,7 +713,7 @@ def run(iparsdic):
                     yerror = np.sqrt(abs(spec_data['RATE'] * exposuret))
                 t_ylabel = 'RATE'
             except KeyError:
-                logger.log('error', 'Could not detect either COUNTS or RATE columns in spectrum data.')
+                logger.error('Could not detect either COUNTS or RATE columns in spectrum data.')
                 sys.exit(0)
         
         yerror = np.sqrt(abs(counts_p))
@@ -726,11 +726,11 @@ def run(iparsdic):
                 grouping = spec_data['GROUPING']
                 grouping_flag = True
             except KeyError:
-                logger.log('warning', 'Could not locate the GROUPING column in file {}.'.format(spectrum))
+                logger.warning('Could not locate the GROUPING column in file {}.', spectrum)
                 grouping_flag = False
 
             if grouping_flag:
-                logger.log('info', 'Working on grouped spectrum.')
+                logger.info('Working on grouped spectrum.')
                 total_new_bins = 0
                 bin_c = 0
                 
@@ -751,7 +751,7 @@ def run(iparsdic):
                         summed_channels[bin_c] = summed_channels[bin_c] + channel_p[i - 1]
                         n_channels[bin_c] = n_channels[bin_c] + 1
                     except IndexError:
-                        logger.log('error', 'An error has ocurred while trying to form the grouped channels.')
+                        logger.error('An error has ocurred while trying to form the grouped channels.')
                         sys.exit(0)
 
                     if grouping[i] == 1:
@@ -769,7 +769,7 @@ def run(iparsdic):
 
         # Rebinning...
         if rebin:
-            logger.log('info', 'Rebinning for file {}.'.format(spectrum))
+            logger.info('Rebinning for file {}.', spectrum)
             original_min_channel = xmin
             original_channel_range = xmax
             #DTin, DTout = sasplt.get_time_deltas(spectrum, 1, mincounts, 'CHANNEL')
@@ -807,7 +807,7 @@ def run(iparsdic):
 
 
     if nspec > 1 and out_format.upper() == 'PDF':
-        logger.log('info', 'Merging existing PDFs...')
+        logger.info('Merging existing PDFs...')
         pdf_files = glob.glob(plotfile + '*_TEMP_SPECPLOT.{}'.format(out_format))
         status = sasplt.merge_pdf(pdf_files, plotfile + '.{}'.format(out_format))
 
@@ -815,11 +815,11 @@ def run(iparsdic):
             for pdf_f in pdf_files:
                 os.remove(pdf_f)
         else:
-            logger.log('warning', 'Failed to merge the PDFs.')
+            logger.warning('Failed to merge the PDFs.')
 
     t_stop = time.time()
 
-    logger.log('info', 'Finished running pyrgsspecplot in {} seconds.'.format(round(t_stop - t_start, 2)))
+    logger.info('Finished running pyrgsspecplot in {} seconds.', round(t_stop - t_start, 2))
 
 
 def get_src_label_and_offaxes(srclist, sourceid):
@@ -835,13 +835,13 @@ def get_src_label_and_offaxes(srclist, sourceid):
         offaxis: tuple with the DELTA_DISP and the DELTA_XDSP values.
     """
     
-    logger.log('debug', 'Getting source label and offaxis values from {} with id {}.'.format(srclist, sourceid))
+    logger.debug('Getting source label and offaxis values from {} with id {}.', srclist, sourceid)
 
     with fits.open(srclist) as f:
         try:
             src_label = f['SRCLIST'].data['LABEL'][sourceid - 1]
         except (KeyError, IndexError) as e:
-            logger.log('warning', 'Could not locate label with the current source id ({0}) and source list ({1}). Switching to sourceid = 1.'.format(sourceid, srclist))
+            logger.warning('Could not locate label with the current source id ({}) and source list ({}). Switching to sourceid = 1.', sourceid, srclist)
             src_label = 'Indef'
             sourceid = 1
         try:
@@ -853,7 +853,7 @@ def get_src_label_and_offaxes(srclist, sourceid):
             offaxis = (src_delta_disp.radian, src_delta_xdsp.radian)
             offaxis = (src_delta_disp.value * np.pi / 180 / 60, src_delta_xdsp.value * np.pi / 180 / 60)
         except (KeyError, IndexError) as e:
-            logger.log('warning', 'Could not locate the offaxis values within the current source list and source id.')
+            logger.warning('Could not locate the offaxis values within the current source list and source id.')
             offaxis = (0,0)
 
     return src_label, offaxis
