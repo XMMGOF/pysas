@@ -11,6 +11,7 @@ from . import init_sas
 from . import sasutils
 from . import config_pysas
 from .version import VERSION, get_sas_version
+from .obsid import obsid
 from .odfcontrol import odfcontrol
 
 ## For initialization of pySAS from configuration file.
