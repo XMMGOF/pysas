@@ -41,11 +41,11 @@ import time
 import matplotlib.transforms as tr
 from astropy.wcs import WCS
 from astropy.coordinates import Angle
-from pysas.logger import TaskLogger as TL
+from logger import get_logger
 PI = u.def_unit('PI', 1 * u.eV)
 u.add_enabled_units([PI])
 
-logger = TL('pyrgsimplot')
+logger = get_logger('pyrgsimplot')
 
 
 def set_xlabel(xlabel):
@@ -86,7 +86,7 @@ def getobservationdetails(in_dataset):
     date_obs, date_end
     """
 
-    logger.log('debug', 'Running getobservationdetails...')
+    logger.debug('Running getobservationdetails...')
 
     exposure = pyutils.get_key_word(in_dataset, 'EXPOSURE', 0)
     telescope = pyutils.get_key_word(in_dataset, 'TELESCOP', 0)
@@ -166,7 +166,7 @@ def plot_image(data, hdu, fits_info, xlabel, ylabel, norm, colourmap, region_lis
         norm = ''
         norm_name = 'linear'
     
-    logger.log('info', 'Plotting {0}.'.format(plot_title))
+    logger.info('Plotting {}.', plot_title)
 
     wcs = WCS(hdu)
     fig, ax1 = plt.subplots(subplot_kw = {'projection': wcs})
@@ -179,7 +179,7 @@ def plot_image(data, hdu, fits_info, xlabel, ylabel, norm, colourmap, region_lis
             else:
                 im = ax1.imshow(data,interpolation = None, origin = 'lower', aspect = 'auto', norm = norm, cmap = colourmap)
     except ValueError:
-        logger.log('warning', 'The input colourmap is not available for matplotlib. Using \'plasma\' by default.')
+        logger.warning('The input colourmap is not available for matplotlib. Using \'plasma\' by default.')
         colourmap = 'plasma'
         with u.add_enabled_units([PI]):
             if inverted:
@@ -203,7 +203,7 @@ def plot_image(data, hdu, fits_info, xlabel, ylabel, norm, colourmap, region_lis
                 if kind == 'endisp':
                     order_key = key[key.upper().find('ORDER') + 6]
                     if not order_key.isnumeric():
-                        logger.log('warning', 'Could not identify the order in the source key.')
+                        logger.warning('Could not identify the order in the source key.')
                         colour_plot = 'C0'
                     else:
                         colour_plot = 'C{0}'.format(order_key)
@@ -241,7 +241,7 @@ def plot_image(data, hdu, fits_info, xlabel, ylabel, norm, colourmap, region_lis
         plot_title = plot_title + kind
     
     try:
-        logger.log('debug', 'Saving {} {}.'.format(plot_title, out_format))
+        logger.debug('Saving {} {}.', plot_title, out_format)
         plt.savefig(plot_title + '.' + out_format)
     except FileNotFoundError:
         try:
@@ -249,16 +249,16 @@ def plot_image(data, hdu, fits_info, xlabel, ylabel, norm, colourmap, region_lis
             os.makedirs(dirs)
             plt.savefig(plot_title + '.' + out_format)
         except:
-            logger.log('error', 'Could not create {}. Could not resolve the given path.'.format(plot_title + '.' + out_format))
+            logger.error('Could not create {}. Could not resolve the given path.', plot_title + '.' + out_format)
 
     
     if device:
         if os.getenv['DISPLAY']:
             plt.show()
         else:
-            logger.log('warning', 'Display not available.')
+            logger.warning('Display not available.')
 
-    logger.log('info', 'Created {}.'.format(plot_title))
+    logger.info('Created {}.', plot_title)
 
 
 def getarrayattributes(data_header):
@@ -273,7 +273,7 @@ def getarrayattributes(data_header):
     containing the data extracted.
     """
 
-    logger.log('debug', 'Running getarrayattributes...')
+    logger.debug('Running getarrayattributes...')
 
     xlabel = data_header['CTYPE1']
     if xlabel == 'M_LAMBDA':
@@ -354,11 +354,11 @@ def run(iparsdic):
     
     if out_format == '':
         out_format = 'pdf'
-        logger.log('warning', 'Could not find format. Using {0}.{1} as default.'.format(plot_title, out_format))
+        logger.warning('Could not find format. Using {}.{} as default.', plot_title, out_format)
     else:
         out_format = out_format.replace('.', '')
         if not out_format.upper() in ('PDF', 'PNG'):
-            logger.log('error', 'Format {} not supported. Please use pdf or png.'.format(out_format))
+            logger.error('Format {} not supported. Please use pdf or png.', out_format)
     
     
     colourmap = iparsdic['colour']
@@ -376,21 +376,21 @@ def run(iparsdic):
         dark_mode = False
 
     if not withspatialset and not withendispset:
-        logger.log('error', 'Nothing to plot.')
+        logger.error('Nothing to plot.')
         sys.exit(0)
     if withspatialset:
         spatialset = iparsdic['spatialset']
     if withendispset:
         endispset = iparsdic['endispset']
         if not os.path.isfile(endispset):
-            logger.log('error', 'No energy dispersion set provided.')
+            logger.error('No energy dispersion set provided.')
 
 
     ################################
     ######## SPATIAL IMAGE #########
     ################################
     
-    logger.log('info', 'Starting processing the spatial energy block...')
+    logger.info('Starting processing the spatial energy block...')
 
     if withspatialset:
         try:
@@ -400,7 +400,7 @@ def run(iparsdic):
                 in_array = in_dataset[0].data
                 array_header = in_dataset[0].header
         except FileNotFoundError:
-            logger.log('error', 'Could not open spatial set file.')
+            logger.error('Could not open spatial set file.')
             sys.exit(0)
 
         dim = in_array.shape
@@ -423,7 +423,7 @@ def run(iparsdic):
     ######## ORDERS IMAGE #########
     ###############################
 
-    logger.log('info', 'Starting energy dispersion block...')
+    logger.info('Starting energy dispersion block...')
 
     if withendispset:
         try:
@@ -433,7 +433,7 @@ def run(iparsdic):
                 fits_info.append('Energy dispersion')
                 array_header = in_dataset[0].header
         except FileNotFoundError:
-            logger.log('error', 'Could not open the energy dispersion dataset.')
+            logger.error('Could not open the energy dispersion dataset.')
             sys.exit(0)
 
         dim = in_array.shape
@@ -453,16 +453,16 @@ def run(iparsdic):
 
     if out_format.upper() == 'PDF' and withendispset and withspatialset:
         pdf_files = glob.glob(plot_title + '*.{}'.format(out_format))
-        logger.log('debug', 'Merging PDFs... ({}).'.format(pdf_files))
+        logger.debug('Merging PDFs... ({}).', pdf_files)
         status = sasplt.merge_pdf(pdf_files, plot_title + '.{}'.format(out_format))
         if status == 0:
-            logger.log('warning', 'Error while merging the PDFs.')
+            logger.warning('Error while merging the PDFs.')
         else:
             for i in pdf_files:
                 os.remove(i)
 
     t_stop = time.time()
-    logger.log('info', 'All blocks completed in time {}.'.format(round(t_stop - t_start, 2)))
+    logger.info('All blocks completed in time {}.', round(t_stop - t_start, 2))
 
 
 def get_source_details(srclistset):
@@ -476,13 +476,13 @@ def get_source_details(srclistset):
         tuple containing the list of RA, DEC and labels of the sources.
     """
     
-    logger.log('debug', 'Evaluating the coordinates of the source list...')
+    logger.debug('Evaluating the coordinates of the source list...')
 
     try:
         with fits.open(srclistset) as f:
             source_table = f[1].data
     except FileNotFoundError:
-        logger.log('error', 'Could not open the soure list set.')
+        logger.error('Could not open the soure list set.')
         sys.exit(0)
 
     source_ra = []
@@ -509,7 +509,7 @@ def transform_to_hms(value):
         transformed: the tuple with the new data.
     """
 
-    logger.log('debug', 'Transforming unit...')
+    logger.debug('Transforming unit...')
     
     value = str(value)
     transformed = Angle(value + 'd').hms
@@ -530,7 +530,7 @@ def transform_to_dms(value):
         transformed: the tuple with the new data.
     """
 
-    logger.log('debug', 'Transforming unit...')
+    logger.debug('Transforming unit...')
 
     value = str(value)
     transformed = Angle(value + 'd').dms
@@ -552,7 +552,7 @@ def collect_regions_spatial(srclist, n_sources):
         region_list: a dictionary containing the regions ready to plot.
     """
     
-    logger.log('debug', 'Collecting the spatial regions...')
+    logger.debug('Collecting the spatial regions...')
 
     if n_sources == 0:
         return None
@@ -573,7 +573,7 @@ def collect_regions_spatial(srclist, n_sources):
                     if '_SRC{}'.format(n_sources) in i:
                         ext = i
             if ext == '':
-                logger.log('warning', 'Could not locate spatial regions in the source list.')
+                logger.warning('Could not locate spatial regions in the source list.')
                 return None
             else:
                 dimen, xtag, ytag, component = f[ext].data.names
@@ -583,10 +583,10 @@ def collect_regions_spatial(srclist, n_sources):
                     else:
                         region_list.update({'inc{}'.format(i) : (f[ext].data[i][xtag], f[ext].data[i][ytag])})
     except FileNotFoundError:
-        logger.log('error', 'Could not open the source list file.')
+        logger.error('Could not open the source list file.')
         sys.exit(0)
 
-    logger.log('debug', 'Spatial regions collected.')
+    logger.debug('Spatial regions collected.')
 
     return region_list
 
@@ -605,7 +605,7 @@ def collect_region_order(srclist, n_sources, order_list):
         region_list: the dictionary containing the regions.
     """
 
-    logger.log('debug', 'Selecting regions for energy dispersion plot...')
+    logger.debug('Selecting regions for energy dispersion plot...')
 
     if n_sources == 0:
         return None
@@ -628,7 +628,7 @@ def collect_region_order(srclist, n_sources, order_list):
                             if '_{}'.format(order) in i:
                                 ext.append(i)
             if len(ext) == 0:
-                logger.log('warning', 'WARNING: no regions were matched for the srcidlist.')
+                logger.warning('WARNING: no regions were matched for the srcidlist.')
                 return None
             else:
                 for e in ext:
@@ -639,9 +639,9 @@ def collect_region_order(srclist, n_sources, order_list):
                         else:
                             region_list.update({'inc{}'.format(e + ':' + str(i)) : (f[e].data[i][xtag], f[e].data[i][ytag])})
     except FileNotFoundError:
-        logger.log('error', 'Could not open the source list file.')
+        logger.error('Could not open the source list file.')
         sys.exit(0)
 
-    logger.log('debug', 'Energy dispersion regions collected.')
+    logger.debug('Energy dispersion regions collected.')
 
     return region_list
