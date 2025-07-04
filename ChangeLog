@@ -41,8 +41,20 @@ Version 2.0 - 2025-??-?? (RT)
               For independent tasks they maintain their own version numbers, but for all
               other subdirectories they all point to the master pySAS version file.
 
-+ get_sas_version.py: Dedicated function to run 'sasversion' and get SAS version 
+	      get_sas_version dedicated function to run 'sasversion' and get SAS version 
               information.
+
++ */version.py: All version files for individual SAS tasks now only contain their version
+              information.
+
+	      Justification: Each individual Python based task should not keep track of 
+	      which SAS version it was compiled with 
+
++ print_version.py: Replaces 'sasver'. SAS version information can now be printed using
+              pysas.print_sas_version()
+
+- sasver    : Subdirectory has been removed. All functionality has been transferred to 
+              pysas.print_sas_version()
 
 - write_version.py: write_version.py and */write_version.py files have been removed since 
               they cannot be used by the end user.
