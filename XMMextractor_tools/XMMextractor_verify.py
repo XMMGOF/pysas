@@ -22,7 +22,7 @@ import numpy as np
 import os
 import sys
 import glob
-from pysas.logger import TaskLogger as TL
+from logger import get_logger
 from pysas.pyutils import pyutils
 
 
@@ -38,7 +38,7 @@ def test_existance_epic_clean_image(obs, expo,type=None):
        exposure: exposure identifier
     '''
     
-    EPNlog = TL(os.path.join(obs.working_dir, 'EPNlog'))
+    EPNlog = get_logger(os.path.join(obs.working_dir, 'EPNlog'))
     wd = os.getcwd()
     try:
         os.chdir(obs.images_dir)
@@ -60,7 +60,7 @@ def test_existance_epic_clean_image(obs, expo,type=None):
 
     os.chdir(wd)
     if len(image_file) != 1:
-        EPNlog.log('info', '#>  Image file not found')
+        EPNlog.info('#>  Image file not found')
         return(0, 'No file')
     else:
         return(True, obs.images_dir + '/' + image_file[0])
@@ -82,7 +82,7 @@ def test_existance_pn_eventfiles(obs, exposure =None,type='EVT'):
     a string with the file or 'No file'.
     '''
 
-    EPNlog = TL(os.path.join(obs.working_dir, 'EPNlog'))
+    EPNlog = get_logger(os.path.join(obs.working_dir, 'EPNlog'))
 
     wd = os.getcwd()
 
@@ -116,21 +116,21 @@ def test_existance_pn_eventfiles(obs, exposure =None,type='EVT'):
     if len(EPIC_evlist) > 0:
         index = 0
         duration = []
-        EPNlog.log('info', 'PN Image Event List found: {}'.format(EPIC_evlist))
+        EPNlog.info('PN Image Event List found: {}'.format(EPIC_evlist))
         for i in EPIC_evlist:
             obj_duration = pyutils.get_key_word(i, 'DURATION', 1)
             duration.append(obj_duration)
 
         max_index = np.argmax(duration)
         pn_list = EPIC_evlist[max_index]
-        EPNlog.log('info', 'Using event file with longest Observation Duration: {}'.format(pn_list))
+        EPNlog.info('Using event file with longest Observation Duration: {}'.format(pn_list))
         os.chdir(wd)
         if type == 'EVT':
             return(True, obs.EPN_dir + '/' + pn_list)
         else:
             return(True, obs.GTI_dir + '/' + pn_list)
     else:
-        EPNlog.log('info', '#> PN Imaging Event List not found')
+        EPNlog.info('#> PN Imaging Event List not found')
         os.chdir(wd)
         return(0, 'No file')
 
@@ -148,7 +148,7 @@ def test_existance_pn_timing_eventfiles(obs,exposure = None,type='EVT'):
     a string with the file or 'No file'.
     '''
 
-    EPNlog = TL(os.path.join(obs.working_dir, 'EPNlog'))
+    EPNlog = get_logger(os.path.join(obs.working_dir, 'EPNlog'))
 
     wd = os.getcwd()
 
@@ -179,11 +179,11 @@ def test_existance_pn_timing_eventfiles(obs,exposure = None,type='EVT'):
 
 
     if len(EPIC_evlist) > 0:
-        EPNlog.log('info', 'PN Timing Event List found: {}'.format(EPIC_evlist))
+        EPNlog.info('PN Timing Event List found: {}'.format(EPIC_evlist))
         
         print(EPIC_evlist[0])
         
-        EPNlog.log('info', 'Using event file with longest Observation Duration: {}'.format(EPIC_evlist[0]))
+        EPNlog.info('Using event file with longest Observation Duration: {}'.format(EPIC_evlist[0]))
         os.chdir(wd)
         if type == 'EVT':
             return(True, obs.EPN_dir + '/' + EPIC_evlist[0])
@@ -191,7 +191,7 @@ def test_existance_pn_timing_eventfiles(obs,exposure = None,type='EVT'):
             return(True, obs.GTI_dir + '/' + EPIC_evlist[0])
 
     else:
-        EPNlog.log('info', '#> PN Timing List not found')
+        EPNlog.info('#> PN Timing List not found')
         os.chdir(wd)
         return(0, 'No file')
 
@@ -214,7 +214,7 @@ def test_existance_EMOS(obs, exposure,type='EVT'):
     a string with the file or 'No file'.
     '''
 
-    EMOSlog = TL(os.path.join(obs.working_dir, 'EMOSlog'))
+    EMOSlog = get_logger(os.path.join(obs.working_dir, 'EMOSlog'))
 
     wd = os.getcwd()
     instrument = ""
@@ -223,7 +223,7 @@ def test_existance_EMOS(obs, exposure,type='EVT'):
     elif(exposure[0:2] == 'M2'):
         instrument = 'EMOS2'
     else:
-        EMOSlog.log('error','Instrument not found')
+        EMOSlog.error('Instrument not found')
         
     exp_id = exposure[2:6]
     EMOS_evlist=""
@@ -252,7 +252,7 @@ def test_existance_EMOS(obs, exposure,type='EVT'):
     if len(EMOS_evlist) > 0:
         index = 0
         duration = []
-        EMOSlog.log('info', '#> {} Image Event List found: {}'.format(instrument,EMOS_evlist))
+        EMOSlog.info('#> {} Image Event List found: {}'.format(instrument,EMOS_evlist))
         for i in EMOS_evlist:
             obj_duration = pyutils.get_key_word(i, 'DURATION', 1)
             duration.append(obj_duration)
@@ -260,11 +260,11 @@ def test_existance_EMOS(obs, exposure,type='EVT'):
         max_index = np.argmax(duration)
         EMOS_list = EMOS_evlist[max_index]
 
-        EMOSlog.log('info', '      Using event file with longest Observation Duration: {}'.format(EMOS_list))
+        EMOSlog.info('      Using event file with longest Observation Duration: {}'.format(EMOS_list))
         os.chdir(wd)
         return(1, dir + '/' + EMOS_list)
     else:
-        EMOSlog.log('info', '#> EMOS1 Imaging Event List not found')
+        EMOSlog.info('#> EMOS1 Imaging Event List not found')
         os.chdir(wd)
         return(0, 'No file')
 
@@ -282,7 +282,7 @@ def test_existance_EMOS_timing(obs, exposure,type='EVT'):
     a string with the file or 'No file'.
     '''
     
-    EMOSlog = TL(os.path.join(obs.working_dir, 'EMOSlog'))
+    EMOSlog = get_logger(os.path.join(obs.working_dir, 'EMOSlog'))
     
     wd = os.getcwd()
 
@@ -292,7 +292,7 @@ def test_existance_EMOS_timing(obs, exposure,type='EVT'):
     elif(exposure[0:2] == 'M2'):
         instrument = 'EMOS2'
     else:
-        EMOSlog.log('error','Instrument not found')
+        EMOSlog.error('Instrument not found')
         
     exp_id = exposure[2:6]
     EMOS_timeevlist=""
@@ -318,7 +318,7 @@ def test_existance_EMOS_timing(obs, exposure,type='EVT'):
     if len(EMOS_timeevlist) > 0:
         index = 0
         duration = []
-        EMOSlog.log('info', '#> {} timing Event List found: {}'.format(instrument,EMOS_timeevlist))
+        EMOSlog.info('#> {} timing Event List found: {}', instrument, EMOS_timeevlist)
         for i in EMOS_timeevlist:
             obj_duration = pyutils.get_key_word(i, 'DURATION', 1)
             duration.append(obj_duration)
@@ -327,11 +327,11 @@ def test_existance_EMOS_timing(obs, exposure,type='EVT'):
 
         EMOS_timelist = EMOS_timeevlist[max_index]
 
-        EMOSlog.log('info', '      Using event file with longest Observation Duration: {}'.format(EMOS_timelist))
+        EMOSlog.info('      Using event file with longest Observation Duration: {}', EMOS_timelist)
         os.chdir(wd)
         return(1, dir + '/' + EMOS_timelist)
     else:
-        EMOSlog.log('info', '#> EMOS1 Timing Event List not found')
+        EMOSlog.info('#> EMOS1 Timing Event List not found')
         os.chdir(wd)
         return(0, 'No file')
 
@@ -353,7 +353,7 @@ def test_existance_RGS(obs,expo):
     a string with the file or 'No file'.
     '''
 
-    RGSlog = TL(os.path.join(obs.working_dir, 'RGSlog'))
+    RGSlog = get_logger(os.path.join(obs.working_dir, 'RGSlog'))
 
         
     if not os.getcwd().endswith('RGS'):
@@ -364,11 +364,11 @@ def test_existance_RGS(obs,expo):
 
     RGS_evlist = glob.glob('*'+expo+'*EVENLI0000.FIT')
     if len(RGS_evlist) > 0:
-        RGSlog.log('debug', '   #> RGS1 Event List found')
-        RGSlog.log('info', RGS_evlist)
+        RGSlog.debug('   #> RGS1 Event List found')
+        RGSlog.info(RGS_evlist)
         return (1, os.getcwd() + '/' + RGS_evlist[0])
     else:
-        RGSlog.log('info', '#> RGS1 Event List not found')
+        RGSlog.info('#> RGS1 Event List not found')
         return(0, 'No file')
 
 
@@ -385,7 +385,7 @@ def test_existance_SRC_RGS(obs,expo):
     a string with the file or 'No file'.
     '''
 
-    RGSlog = TL(os.path.join(obs.working_dir, 'RGSlog'))
+    RGSlog = get_logger(os.path.join(obs.working_dir, 'RGSlog'))
 
     if not os.getcwd().endswith('RGS'):
         try:
@@ -395,11 +395,11 @@ def test_existance_SRC_RGS(obs,expo):
 
     RGS_srclist = glob.glob('*'+expo+'*SRCLI_0000.FIT')
     if len(RGS_srclist) > 0:
-        RGSlog.log('info', '   #> RGS1 Source List found')
-        RGSlog.log('info', RGS_srclist)
+        RGSlog.info('   #> RGS1 Source List found')
+        RGSlog.info(RGS_srclist)
         return (1, os.getcwd() + '/' + RGS_srclist[0])
     else:
-        RGSlog.log('info', '#> RGS Source List not found')
+        RGSlog.info('#> RGS Source List not found')
         return(0, 'No file')
 
 
@@ -418,7 +418,7 @@ def test_OM_event_files(obs):
     of the file.
     '''
 
-    omlog = TL(os.path.join(obs.working_dir, 'OMlog'))
+    omlog = get_logger(os.path.join(obs.working_dir, 'OMlog'))
 
     if not os.getcwd().endswith('OM'):
         try:
@@ -428,15 +428,15 @@ def test_OM_event_files(obs):
 
     OM_event_list = glob.glob('P*OM*SIMAGE*.FIT')
     if len(OM_event_list) > 0:
-        omlog.log('info', '#> OM Event List found [omichain]')
-        omlog.log('info', OM_event_list)
+        omlog.info('#> OM Event List found [omichain]')
+        omlog.info(OM_event_list)
         return (1, os.path.join(obs.OM_dir, OM_event_list[0]))
         #if len(OM_event_list) > 1:
-        #    omlog.log('info', 'Using only {}'.format(OM_event_list[0]))
+        #    omlog.info('Using only {}'.format(OM_event_list[0]))
         #    OM_event = OM_event_list[0]
         #    return (1, os.getcwd() + '/' + OM_event)
     else:
-        omlog.log('info', '#> OM Event List not found for omichain processing.')
+        omlog.info('#> OM Event List not found for omichain processing.')
         return (0, 'No file')
 
 
@@ -449,7 +449,7 @@ def test_OMF_event_files(obs):
     of the file.
     '''
 
-    omlog = TL(os.path.join(obs.working_dir, 'OMlog'))
+    omlog = get_logger(os.path.join(obs.working_dir, 'OMlog'))
 
     if not os.getcwd().endswith('OM'):
         try:
@@ -459,15 +459,15 @@ def test_OMF_event_files(obs):
 
     OM_event_list = glob.glob('*OM*EVLIST*.FIT')
     if len(OM_event_list) > 0:
-        omlog.log('info', '#> OM Event List found [omfchain]')
-        omlog.log('info', OM_event_list)
+        omlog.info('#> OM Event List found [omfchain]')
+        omlog.info(OM_event_list)
         return (1, os.path.join(obs.OM_dir, OM_event_list[0]))
         #if len(OM_event_list) > 1:
         #    mlog.log('info', 'Using only {}'.format(OM_event_list[0]))
         #    OM_event = OM_event_list[0]
         #    return (1, os.getcwd() + '/' + OM_event)
     else:
-        omlog.log('info', '#> OM Event List not found for omfchain processing.')
+        omlog.info('#> OM Event List not found for omfchain processing.')
         return (0, 'No file')
 
 
@@ -480,7 +480,7 @@ def test_OMG_event_files(obs):
     of the file.
     '''
 
-    omlog = TL(os.path.join(obs.working_dir, 'OMlog'))
+    omlog = get_logger(os.path.join(obs.working_dir, 'OMlog'))
 
     if not os.getcwd().endswith('OM'):
         try:
@@ -490,15 +490,15 @@ def test_OMG_event_files(obs):
 
     OM_event_list = glob.glob('p*OM*RIMAGE*.FIT')
     if len(OM_event_list) > 0:
-        omlog.log('info', '#> OM Event List found [omgchain]')
-        omlog.log('info', OM_event_list)
+        omlog.info('#> OM Event List found [omgchain]')
+        omlog.info(OM_event_list)
         return (1, os.path.join(obs.OM_dir, OM_event_list[0]))
         #if len(OM_event_list) > 1:
         #    xmmlog.info('    Using only {}'.format(OM_event_list[0]))
         #    OM_event = OM_event_list[0]
         #    return (1, os.getcwd() + '/' + OM_event)
     else:
-        omlog.log('info','  #> OM Event List not found for omgchain processing.')
+        omlog.info('  #> OM Event List not found for omgchain processing.')
         return (0, 'No file')
 
 
@@ -511,7 +511,7 @@ def test_OMSRC_files(obs):
     of the file.
     '''
 
-    omlog = TL(os.path.join(obs.working_dir, 'OMlog'))
+    omlog = get_logger(os.path.join(obs.working_dir, 'OMlog'))
 
     if not os.getcwd().endswith('OM'):
         try:
@@ -521,15 +521,15 @@ def test_OMSRC_files(obs):
 
     OM_event_list = glob.glob('*P*OM*SRLI*.FIT')
     if len(OM_event_list) > 0:
-        omlog.log('info', '#> OM Source List found')
-        omlog.log('info', OM_event_list)
+        omlog.info('#> OM Source List found')
+        omlog.info(OM_event_list)
         return (1, os.path.join(obs.OM_dir, OM_event_list[0]))
         #if len(OM_event_list) > 1:
         #    omlog.log('    Using only {}'.format(OM_event_list[0]))
         #    OM_event = OM_event_list[0]
         #return (1, os.getcwd() + '/' + OM_event)
     else:
-        omlog.log('info', '   #> OM Source List not found.')
+        omlog.info('   #> OM Source List not found.')
         return (0, 'No file')
 
 
@@ -541,7 +541,7 @@ def test_OMSRCCombo_files(obs):
         a tuple, with 0 or 1 (not found, found) and 'No file' or the name
     of the file.
     '''
-    omlog = TL(os.path.join(obs.working_dir, 'OMlog'))
+    omlog = get_logger(os.path.join(obs.working_dir, 'OMlog'))
 
     if not os.getcwd().endswith('OM'):
         try:
@@ -551,21 +551,21 @@ def test_OMSRCCombo_files(obs):
 
     OM_event_list = glob.glob('*P*OMCOMBOBSMLI*.FIT')
     if len(OM_event_list) > 0:
-        omlog.log('info', '#> OM Source Combo List found')
-        omlog.log('info', OM_event_list)
+        omlog.info('#> OM Source Combo List found')
+        omlog.info(OM_event_list)
 
         if len(OM_event_list) > 1:
-            omlog.log('info', 'Using only {}'.format(OM_event_list[0]))
+            omlog.info('Using only {}'.format(OM_event_list[0]))
             OM_event = OM_event_list[0]
             return (1, os.path.join(obs.OM_dir, OM_event))
             #return (1, os.getcwd() + '/' + OM_event)
         else:
             OM_event = OM_event_list[0]
-            omlog.log('info', 'Using {}'.format(OM_event))
+            omlog.info('Using {}'.format(OM_event))
             return (1, os.path.join(obs.OM_dir, OM_event))
             #return (1, os.getcwd() + '/' + OM_event)
     else:
-        omlog.log('info', '#> OM Source Combo List not found.')
+        omlog.info('#> OM Source Combo List not found.')
         return (0, 'No file')
 
 
