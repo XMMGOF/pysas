@@ -9,15 +9,15 @@ Version 2.0 - 2025-??-?? (RT)
               importlib.resources.
 
 - runtask.py: File has been removed and all functionality has been transferred to 
-	      sastask.py. It only added an extra layer to the process.
+	            sastask.py. It only added an extra layer to the process.
 
 + sastask.py: The class SASTask has been deprecated since it was only an abstract class, 
-	      with only abstract methods and a single child, MyTask. MyTask was the only 
-	      class used in the rest of the code. To simplify things, MyTask has been 
-	      made the only useful class, but SASTask is declared as a child of MyTask
+	            with only abstract methods and a single child, MyTask. MyTask was the only 
+	            class used in the rest of the code. To simplify things, MyTask has been 
+	            made the only useful class, but SASTask is declared as a child of MyTask
               for legacy purposes, until all references to it can be removed.
 
-	      Functionality from runtask has been placed in the 'run' method in MyTask.
+	            Functionality from runtask has been placed in the 'run' method in MyTask.
               The method 'runtask' has been kept as a place holder for legacy code. It 
               just calls 'run'.
 
@@ -31,33 +31,35 @@ Version 2.0 - 2025-??-?? (RT)
               'get_logger' function, but through the MyTask object which accepts all 
               necessary inputs.
 
-	      The user can declare a directory for the log files, or even a single log file
+	            The user can declare a directory for the log files, or even a single log file
               for all output from all SAS tasks called.
-
-	      Out of necessity there is a separate function, 'pyget_logger', to create a 
-              logger object for python based SAS tasks.
 
 + version.py: At the top level version.py only contains the version information for pySAS.
               For independent tasks they maintain their own version numbers, but for all
               other subdirectories they all point to the master pySAS version file.
 
-	      get_sas_version dedicated function to run 'sasversion' and get SAS version 
+	            get_sas_version dedicated function to run 'sasversion' and get SAS version 
               information.
 
 + */version.py: All version files for individual SAS tasks now only contain their version
-              information.
+                information.
 
-	      Justification: Each individual Python based task should not keep track of 
-	      which SAS version it was compiled with 
+	            Justification: Each individual Python based task should not keep track of 
+	            which SAS version it was compiled with 
 
 + print_version.py: Replaces 'sasver'. SAS version information can now be printed using
-              pysas.print_sas_version()
+                    pysas.print_sas_version()
 
 - sasver    : Subdirectory has been removed. All functionality has been transferred to 
               pysas.print_sas_version()
 
 - write_version.py: write_version.py and */write_version.py files have been removed since 
-              they cannot be used by the end user.
+                    they cannot be used by the end user.
 
++ obsid     : obsid.py introduced. Replaces odfcontrol.
+              Significant changes to pySAS. Three new classes (Parent with two children):
+                1. ObsID (Parent class)
+                2. ODF (Child class of ObsID)
+                3. PPS (Child class of ObsID)
 
 

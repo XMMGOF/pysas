@@ -413,7 +413,9 @@ class MyTask:
                                     toterminal  = self.output_to_terminal, 
                                     tofile      = self.output_to_file, 
                                     logfilename = self.logfilename,
-                                    tasklogdir  = self.tasklogdir)
+                                    tasklogdir  = self.tasklogdir,
+                                    pylogger    = False)
+                                    # The only place pylogger should be set to false
                 # Start the subprocess
                 process = subprocess.Popen(cmd, 
                                            bufsize=1,
