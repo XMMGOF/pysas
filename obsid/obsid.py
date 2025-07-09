@@ -69,24 +69,23 @@ class ObsID:
         - output_to_file: If True, then logger information will
                           be written to a log file.
         - logger     : Logger object created by get_logger 
-                       function.
+                       function. The user *usually* will not
+                       use this!
     """
-    def __init__(self, obsid, data_dir = None,
+    def __init__(self, obsid, 
+                 data_dir    = None,
                  logfilename = None,
                  tasklogdir  = None,
                  output_to_terminal = True,
-                 output_to_file     = False,
-                 logger = None):        
+                 output_to_file     = False):
         if isinstance(obsid, numbers.Number):
             obsid = str(obsid)
         self.obsid       = obsid
         self.data_dir    = data_dir
-        # File names are kept at the level of the ObsID object
         self.files       = {}
-        # Default log file name
-        if logfilename is None:
-            logfilename = 'ObsID_' + self.obsid + '.log'
-        self.logfilename = logfilename
+        # User provided log file name
+        if not logfilename is None:
+            self.logfilename = logfilename
         self.output_to_terminal = output_to_terminal
         self.output_to_file     = output_to_file
         # __set_obsid uses a temporary logger, that will only
@@ -106,8 +105,9 @@ class ObsID:
         # 3. data_dir
         # 4. cwd
         if tasklogdir is None:
-            if os.path.exists(self.obs_dir):
-                self.tasklogdir = self.obs_dir
+            if hasattr(self.obs_dir):
+                if os.path.exists(self.obs_dir):
+                    self.tasklogdir = self.obs_dir
             elif os.path.exists(self.data_dir):
                 self.tasklogdir = self.data_dir
             else:
@@ -116,15 +116,19 @@ class ObsID:
                 self.tasklogdir = tasklogdir
         else:
             # User defined directory
+            if not os.path.exists(tasklogdir):
+                print(f'Warning: User defined tasklogdir, {tasklogdir} does not exist!')
+                tasklogdir = None
+                print(f'Resetting tasklogdir to the current directory!')
             self.tasklogdir = tasklogdir
         
         # Create logger
-        if logger is None:
+        if not hasattr(self, 'logger'):
             self.logger = get_logger('ObsID_' + self.obsid, 
-                                    toterminal  = self.output_to_terminal,
-                                    tofile      = self.output_to_file, 
-                                    logfilename = self.logfilename,
-                                    tasklogdir  = self.tasklogdir)
+                                     toterminal  = self.output_to_terminal,
+                                     tofile      = self.output_to_file, 
+                                     logfilename = self.logfilename,
+                                     tasklogdir  = self.tasklogdir)
         
         # Create ODF and PPS objects, which are classes that are
         # children of the ObsID class.
@@ -155,25 +159,33 @@ class ObsID:
         or do anything other than link to files and directories. 
         """
 
-        # Where are we?
-        startdir = Path.cwd()
-
-        # Brief check to see if data_dir was 
-        # given on ObsID object creation.
-        if self.data_dir != None:
-            data_dir = self.data_dir
-            self.logger.info(f'Using input data_dir: {self.data_dir}.')
-        else:
+        # Check to see if data_dir was given by the user
+        data_dir_found = False
+        if not self.data_dir is None:
+            self.logger.info(f'User input data_dir: {self.data_dir}.')
+            if not os.path.exists(self.data_dir):
+                self.logger.error(f'Did not find: {self.data_dir}')
+                self.data_dir = None
+                self.logger.info(f'Resetting data_dir to "{self.data_dir}".')
+                self.logger.info(f'Will check config file for default.')
+            else:
+                data_dir_found = True
+        
+        # Check if data_dir is in the config file
+        if not data_dir_found:
             data_dir = sas_cfg.get("sas", "data_dir")
-            self.logger.info(f'Using default data_dir: {self.data_dir}.')
-
-        # Start checking data_dir
-        if os.path.exists(data_dir):
-            self.data_dir = data_dir
-            self.logger.info(f'Data directory found {self.data_dir}')
-        else:
-            self.logger.info(f'Did not find {self.data_dir}, using {startdir}')
-            self.data_dir = startdir   
+            self.logger.info(f'Trying default data_dir from config file: {data_dir}')
+            if os.path.exists(data_dir):
+                self.data_dir = data_dir
+                self.logger.info(f'Data directory found: {self.data_dir}')
+            else:
+                self.logger.info(f'No data_dir found in config file. Not setting data_dir.')
+                self.logger.info(f'Leaving data_dir as "{self.data_dir}".')
+                self.logger.info(f'Exiting __set_obsid.')
+                return
+            
+        # data_dir is set.
+        # Setting other directory paths.
 
         # Set directories for the observation, odf, pps, and work.
         self.obs_dir  = os.path.join(self.data_dir,self.obsid)
@@ -518,6 +530,24 @@ class ObsID:
             print(f'\n\n{out_note}')
             shutil.rmtree(self.work_dir)
 
+    def reset_logger(self,
+                     logbasename = None,
+                     logfilename = None,
+                     tasklogdir  = None,
+                     output_to_terminal = True,
+                     output_to_file     = False):
+        """
+        Resets the logger using new inputs.
+        """
+        if logbasename is None:
+            logbasename = 'ObsID_' + self.obsid
+
+        self.logger = get_logger(logbasename,
+                                 toterminal  = output_to_terminal,
+                                 tofile      = output_to_file,
+                                 logfilename = logfilename,
+                                 tasklogdir  = tasklogdir)
+    
     def __check_for_ccf_cif(self):
         """
         --Not intended to be used by the end user. Internal use only.--
@@ -587,7 +617,8 @@ class ObsID:
         if hasattr(self, attr_name): delattr(self, attr_name)
 
     def __create_ODF_object(self):
-        self.ODF = ODF(self.obsid, data_dir = self.data_dir,
+        self.ODF = ODF(self.obsid,
+                       data_dir    = self.data_dir,
                        logfilename = self.logfilename, 
                        tasklogdir  = self.tasklogdir, 
                        output_to_terminal = self.output_to_terminal, 
@@ -595,18 +626,20 @@ class ObsID:
                        logger = self.logger)
         
     def __create_PPS_object(self):
-        self.PPS = PPS(self.obsid, data_dir = self.data_dir,
+        self.PPS = PPS(self.obsid,
+                       data_dir    = self.data_dir,
                        logfilename = self.logfilename, 
                        tasklogdir  = self.tasklogdir, 
                        output_to_terminal = self.output_to_terminal, 
                        output_to_file     = self.output_to_file,
                        logger = self.logger)
-    
+
 class ODF(ObsID):
     """
     Placeholder text
     """
-    def __init__(self, obsid, data_dir = None, 
+    def __init__(self, obsid, 
+                 data_dir    = None, 
                  logfilename = None, 
                  tasklogdir  = None,
                  output_to_terminal = True, 
@@ -634,7 +667,7 @@ class ODF(ObsID):
                                      toterminal  = self.output_to_terminal,
                                      tofile      = self.output_to_file, 
                                      logfilename = self.logfilename,
-                                     tasklogdir  = self.obs_dir)
+                                     tasklogdir  = self.tasklogdir)
     
     def basic_setup(self, 
                     data_dir    = None,
@@ -764,73 +797,41 @@ class ODF(ObsID):
 
         """
 
-        # Where are we?
-        startdir = os.getcwd()
+        # Set data_dir
+        self.__set_data_dir(data_dir)
 
-        # Brief check to see if data_dir was 
-        # given on odfobject creation.
-        if self.data_dir != None:
-            data_dir = self.data_dir
-
-        # Start checking data_dir
-        if data_dir == None:
-            data_dir = sas_cfg.get("sas", "data_dir")
-            if os.path.exists(data_dir):
-                self.data_dir = data_dir
-            else:
-                self.data_dir = startdir
-        else:
-            self.data_dir = data_dir
-
-        # If data_dir was not given as an absolute path, it is interpreted
-        # as a subdirectory of startdir.
-        if self.data_dir[0] != '/':
-            self.data_dir = os.path.join(startdir, self.data_dir)
-        elif self.data_dir[:2] == './':
-            self.data_dir = os.path.join(startdir, self.data_dir[2:])
-
-        # Check if data_dir exists. If not then create it.
-        # Save comments for the logger created later.
-        logcomment = ''
-        if not os.path.isdir(self.data_dir):
-            logcomment = f'{self.data_dir} does not exist. Creating it!'
-            os.mkdir(self.data_dir)
-            logcomment = logcomment + '\n' + f'{self.data_dir} has been created!'
-
-        logger = generate_logger(logname='odf_'+self.odfid, log_dir=self.data_dir)
-        logger.log('info', f'Data directory = {self.data_dir}')
-        if len(logcomment) > 1:
-            logger.log('warning', logcomment)
+        # Set directories for the observation, odf, and work.
+        self.obs_dir  = os.path.join(self.data_dir,self.obsid)
+        self.odf_dir  = os.path.join(self.obs_dir,'ODF')
+        self.work_dir = os.path.join(self.obs_dir,'work')
 
         # Deal with the rest of the inputs.
-        self.level = level
         self.repo = repo
 
         # Checking LHEASOFT, SAS_DIR and SAS_CCFPATH
-
         lheasoft = os.environ.get('LHEASOFT')
         if not lheasoft:
-            logger.log('error', 'LHEASOFT is not set. Please initialise HEASOFT')
+            self.logger.error('LHEASOFT is not set. Please initialise HEASOFT')
             raise Exception('LHEASOFT is not set. Please initialise HEASOFT')
         else:
-            logger.log('info', f'LHEASOFT = {lheasoft}')
+            self.logger.info(f'LHEASOFT = {lheasoft}')
 
         sasdir = os.environ.get('SAS_DIR')
         if not sasdir:
-            logger.log('error', 'SAS_DIR is not defined. Please initialise SAS.')
+            self.logger.error('SAS_DIR is not defined. Please initialise SAS.')
             raise Exception('SAS_DIR is not defined. Please initialise SAS.')
         else:
-            logger.log('info', f'SAS_DIR = {sasdir}') 
+            self.logger.info(f'SAS_DIR = {sasdir}') 
 
         sas_ccfpath = os.environ.get('SAS_CCFPATH')
         if not sas_ccfpath:
-            logger.log('error', 'SAS_CCFPATH not set. Please define it.')
+            self.logger.error('SAS_CCFPATH not set. Please define it.')
             raise Exception('SAS_CCFPATH not set. Please define it.')
         else:
-            logger.log('info',f'SAS_CCFPATH = {sas_ccfpath}')
+            self.logger.info(f'SAS_CCFPATH = {sas_ccfpath}')
         
         os.chdir(self.data_dir)
-        logger.log('info', f'Changed directory to {self.data_dir}')
+        self.logger.info(f'Changed directory to {self.data_dir}')
 
         print(f'''
 
@@ -840,29 +841,24 @@ class ODF(ObsID):
 
         ''')
 
-
+        # Download the data
         self.download_data(repo             = self.repo,
-                           level            = self.level,
                            data_dir         = self.data_dir,
                            overwrite        = overwrite,
-                           logger           = logger,
                            proprietary      = kwargs.get('proprietary', False),
                            credentials_file = kwargs.get('credentials_file', None),
                            encryption_key   = kwargs.get('encryption_key', None))
-        
-        if hasattr(self, 'odf_dir'):
-            if os.path.exists(self.odf_dir):
-                self.files['ODF'] = self.__get_list_of_ODF_files()
-        if hasattr(self, 'pps_dir'):
-            if os.path.exists(self.pps_dir):
-                self.files['PPS'] = self.__get_list_of_PPS_files()
 
-        self.work_dir = os.path.join(self.obs_dir,'work')
-        if not os.path.exists(self.work_dir): os.mkdir(self.work_dir)
-        
-        # If only PPS files requested, no processing needed.
-        if self.level == 'PPS': return
+        # Set work directory
+        if not hasattr(self, 'work_dir'):
+            self.work_dir = os.path.join(self.obs_dir,'work')
+            self.logger.info(f'Setting work_dir: {self.work_dir}')
 
+        if not os.path.exists(self.work_dir):
+            self.logger.info(f'{self.work_dir} does not exist. Creating it!')
+            os.mkdir(self.work_dir)
+
+        # Calibrate ODF data
         self.calibrate_odf(obs_dir        = self.data_dir,
                            sas_ccf        = kwargs.get('sas_ccf', None),
                            sas_odf        = kwargs.get('sas_odf', None),
@@ -870,6 +866,7 @@ class ODF(ObsID):
                            odfingest_opts = kwargs.get('odfingest_opts', []),
                            recalibrate    = recalibrate)
 
+        # Run basic processing
         if run_epproc and not run_epchain:
             self.__run_analysis('epproc',
                                 kwargs.get('epproc_args', []),
@@ -908,7 +905,8 @@ class ODF(ObsID):
         
         return
     
-    def download_data(self, repo  = 'esa',
+    def download_data(self,
+                      repo        = 'esa',
                       data_dir    = None,
                       overwrite   = False,
                       proprietary = False,
@@ -956,35 +954,20 @@ class ODF(ObsID):
                                         Note: ONLY used for data from the HEASARC.
         """
         
-        # Where are we?
-        startdir = os.getcwd()
-
-        call_download_data = True
-
-        # Brief check to see if data_dir was 
-        # given on odfobject creation.
-        if self.data_dir != None:
-            data_dir = self.data_dir
-
-        # Start checking data_dir
-        if data_dir == None:
-            data_dir = sas_cfg.get("sas", "data_dir")
-            if os.path.exists(data_dir):
-                self.data_dir = data_dir
-            else:
-                self.data_dir = startdir
-        else:
-            self.data_dir = data_dir
+        # Set data_dir
+        self.__set_data_dir(data_dir)
         
         # Set the obs_dir
-        if not os.path.exists(self.obs_dir):
+        if not hasattr(self, 'obs_dir'):
             self.obs_dir = os.path.join(self.data_dir,self.obsid)
 
         # Set odf_dir
-        self.odf_dir = os.path.join(self.obs_dir,'ODF')
+        if not hasattr(self, 'odf_dir'):
+            self.odf_dir = os.path.join(self.obs_dir,'ODF')
 
         # Checks if obs_dir exists. 
         # Removes it if overwrite = True. Default overwrite = False.
+        call_download_data = True
         if os.path.exists(self.obs_dir):
             self.logger.info(f'Existing directory for {self.obsid} found ...')
             if overwrite:
@@ -998,19 +981,14 @@ class ODF(ObsID):
                 if what_exists['odf_dir'] and what_exists['manifest']:
                     self.logger.info(f'Existing ODF directory {self.odf_dir} found ...')
                     call_download_data = False
-                if not call_download_data:
                     self.logger.info(f'Data found in {self.obs_dir} not downloading again.')
                     print(f'Data found in {self.obs_dir} not downloading again.')
 
-        # Set work directory.
-        self.work_dir = os.path.join(self.obs_dir,'work')
-
         if call_download_data:
-            self.logger.info(f'Will download Obs ID data with level ODF')
-
+            self.logger.info(f'Will download ODF data for Obs ID {self.obsid}.')
             # Check chosen repository.
             repo_opts = ['esa','heasarc','sciserver']
-            if repo not in repo_opts:
+            if repo.lower() not in repo_opts:
                 self.logger.error('Download repository not found!')
                 print(f'Options for repo are {repo_opts[0]}, {repo_opts[1]}, or {repo_opts[2]}')
                 raise Exception('Download repository not found!')
@@ -1022,21 +1000,19 @@ class ODF(ObsID):
             # Function for downloading a single obsid set.
             dl_data(self.obsid,
                     self.data_dir,
-                    level='ODF',
-                    encryption_key=encryption_key,
-                    repo=self.repo,
-                    logger=self.logger,
-                    proprietary=proprietary,
-                    credentials_file=credentials_file,
-                    overwrite=overwrite)
+                    level          = 'ODF',
+                    overwrite      = overwrite,
+                    repo           = self.repo,
+                    logger         = self.logger,
+                    proprietary    = proprietary,
+                    encryption_key = encryption_key,
+                    credentials_file = credentials_file)
             
         self.logger.info(f'Data directory: {self.data_dir}')
         self.logger.info(f'ObsID directory: {self.obs_dir}')
         print(f'Data directory: {self.data_dir}')
         
-        if hasattr(self, 'odf_dir'):
-            if os.path.exists(self.odf_dir):
-                self.files['ODF'] = self.__get_list_of_ODF_files()
+        self.files['ODF'] = self.__get_list_of_ODF_files()
 
         return
         
@@ -1059,13 +1035,10 @@ class ODF(ObsID):
         This function can then be used as, 
         
             obs.ODF.calibrate_odf()
-
-        The calibrate_odf function will automatically look in data_dir for the subdirectory 
-        data_dir/obsid. If it does not exist then it will download the data.
         
         If it exists it will search data_dir/obsid and any subdirectories for the ccf.cif
-        and *SUM.SAS files. But if overwrite=True then it will remove data_dir/obsid and 
-        download the data.
+        and *SUM.SAS files. Will not rerun calibration if the ccf.cif and *SUM.SAS files
+        exist, unless recalibrate = True.
 
         Optionally the paths to the ccf.cif and *SUM.SAS files can be given through 
         sas_ccf and sas_odf respectively.
@@ -1092,28 +1065,24 @@ class ODF(ObsID):
             --odfingest_opts:   (list): Options for odfingest.
 
             --recalibrate:   (boolean): If True will rerun odfingest and cifbuild.
-
-            --logger:     (TaskLogger): Only used if called from inside 'basic_setup'.
-
         """
 
-        # Where are we?
-        startdir = os.getcwd()
+        # If user passes in obs_dir
+        if not obs_dir is None:
+            self.obs_dir = obs_dir
 
-        # Brief check to see if data_dir is already defined.
-        if self.data_dir == None:
-            data_dir = sas_cfg.get("sas", "data_dir")
-            if os.path.exists(data_dir):
-                self.data_dir = data_dir
-            else:
-                self.data_dir = startdir
-
-        if obs_dir == None:
-            self.obs_dir = os.path.join(self.data_dir,self.obsid)
+        # If no obs_dir was passed in and not set previously
+        if not hasattr(self, 'obs_dir'):
+            if not hasattr(self, 'data_dir'):
+                # If the user has gotten this far without setting data_dir,
+                # they are probably doing something wrong.
+                self.__set_data_dir(None)
+            self.obs_dir = os.path.join(self.data_dir, self.obsid)
+            self.logger.info(f'Setting obs_dir to: {self.obs_dir}')
 
         # Check if obs_dir exists. If not then raise an Exception.
         if not os.path.isdir(self.obs_dir):
-            self.logger.error('Observation directory: {self.obs_dir} does not exist!')
+            self.logger.error(f'Observation directory: {self.obs_dir} does not exist!')
             print(f'Error! Observation directory: {self.obs_dir} does not exist!')
             print(f'Please provide the path to the observation directory \n \
                     using the input obs_dir=path/to/obs/dir/.')
@@ -1124,11 +1093,9 @@ class ODF(ObsID):
         # Deal with the rest of the inputs.
         self.files['sas_ccf'] = sas_ccf
         self.files['sas_odf'] = sas_odf
-        if cifbuild_opts == None:
-            cifbuild_opts = []
+        if cifbuild_opts is None: cifbuild_opts = []
         self.cifbuild_opts = cifbuild_opts
-        if odfingest_opts == None:
-            odfingest_opts = []
+        if odfingest_opts is None: odfingest_opts = []
         self.odfingest_opts = odfingest_opts
         
         os.chdir(self.obs_dir)
@@ -1142,9 +1109,12 @@ class ODF(ObsID):
 
         ''')
 
-        # Set directories for the observation, odf, pps, and work.
-        self.odf_dir  = os.path.join(self.obs_dir,'ODF')
-        self.work_dir = os.path.join(self.obs_dir,'work')
+        # Set directories for the odf and work.
+        # Set odf_dir
+        if not hasattr(self, 'odf_dir'):
+            self.odf_dir = os.path.join(self.obs_dir,'ODF')
+        if not hasattr(self, 'work_dir'):
+            self.work_dir = os.path.join(self.obs_dir,'work')
 
         # Check what exists in the obs_dir.
         what_exists = self.__parse_obs_dir()
@@ -1164,7 +1134,7 @@ class ODF(ObsID):
         else:
             self.logger.info(f'Searching {self.obs_dir} for ccf.cif and *SUM.SAS files ...')
             # Looking for ccf.cif file.
-            if self.files['sas_ccf'] == None:
+            if self.files['sas_ccf'] is None:
                 ccf_exists = self.get_ccf_cif()
             else:
                 # Check if ccf.cif file path given by user exists.
@@ -1179,12 +1149,12 @@ class ODF(ObsID):
                     sys.exit(1)
             
             # Looking for *SUM.SAS file.
-            if self.files['sas_odf'] == None:
+            if self.files['sas_odf'] is None:
                 SUM_exists = self.get_SUM_SAS()                    
             else:
                 # Check if *SUM.SAS file path given by user exists.
                 try:
-                    SUM_exists = self.get_SUM_SAS(,user_defined_file=self.files['sas_odf'])
+                    SUM_exists = self.get_SUM_SAS(user_defined_file=self.files['sas_odf'])
                     if SUM_exists:
                         self.logger.info('{0} is present'.format(self.files['sas_odf']))
                 except FileExistsError:
@@ -1217,8 +1187,7 @@ class ODF(ObsID):
             if not os.path.exists(self.work_dir): os.mkdir(self.work_dir)
             # Exit the calibrate_odf function. Everything is set.
         
-        if os.path.exists(self.odf_dir):
-            self.files['ODF'] = self.__get_list_of_ODF_files()
+        self.files['ODF'] = self.__get_list_of_ODF_files()
 
         return
 
@@ -1327,7 +1296,9 @@ class ODF(ObsID):
 
         return
     
-    def __run_analysis(self,task,inargs,rerun=False,logFile='DEFAULT'):
+    def __run_analysis(self, task, inargs, 
+                       rerun   = False,
+                       logFile = None):
         """
         --Not intended to be used by the end user. Internal use only.--
 
@@ -1350,20 +1321,14 @@ class ODF(ObsID):
 
         More will be added as needed.
         """
-        self.task = task
-        self.inargs = inargs
-        self.rerun = rerun
-        self.logFile = logFile
-
-        print(self.inargs)
 
         # Make sure we are in the right place!
         if os.path.isdir(self.work_dir):
             os.chdir(self.work_dir)
         else:
-            print(f'The directory for the observation ID ({self.odfid}) does not seem to exist!\n    {self.obs_dir}')
+            print(f'The directory for the observation ID ({self.obsid}) does not seem to exist!\n    {self.obs_dir}')
             print('Has \'calibrate_odf\' been run?')
-            raise Exception(f'Problem with the directory for odfID = {self.odfid}!')
+            raise Exception(f'Problem with the directory for odfID = {self.obsid}!')
         
         self.find_event_list_files(print_output=False)
         self.find_rgs_spectra_files(print_output=False)
@@ -1372,46 +1337,63 @@ class ODF(ObsID):
         run_em   = False
         run_rgs  = False
 
-        # Check if 'epproc' or 'epchain' has been run.
-        if (self.task == 'epproc' or self.task == 'epchain') and self.active_instruments['PN']:
-            if len(self.files['PNevt_list']) == 0 or self.rerun:
-                run_ep   = True
-            else:
-                print(" > " + str(len(self.files['PNevt_list'])) + " EPIC-pn event list found. Not running {self.task} again.\n")
-                for x in self.files['PNevt_list']:
-                    print("    " + x + "\n")
-                print("..... OK")
-
-        # Check if 'emproc' has been run.
-        elif self.task == 'emproc' and (self.active_instruments['M1'] or self.active_instruments['M2']):
-            if (len(self.files['M1evt_list']) == 0 and len(self.files['M2evt_list']) == 0) or self.rerun:
-                run_em   = True
-            else:
-                print(" > " + str(len(self.files['M1evt_list'])) + " EPIC-MOS1 event list found. Not running emproc again.\n")
-                for x in self.files['M1evt_list']:
-                    print("    " + x + "\n")
-                print(" > " + str(len(self.files['M2evt_list'])) + " EPIC-MOS2 event list found. Not running emproc again.\n")
-                for x in self.files['M2evt_list']:
-                    print("    " + x + "\n")
-                print("..... OK")
-
+        # Check if 'epproc' or 'epchain' have been run.
+        if (task == 'epproc' or task == 'epchain') and self.active_instruments['PN']:
+            num_evl1 = len(self.files['PNevt_list'])
+            num_evl2 = 0
+            inst1 = 'EPIC-pn'
+            inst2 = ''
+            list1 = 'PNevt_list'
+            list2 = ''
+            if num_evl1 == 0 or rerun:
+                run_ep = True
+        # Check if 'emproc' or 'emchain' have been run.
+        elif (task == 'emproc' or task == 'emchain') and (self.active_instruments['M1'] or self.active_instruments['M2']):
+            num_evl1 = len(self.files['M1evt_list'])
+            num_evl2 = len(self.files['M2evt_list'])
+            inst1 = 'EPIC-MOS1'
+            inst2 = 'EPIC-MOS1'
+            list1 = 'M1evt_list'
+            list2 = 'M2evt_list'
+            if (num_evl1 == 0 and num_evl2 == 0) or rerun:
+                run_em = True
         # Check if 'rgsproc' has been run.
-        elif self.task == 'rgsproc' and (self.active_instruments['R1'] or self.active_instruments['R2']):
-            if (len(self.files['R1evt_list']) == 0 and len(self.files['R2evt_list']) == 0) or self.rerun:
+        elif task == 'rgsproc' and (self.active_instruments['R1'] or self.active_instruments['R2']):
+            num_evl1 = len(self.files['R1evt_list'])
+            num_evl2 = len(self.files['R2evt_list'])
+            inst1 = 'RGS1'
+            inst2 = 'RGS2'
+            list1 = 'R1evt_list'
+            list2 = 'R2evt_list'
+            if (num_evl1 == 0 and num_evl2 == 0) or rerun:
                 run_rgs  = True
-            else:
-                print(" > " + str(len(self.files['R1evt_list'])) + " RGS1 event list found. Not running rgsproc again.\n")
-                for x in self.files['R1evt_list']:
-                    print("    " + x + "\n")
-                print(" > " + str(len(self.files['R2evt_list'])) + " RGS2 event list found. Not running rgsproc again.\n")
-                for x in self.files['R2evt_list']:
-                    print("    " + x + "\n")
-                print("..... OK")
         
         if run_ep or run_em or run_rgs:
-            print(f"   SAS command to be executed: {self.task}, with arguments; \n{self.inargs}")
-            print(f"Running {self.task} ..... \n")
-            w(self.task,self.inargs,logFile=self.logFile).run()      # <<<<< Execute SAS task
+            self.logger.info(f'SAS command to be executed: {task}, with arguments: \n{inargs}')
+            print(f"   SAS command to be executed: {task}, with arguments; \n{inargs}")
+            print(f"Running {task} ..... \n")
+            MyTask(task,inargs,
+                   logfilename = logFile, 
+                   tasklogdir  = self.work_dir,
+                   output_to_terminal = self.output_to_terminal, 
+                   output_to_file     = self.output_to_file).run() # <<<<< Execute SAS task
+        else:
+            if self.output_to_terminal:
+                print(f" > {num_evl1} {inst1} event list found. Not running {task} again.")
+                for x in self.files[list1]:
+                    print(f"  {x}")
+                if num_evl2 > 0:
+                    print(f" > {num_evl2} {inst2} event list found. Not running {task} again.")
+                    for x in self.files[list2]:
+                        print(f"  {x}")
+            if self.output_to_file:
+                self.logger.info(f" > {num_evl1} {inst1} event list found. Not running {task} again.")
+                for x in self.files[list1]:
+                    self.logger.info(f"  {x}")
+                if num_evl2 > 0:
+                    self.logger.info(f" > {num_evl2} {inst2} event list found. Not running {task} again.")
+                    for x in self.files[list2]:
+                        self.logger.info(f"  {x}")
 
         # Check if run sucsessfully
         self.find_event_list_files(print_output=False)
@@ -1464,6 +1446,52 @@ class ODF(ObsID):
 
         return exists
     
+    def __set_data_dir(self, data_dir):
+        """
+        Sets the data_dir using the following hierarchy:
+            1. self.data_dir: data_dir given by user on object creation
+            2. data_dir passed into this function
+            3. data_dir from config file
+            4. cwd
+
+        If data_dir does not exist then it will be created.
+        """
+        # Where are we?
+        startdir = Path.cwd()
+
+        # Brief check to see if data_dir was 
+        # given on ObsID creation.
+        if self.data_dir != None:
+            data_dir = self.data_dir
+
+        # Start checking data_dir
+        if data_dir is None:
+            data_dir = sas_cfg.get("sas", "data_dir")
+            if os.path.exists(data_dir):
+                self.data_dir = data_dir
+                self.logger.info(f'Using data_dir from config file: {self.data_dir}')
+            else:
+                self.data_dir = startdir
+                self.logger.info(f'Using current directory for data_dir: {self.data_dir}')
+        else:
+            self.logger.info(f'Setting data_dir: {data_dir}')
+            self.data_dir = data_dir
+
+        # If data_dir was not given as an absolute path, it is interpreted
+        # as a subdirectory of startdir.
+        if self.data_dir[0] != '/':
+            self.data_dir = os.path.join(startdir, self.data_dir)
+        elif self.data_dir[:2] == './':
+            self.data_dir = os.path.join(startdir, self.data_dir[2:])
+
+        # Check if data_dir exists. If not then create it.
+        if not os.path.isdir(self.data_dir):
+            self.logger.info(f'{self.data_dir} does not exist. Creating it!')
+            os.mkdir(self.data_dir)
+            self.logger.info(f'{self.data_dir} has been created!')
+
+        self.logger.info(f'Data directory = {self.data_dir}')
+    
     def __remove_attr(self, attr_name):
         if hasattr(self, attr_name): delattr(self, attr_name)
 
@@ -1471,7 +1499,8 @@ class PPS(ObsID):
     """
     Placeholder text
     """
-    def __init__(self, obsid, data_dir = None, 
+    def __init__(self, obsid, 
+                 data_dir    = None, 
                  logfilename = None, 
                  tasklogdir  = None,
                  output_to_terminal = True, 
@@ -1500,6 +1529,52 @@ class PPS(ObsID):
                                      tofile      = self.output_to_file, 
                                      logfilename = self.logfilename,
                                      tasklogdir  = self.obs_dir)
+    
+    def __set_data_dir(self, data_dir):
+        """
+        Sets the data_dir using the following hierarchy:
+            1. self.data_dir: data_dir given by user on object creation
+            2. data_dir passed into this function
+            3. data_dir from config file
+            4. cwd
+
+        If data_dir does not exist then it will be created.
+        """
+        # Where are we?
+        startdir = Path.cwd()
+
+        # Brief check to see if data_dir was 
+        # given on ObsID creation.
+        if self.data_dir != None:
+            data_dir = self.data_dir
+
+        # Start checking data_dir
+        if data_dir is None:
+            data_dir = sas_cfg.get("sas", "data_dir")
+            if os.path.exists(data_dir):
+                self.data_dir = data_dir
+                self.logger.info(f'Using data_dir from config file: {self.data_dir}')
+            else:
+                self.data_dir = startdir
+                self.logger.info(f'Using current directory for data_dir: {self.data_dir}')
+        else:
+            self.logger.info(f'Setting data_dir: {data_dir}')
+            self.data_dir = data_dir
+
+        # If data_dir was not given as an absolute path, it is interpreted
+        # as a subdirectory of startdir.
+        if self.data_dir[0] != '/':
+            self.data_dir = os.path.join(startdir, self.data_dir)
+        elif self.data_dir[:2] == './':
+            self.data_dir = os.path.join(startdir, self.data_dir[2:])
+
+        # Check if data_dir exists. If not then create it.
+        if not os.path.isdir(self.data_dir):
+            self.logger.info(f'{self.data_dir} does not exist. Creating it!')
+            os.mkdir(self.data_dir)
+            self.logger.info(f'{self.data_dir} has been created!')
+
+        self.logger.info(f'Data directory = {self.data_dir}')
     
     def __remove_attr(self, attr_name):
         if hasattr(self, attr_name): delattr(self, attr_name)
