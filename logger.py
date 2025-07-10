@@ -26,9 +26,12 @@ from pathlib import Path
 
 # Third party imports
 from loguru import logger
-
+# This cleans up any loguru loggers that
+# might be hanging around.
 logger.remove()
+
 # Local application imports
+from .configutils import sas_cfg
 
 # Functions
 
@@ -111,6 +114,18 @@ def get_logger(taskname: str,
                 level = "DEBUG"
             case _:
                 level = "DEBUG"
+        
+        # 98% of the time pysas_verbosity == SAS_VERBOSITY.
+        # But for debugging purposes it is convienent to have
+        # a separate verbosity for pySAS.
+        # This does not affect the verbosity for non-Python
+        # based SAS tasks.
+        pysas_verbosity = sas_cfg.get('sas','pysas_verbosity')
+
+        # Take the lower of sas_level or pysas_level
+        sas_level   = logger.level(level).no
+        pysas_level = logger.level(pysas_verbosity).no
+        if sas_level < pysas_level: pysas_verbosity = level
         
         # Add file sink
         if tofile:

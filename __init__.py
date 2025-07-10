@@ -63,4 +63,5 @@ __version__ = f'pysas - (pysas-{VERSION}) [{SAS_RELEASE}]'
 from .print_version import print_sas_version
 
 # Get rid of temporary variables to prevent possible conflicts.
-del sas_dir_config, sas_ccfpath_config, sas_initialize, sas_dir, sas_path, sas_ccfpath
+del sas_dir_config, sas_ccfpath_config, sas_initialize
+del sas_dir, sas_path, sas_ccfpath, return_list

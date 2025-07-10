@@ -45,6 +45,7 @@ sas_cfg_defaults = {
     "sas_ccfpath": "/does/not/exist",
     "data_dir": "/does/not/exist",
     "verbosity": 4,
+    "pysas_verbosity": "WARNING",
     "suppress_warning": 1,
     "on_sci_server": False
 }
