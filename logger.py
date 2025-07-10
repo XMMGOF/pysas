@@ -126,6 +126,8 @@ def get_logger(taskname: str,
         sas_level   = logger.level(level).no
         pysas_level = logger.level(pysas_verbosity).no
         if sas_level < pysas_level: pysas_verbosity = level
+
+        level = pysas_verbosity
         
         # Add file sink
         if tofile:
