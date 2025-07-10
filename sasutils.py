@@ -319,7 +319,7 @@ def download_data(odfid,
             file_pattern = archive_data + f'/**/{PPSfile}'
             files = glob.glob(file_pattern, recursive=True)
             if len(files) == 0:
-                logger.log('warning', f'No files of the pattern {file_pattern} found!')
+                logger.warning(f'No files of the pattern {file_pattern} found!')
                 print(f'Warning! No files of the pattern {file_pattern} found!')
             for file in files:
                 file_name = os.path.basename(file)
@@ -415,7 +415,7 @@ def download_data(odfid,
                 os.remove(file)
                 logger.info(f'{file} removed')
     else:
-        logger.log('info','No encrypted files found.')
+        logger.info('No encrypted files found.')
 
     for file in glob.glob(odf_dir + f'/**/*.gz', recursive=True):
         logger.info(f'Unpacking {file} ...')

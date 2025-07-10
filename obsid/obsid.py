@@ -443,7 +443,7 @@ class ObsID:
             os.mkdir(self.work_dir)
 
         # Calibrate ODF data
-        self.calibrate_odf(obs_dir        = self.data_dir,
+        self.calibrate_odf(obs_dir        = self.obs_dir,
                            sas_ccf        = kwargs.get('sas_ccf', None),
                            sas_odf        = kwargs.get('sas_odf', None),
                            cifbuild_opts  = kwargs.get('cifbuild_opts', []),
@@ -1369,8 +1369,8 @@ class ObsID:
                 run_rgs  = True
         
         if run_ep or run_em or run_rgs:
-            self.logger.info(f'SAS command to be executed: {task}, with arguments: \n{inargs}')
-            print(f"   SAS command to be executed: {task}, with arguments; \n{inargs}")
+            self.logger.info(f'SAS command to be executed: {task}, with arguments: {inargs}')
+            print(f"   SAS command to be executed: {task}, with arguments; {inargs}")
             print(f"Running {task} ..... \n")
             MyTask(task,inargs,
                    logfilename = logFile, 
