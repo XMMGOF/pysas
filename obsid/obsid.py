@@ -325,60 +325,60 @@ class ObsID:
 
         Examples for use:
 
-            odf.basic_setup()
+            my_obs.basic_setup()
 
                 - Uses the defaults.
 
-            odf.basic_setup(repo='heasarc')
+            my_obs.basic_setup(repo='heasarc')
 
                 - Uses the defaults, but downloads data from the HEASARC.
 
-            odf.basic_setup(overwrite=True)
+            my_obs.basic_setup(overwrite=True)
 
                 - Will erase any previous data files for the Obs ID and 
                   download a fresh set of data files.
 
-            odf.basic_setup(recalibrate=True)
+            my_obs.basic_setup(recalibrate=True)
 
                 - Will rerun cifbuild and odfingest to generate new 
                   ccf.cif and *SUM.SAS files.
 
-            odf.basic_setup(rerun=True)
+            my_obs.basic_setup(rerun=True)
 
                 - Will **not** download new files, but will rerun 'epproc',
                   'emproc', and 'rgsproc' and create new event lists.
 
-            odf.basic_setup(repo='heasarc',
-                            epproc_args=['withoutoftime=yes'])
+            my_obs.basic_setup(repo='heasarc',
+                               epproc_args=['withoutoftime=yes'])
 
                 - Downloads data from the HEASARC and runs 'epproc' with the
                   'withoutoftime' option.
 
-            odf.basic_setup(run_epchain=True,
-                            run_emchain=True)
+            my_obs.basic_setup(run_epchain=True,
+                               run_emchain=True)
 
                 - Will run 'epchain' and 'emchain' instead of 'epproc' and
                   'emproc'.
 
-            odf.basic_setup(run_epproc=False,
-                            run_emproc=False)
+            my_obs.basic_setup(run_epproc=False,
+                               run_emproc=False)
 
                 - Will not run 'epproc' or 'emproc'. Will only run 'rgsproc'
                   by default.
 
-            odf.basic_setup(run_epproc=False,
-                            run_emproc=True,
-                            run_rgsproc=False)
+            my_obs.basic_setup(run_epproc=False,
+                               run_emproc=True,
+                               run_rgsproc=False)
 
                 - Will only run 'emproc', **not** 'epproc' or 'rgsproc'.
 
-            odf.basic_setup(repo='heasarc',encryption_key='XXXXXXXXXXXXXXX')
+            my_obs.basic_setup(repo='heasarc',encryption_key='XXXXXXXXXXXXXXX')
 
                 - Uses the defaults, but downloads *proprietary* data from 
                   the HEASARC. Must provide an encryption key, an alpha-numeric
                   string with 30 characters.
 
-            odf.basic_setup(proprietary=True)
+            my_obs.basic_setup(proprietary=True)
 
                 - Uses the defaults, but downloads *proprietary* data from 
                   the XSA at ESA. Astroquery will ask for user's Cosmos
@@ -1173,8 +1173,6 @@ class ObsID:
     
     def find_rgs_spectra_files(self,print_output=True):
         """
-        --Not intended to be used by the end user. Internal use only.--
-
         Check for RGS spectra files created by rgsproc. Adds them to 
         'files' dictrionary with the keys:
 
