@@ -89,21 +89,19 @@ class ObsID:
                                  toterminal  = self.output_to_terminal,
                                  tofile      = False)
         # Sets info on the data_dir, obs_dir, etc.
+        self.logger.debug('Temproary logger generated')
         self.__set_obsid()
         # Remove temporary logger
+        self.logger.debug('Removing temproary logger')
         self.__remove_attr('logger')
         
         # Set the directory for log files.
         # Log directory will be (in this order):
         # 1. Directory passed in by the user
-        # 2. obs_dir
-        # 3. data_dir
-        # 4. cwd
+        # 2. data_dir
+        # 3. cwd
         if tasklogdir is None:
-            if hasattr(self, 'obs_dir'):
-                if os.path.exists(self.obs_dir):
-                    self.tasklogdir = self.obs_dir
-            elif os.path.exists(self.data_dir):
+            if os.path.exists(self.data_dir):
                 self.tasklogdir = self.data_dir
             else:
                 # By default get_logger will use cwd
@@ -123,6 +121,8 @@ class ObsID:
                                  tofile      = self.output_to_file, 
                                  logfilename = self.logfilename,
                                  tasklogdir  = self.tasklogdir)
+        self.logger.debug('Logger generated')
+        self.logger.debug('Finished with ObsID.__init__')
 
     def __set_obsid(self):
         """
@@ -145,8 +145,9 @@ class ObsID:
         Similar to download_data, but will not download any data, 
         or do anything other than link to files and directories. 
         """
-
+        self.logger.debug('Entered __set_obsid')
         # Check to see if data_dir was given by the user
+        self.logger.debug('Checking for data_dir')
         data_dir_found = False
         if not self.data_dir is None:
             self.logger.info(f'User input data_dir: {self.data_dir}.')
@@ -157,24 +158,27 @@ class ObsID:
                 self.logger.info(f'Will check config file for default.')
             else:
                 data_dir_found = True
+                self.logger.debug(f'data_dir found: {self.data_dir}')
         
         # Check if data_dir is in the config file
+        self.logger.debug('Checking for data_dir from config file')
         if not data_dir_found:
             data_dir = sas_cfg.get("sas", "data_dir")
-            self.logger.info(f'Trying default data_dir from config file: {data_dir}')
+            self.logger.debug(f'Trying default data_dir from config file: {data_dir}')
             if os.path.exists(data_dir):
                 self.data_dir = data_dir
                 self.logger.info(f'Data directory found: {self.data_dir}')
             else:
                 self.logger.info(f'No data_dir found in config file. Not setting data_dir.')
                 self.logger.info(f'Leaving data_dir as "{self.data_dir}".')
-                self.logger.info(f'Exiting __set_obsid.')
+                self.logger.debug(f'Exiting __set_obsid, no data_dir found')
                 return
             
         # data_dir is set.
         # Setting other directory paths.
 
         # Set directories for the observation, odf, pps, and work.
+        self.logger.debug(f'Setting obs_dir, odf_dir, pps_dir, and work_dir')
         self.obs_dir  = os.path.join(self.data_dir,self.obsid)
         self.odf_dir  = os.path.join(self.obs_dir,'ODF')
         self.pps_dir  = os.path.join(self.obs_dir,'PPS')
@@ -184,6 +188,7 @@ class ObsID:
             self.logger.info(f'obs_dir found at {self.obs_dir}.')
         else:
             self.logger.info(f'obs_dir not found {self.obs_dir}. User must download data!')
+            self.logger.debug(f'Exiting __set_obsid, no obs_dir found')
             return
         
         if os.path.exists(self.odf_dir):
@@ -196,18 +201,22 @@ class ObsID:
                 self.logger.info(f'pps_dir found at {self.pps_dir}.')
             else:
                 self.logger.info(f'ODF and PPS directories not found! User must download data!')
+                self.logger.debug(f'Exiting __set_obsid, no odf_dir nor pps_dir found')
                 return
             
         # Get lists of ODF and PPS files.
         if os.path.exists(self.odf_dir):
+            self.logger.debug(f'Getting list of ODF files')
             self.files['ODF'] = self.__get_list_of_ODF_files()
         if os.path.exists(self.pps_dir):
+            self.logger.debug(f'Getting list of PPS files')
             self.files['PPS'] = self.__get_list_of_PPS_files()
         
         if os.path.exists(self.work_dir):
             self.logger.info(f'work_dir found at {self.work_dir}.')
         else:
             self.logger.info(f'Default work_dir not found! User must create it!')
+            self.logger.debug(f'Exiting __set_obsid, no work_dir found')
             return
 
         self.logger.info(f'Data directory = {self.data_dir}')
@@ -218,6 +227,7 @@ class ObsID:
         exists = self.get_ccf_cif()
         if not exists:
             self.logger.info('ccf.cif file not present! User must run calibrate_odf!')
+            self.logger.debug(f'Exiting __set_obsid, no ccf.cif found')
             return
 
         # Set 'SAS_CCF' enviroment variable.
@@ -230,6 +240,7 @@ class ObsID:
         exists = self.get_SUM_SAS()
         if not exists:
             self.logger.info('*SUM.SAS file not present! User must run calibrate_odf!')
+            self.logger.debug(f'Exiting __set_obsid, no *SUM.SAS found')
             return
         
         # Set 'SAS_ODF' enviroment variable.
@@ -247,6 +258,7 @@ class ObsID:
         self.logger.info(f'Changing to work_dir: {self.work_dir}')
 
         # Exit the __set_obsid function. Everything is set.
+        self.logger.debug(f'Exiting __set_obsid, success!')
         return
 
     def basic_setup(self, 

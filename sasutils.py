@@ -137,14 +137,12 @@ def download_data(odfid,
     # Checks if obs_dir exists. Removes it if overwrite=True.
     if os.path.exists(obs_dir) and overwrite:
         logger.info(f'Removing existing directory {obs_dir} ...')
-        print(f'\n\nRemoving existing directory {obs_dir} ...')
         shutil.rmtree(obs_dir)
     
     # Creates subdirectory odfid to move or unpack observation files
     # and makes subdirectories.
     if not os.path.exists(obs_dir):
         logger.info(f'Creating observation directory {obs_dir} ...')
-        print(f'\nCreating observation directory {obs_dir} ...')
         os.mkdir(obs_dir)
 
     if level == 'PPS' and PPS_subset and not filename:
@@ -156,7 +154,6 @@ def download_data(odfid,
         
     if repo == 'esa':
         logger.info('Requesting odfid = {} from ESA XMM-Newton Science Archive\n'.format(odfid))
-        print('Requesting odfid = {} from ESA XMM-Newton Science Archive\n'.format(odfid))
         logger.info(f'Changed directory to {obs_dir}')
         os.chdir(obs_dir)
         if level == 'ALL':
@@ -166,7 +163,6 @@ def download_data(odfid,
         for levl in level:
             # Download the odfid from ESA, using astroquery
             logger.info(f'Downloading {odfid}, level {levl} into {obs_dir}')
-            print(f'\nDownloading {odfid}, level {levl} into {obs_dir}. Please wait ...\n')
             if levl == 'PPS':
                 # If a filename was provided then convert it into inputs for astroquery.
                 if filename:
@@ -208,7 +204,6 @@ def download_data(odfid,
                     logger.info(f'{odftar} found.') 
                 except FileExistsError:
                     logger.error(f'File {odftar} is not present. Not downloaded?')
-                    print(f'File {odftar} is not present. Not downloaded?')
                     sys.exit(1)
 
                 tarextension = os.path.splitext(odftar)[1]
@@ -220,7 +215,6 @@ def download_data(odfid,
 
                 # Untars the odfid.tar.gz file
                 logger.info(f'Unpacking {odftar} ...')
-                print(f'\nUnpacking {odftar} ...\n')
 
                 try:
                     with tarfile.open(odftar,tar_mode) as tar:
@@ -243,7 +237,6 @@ def download_data(odfid,
     elif repo == 'heasarc':
         #Download the odfid from HEASARC, using Astroquery
         logger.info('Requesting XMM-Newton odfid = {} from the HEASARC\n'.format(odfid))
-        print('Requesting XMM-Newton odfid = {} from the HEASARC\n'.format(odfid))
 
         logger.info(f'Changed directory to {data_dir}')
         os.chdir(data_dir)
@@ -252,7 +245,6 @@ def download_data(odfid,
         
         if level in ['ALL','ODF','PPS','4XMM','om_mosaic'] and not PPS_subset:
             logger.info(f'Downloading {odfid}, level {level}')
-            print(f'\nDownloading {odfid}, level {level}. Please wait ...\n')
             query = """SELECT * FROM xmmmaster WHERE obsid='{0}'""".format(odfid)
             tab = Heasarc.query_tap(query).to_table()
             if level == 'ALL':
@@ -276,7 +268,6 @@ def download_data(odfid,
                 wgetA = f"-A '{PPSfile}'"
 
             logger.info(f'Downloading {odfid}, level {level}{PPS_subset_note}')
-            print(f'\nDownloading {odfid}, level {level}{PPS_subset_note}. Please wait ...\n')
 
             cmd = f'wget -m -nH -e robots=off --cut-dirs=4 -l 2 -np {wgetA} https://heasarc.gsfc.nasa.gov/FTP/xmm/data/rev0/{odfid}/{level}/{wgetf}'
             logger.info(f'Using the command:\n{cmd}')
@@ -292,7 +283,6 @@ def download_data(odfid,
     elif repo == 'sciserver':
         # Copies data into personal storage space.
         logger.info('Requesting XMM-Newton odfid = {} from the HEASARC on SciServer\n'.format(odfid))
-        print('Requesting XMM-Newton odfid = {} from the HEASARC on SciServer\n'.format(odfid))
 
         if filename: 
             PPS_subset = True
@@ -300,7 +290,6 @@ def download_data(odfid,
 
         if level in ['ALL','ODF','PPS','4XMM','om_mosaic'] and not PPS_subset:
             logger.info(f'Downloading {odfid}, level {level}')
-            print(f'\nDownloading {odfid}, level {level}. Please wait ...\n')
             query = """SELECT * FROM xmmmaster WHERE obsid='{0}'""".format(odfid)
             tab = Heasarc.query_tap(query).to_table()
             if level == 'ALL':
@@ -320,11 +309,9 @@ def download_data(odfid,
             files = glob.glob(file_pattern, recursive=True)
             if len(files) == 0:
                 logger.warning(f'No files of the pattern {file_pattern} found!')
-                print(f'Warning! No files of the pattern {file_pattern} found!')
             for file in files:
                 file_name = os.path.basename(file)
                 logger.info(f'Copying file {file_name} from {archive_data} ...')
-                print(f'\nCopying file {file_name} from {archive_data} ...')
                 shutil.copy(file, os.path.join(pps_dir,file_name))
         
         # else:
@@ -380,9 +367,8 @@ def download_data(odfid,
             if os.path.isfile(encryption_file[0]):
                 logger.info(f'File with encryption key found: {encryption_file}')
             else:
-                print('File decryption failed. No encryption key found.')
-                print(f'Regular file with the encryption key needs to be placed in: {data_dir}')
                 logger.error('File decryption failed. No encryption key found.')
+                logger.error(f'Regular file with the encryption key needs to be placed in: {data_dir}')
                 raise Exception('File decryption failed. No encryption file found.')
         elif os.path.isfile(encryption_key):
             logger.info(f'Ecryption key is in file: {encryption_key}')
@@ -393,9 +379,9 @@ def download_data(odfid,
                 lines = f.readlines()
                 encryption_key = lines[0]
         if encryption_key == None:
-            print(f'No encryption key found in {encryption_file}')
-            print(f'Regular file with the encryption key needs to be placed in: {data_dir}')
             logger.error('File decryption failed. No encryption key found.')
+            logger.error(f'No encryption key found in {encryption_file}')
+            logger.error(f'Regular file with the encryption key needs to be placed in: {data_dir}')
             raise Exception('File decryption failed. No encryption key found.')
         
             
@@ -403,13 +389,12 @@ def download_data(odfid,
             out_file = file[:-4]
             if os.path.exists(out_file):
                 logger.info(f'Already decrypted file found: {out_file}')
-                print(f'Already decrypted file found: {out_file}')
             else:
                 logger.info(f'Decrypting {file}')
                 cmd = 'echo {0} | gpg --batch -o {1} --passphrase-fd 0 -d {2}'.format(encryption_key,out_file,file)
                 result = subprocess.run(cmd, shell=True)
                 if result.returncode != 0:
-                    print(f'Problem decrypting {file}')
+                    logger.error(f'Problem decrypting {file}')
                     logger.error(f'File decryption failed, key used {encryption_key}')
                     raise Exception('File decryption failed')
                 os.remove(file)
@@ -419,7 +404,6 @@ def download_data(odfid,
 
     for file in glob.glob(odf_dir + f'/**/*.gz', recursive=True):
         logger.info(f'Unpacking {file} ...')
-        print(f'Unpacking {file} ...')
         with gzip.open(f'{file}', 'rb') as f_in:
             out_file = file[:-3]
             with open(out_file, 'wb') as f_out:
@@ -429,7 +413,6 @@ def download_data(odfid,
 
     for file in glob.glob(odf_dir + f'/**/*.tar', recursive=True):
         logger.info(f'Unpacking {file} ...')
-        print(f'Unpacking {file} ...')
         with tarfile.open(file,"r") as tar:
             tar.extractall(path=odf_dir)
         os.remove(file)
@@ -437,7 +420,6 @@ def download_data(odfid,
 
     for file in glob.glob(odf_dir + f'/**/*.TAR', recursive=True):
         logger.info(f'Unpacking {file} ...')
-        print(f'Unpacking {file} ...')
         with tarfile.open(file,"r") as tar:
             tar.extractall(path=odf_dir)
         os.remove(file)
@@ -502,7 +484,7 @@ def update_calibration_files(repo='NASA'):
     elif esa_or_nasa in nasa:
         cmd = f'wget -nH --no-remove-listing -N -np -r --cut-dirs=4 -e robots=off -l 1 -R "index.html*" https://heasarc.gsfc.nasa.gov/FTP/xmm/data/CCF/ -P {sas_ccfpath}'
     print(f'Downloading calibration data using the command:\n{cmd}')
-    print('This may take a while.')
+    print('This may take a while...')
     time.sleep(3)
     result = subprocess.run(cmd, shell=True)
 
