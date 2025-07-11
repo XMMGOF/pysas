@@ -23,6 +23,7 @@ sas_ccfpath_config   = sas_cfg.get("sas", "sas_ccfpath")
 sas_verbosity        = sas_cfg.get("sas", "verbosity")
 sas_suppress_warning = sas_cfg.get("sas", "suppress_warning")
 sas_initialize = True
+sas_ready      = False 
 
 # Check if SAS_DIR, SAS_PATH, and SAS_CCFPATH are already set.
 sas_dir = os.environ.get('SAS_DIR')
@@ -33,14 +34,18 @@ if sas_dir and sas_ccfpath and sas_path:
         # SAS_DIR, SAS_PATH, and SAS_CCFPATH enviroment variables already set.
         # SAS already initialized.
         sas_initialize = False
+        sas_ready      = True
         if sas_ccfpath == '/home/idies/workspace/headata/FTP/caldb/data/xmm/ccf':
             sas_cfg['DEFAULT']['on_sci_server'] = 'True'
 
 # Checks if defaults from config file work. Initializes SAS if needed.
 if sas_cfg['DEFAULT']['on_sci_server'] == 'False' and sas_initialize:
     if os.path.exists(sas_dir_config) and os.path.exists(sas_ccfpath_config):
-        initializesas(sas_dir_config, sas_ccfpath_config, 
-                      verbosity = sas_verbosity,suppress_warning = sas_suppress_warning)
+        sas_init_info = initializesas(sas_dir_config,
+                                      sas_ccfpath_config,
+                                      verbosity = sas_verbosity,
+                                      suppress_warning = sas_suppress_warning)
+        sas_ready = True
     elif sas_dir_config != '/does/not/exist' and sas_ccfpath_config != '/does/not/exist':
         print('There is a problem with either SAS_DIR or SAS_CCFPATH in the config file.')
         print('Please set manually to initialize SAS.')
@@ -48,7 +53,10 @@ if sas_cfg['DEFAULT']['on_sci_server'] == 'False' and sas_initialize:
         print('sas_ccfpath: {}'.format(sas_ccfpath_config))
 
 # Get SAS version information
-return_list = get_sas_version()
+if sas_ready:
+    return_list = get_sas_version()
+else:
+    return_list = ['','','','','','','']
 
 SAS_RELEASE          = return_list[0]
 SAS_AKA              = return_list[1]
@@ -63,5 +71,5 @@ __version__ = f'pysas - (pysas-{VERSION}) [{SAS_RELEASE}]'
 from .print_version import print_sas_version
 
 # Get rid of temporary variables to prevent possible conflicts.
-del sas_dir_config, sas_ccfpath_config, sas_initialize
+del sas_dir_config, sas_ccfpath_config, sas_initialize, sas_ready
 del sas_dir, sas_path, sas_ccfpath, return_list
