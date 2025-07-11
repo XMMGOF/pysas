@@ -386,7 +386,9 @@ class ObsID:
 
         """
 
+        self.logger.debug('Starting basic_setup')
         # Set data_dir
+        self.logger.debug('Running __set_data_dir')
         self.__set_data_dir(data_dir)
 
         # Set directories for the observation, odf, and work.
@@ -1591,17 +1593,21 @@ class ObsID:
 
         If data_dir does not exist then it will be created.
         """
+        self.logger.debug('Inside __set_data_dir')
         # Where are we?
         startdir = Path.cwd()
 
         # Brief check to see if data_dir was 
         # given on ObsID creation.
+        self.logger.debug('Check if self.data_dir is set already')
         if self.data_dir != None:
             data_dir = self.data_dir
 
         # Start checking data_dir
+        self.logger.debug('Check if data_dir is "None"')
         if data_dir is None:
             data_dir = sas_cfg.get("sas", "data_dir")
+            self.logger.debug('Check if data_dir is set in config file')
             if os.path.exists(data_dir):
                 self.data_dir = data_dir
                 self.logger.info(f'Using data_dir from config file: {self.data_dir}')
@@ -1614,18 +1620,21 @@ class ObsID:
 
         # If data_dir was not given as an absolute path, it is interpreted
         # as a subdirectory of startdir.
+        self.logger.debug('Check if data_dir is an absolute path, or if it is a subdirectory of startdir')
         if self.data_dir[0] != '/':
             self.data_dir = os.path.join(startdir, self.data_dir)
         elif self.data_dir[:2] == './':
             self.data_dir = os.path.join(startdir, self.data_dir[2:])
 
         # Check if data_dir exists. If not then create it.
+        self.logger.debug('Check if data_dir exists, if not, create it')
         if not os.path.isdir(self.data_dir):
             self.logger.info(f'{self.data_dir} does not exist. Creating it!')
             os.mkdir(self.data_dir)
             self.logger.info(f'{self.data_dir} has been created!')
 
         self.logger.info(f'Data directory = {self.data_dir}')
+        self.logger.debug('Exiting __set_data_dir')
     
     def __check_for_ccf_cif(self):
         """
