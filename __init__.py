@@ -35,6 +35,17 @@ if sas_dir and sas_ccfpath and sas_path:
         # SAS already initialized.
         sas_initialize = False
         sas_ready      = True
+        value = os.environ.get("SAS_VERBOSITY")
+        if value is not None:
+            sas_verbosity = value
+        else:
+            os.environ['SAS_VERBOSITY'] = f'{sas_verbosity}'
+        value = os.environ.get("SAS_SUPPRESS_WARNING")
+        if value is not None:
+            sas_suppress_warning = value
+        else:
+            os.environ['SAS_SUPPRESS_WARNING'] = f'{sas_suppress_warning}'
+        
         if sas_ccfpath == '/home/idies/workspace/headata/FTP/caldb/data/xmm/ccf':
             sas_cfg['DEFAULT']['on_sci_server'] = 'True'
 
