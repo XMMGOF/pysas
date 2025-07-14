@@ -64,6 +64,14 @@ It is recommended that you add this line to your .bash_profile file (or equivele
 
 There are example scripts and Jupyter notebooks available on [GitHub demonstrating how to use pySAS](https://github.com/XMMGOF/pysas/tree/main/documentation). We are expanding the number of example scripts and Jupyter notebooks.
 
+### Contributing to PySAS
+
+We are using the package manager [uv](https://docs.astral.sh/uv/). This way every developer has the same python and package versions. Before editing the code, install uv ([installing uv](https://docs.astral.sh/uv/getting-started/installation/)) on your machine.
+
+When you have uv installed, `cd` into the root directory of `pysas` in your favorite terminal and execute `uv sync`. This will create a `.venv` directory in the root directory, which contains all the packages. Point your IDE to use `.venv/bin/python` as the python executable for this project. 
+
+One of the installed packages is [`pre-commit`](https://pre-commit.com), but it is not yet initialized. This will be done in near future.
+
 ### FAQ
 
 Q: Will this break my SAS inatallation?
