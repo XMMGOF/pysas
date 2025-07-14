@@ -17,19 +17,7 @@
 #
 """sastask.py
 
-Defines a template SASTask Python class
-based on the ABC (Abstract Base Classes) module.
-
-All SAS Pyhton based tasks will derive from SASTask.
-However, they will not instantiate it but instead a
-subclass of it, MyTask. There could be other similar
-to MyTask, but for the time being we simply define this one.
-
-The methods defined in SASTask (decorated with
-the @abstractmethod decorator), must be redefined in MyTask.
-Otherwise, the instantiation of MyTask will fail.
-By particularizing the methods defined in SASTask
-we ensure all SAS Python based tasks have unified methods.
+All stand alone SAS tasks can be called by using MyTask.
 
 As any other SAS task, Python based tasks are used to
 perform specific data processing jobs.
@@ -56,30 +44,25 @@ e.g. -v or --version (to show the task version and exit), -V or
 Some of these options modify shell environment variables, e.g.
 SAS_VERBOSITY is modified by the value given to --verbosity, etc.
 
-Let be mytask a new Python based task. It will be an instance of MyTask
+Let be mytask a new SAS task. It will be an instance of MyTask
  
 mytask = MyTask('mytask', args)
   
 where args is a list that includes all arguments we pass to mytask
-in the command line. As we will see this is not the only way to
-pass arguments to the task.
+in the command line.
 
-mytask mandatory files and directories will be created by pkgmaker,
-a Python script responsible of creating any type of SAS task, including
-also those based on C++, Fortran 90 and Perl.
-
-The specific Python code for mytask, and possibly othe auxiliary Python
+The specific Python code for mytask, and possibly other auxiliary Python
 code which might be required by mytask to operate, will be placed all
 within the directory structure of mytask.
 
 A typical invocation of mytask could be of the form
 
-mytask param0=value0 [param1=value1] ... [Options]
+MyTask('mytask', ['param0=value0','param1=value1', ... [Options]).run()
 
 where param0, param1, etc, are any task parameters defined in
 a file named mytask.par, and [Options] are any of the generic options
 common to all SAS task. If a parameter, e.g. param0, is defined in
-mytask.par as 'mandatory', it must be present in the command line.
+mytask.par as 'mandatory', it must be present.
 
 Of course, the presence of some of the Options, will trigger specific
 immediate actions: e.g. the option -v or --version will immediately
@@ -89,22 +72,21 @@ Arguments of the form param=value can alternate with Options.
 The only requirement is that Options with a value, e.g. -V 4, must be
 adjacent.
 
-Methods defined by SASTask (identified so far):
+Methods defined by MyTask (identified so far):
 
 1. readparfile: Read and loads the task parameter file.
 
-2. processargs : Parses arguments and acts accordingly. 
+2. processargs: Parses arguments and acts accordingly. 
 
-3. runtask: Executes the task with the proper arguments.
+3. run: Executes the task with the proper arguments.
 
-MyTask will actually implement these three methods.
+4. printHelp: Prints information about the task, equivalent to
+              MyTask('mytask', ['-h']).run()
 
 The readparfile method used class paramXmlInfoReader from
 param.py module.
 
 The processargs methdos uses the class ParseArgs based on argparse.
- 
-The runtask method uses class RunTask.
 """
 
 # Standard library imports
@@ -460,10 +442,11 @@ class MyTask:
 class SASTask(MyTask):
     """
     Class SASTask is a child of MyTask and has access to all
-    of the methods in SASTask. It's only purpose is to act as
+    of the methods in MyTask. It's only purpose is to act as
     a placeholder for legacy code.
     """
     def __init__(self, taskname, inargs):
+        super().__init__(taskname,inargs)
         warn(
              """
              The class SASTask has been depricated. Use MyTask instead.
