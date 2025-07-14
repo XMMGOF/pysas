@@ -90,7 +90,7 @@ class paramXmlInfoReader:
     def xmlParser(self):
         """
         The first task of xmlParser is to get the whole XML file as an object 
-        of type Document (iFor a list of all objects, look at the xml.dom documentation).
+        of type Document (For a list of all objects, look at the xml.dom documentation).
         Then, it produces a list of Element objects in the paramater file which are 
         identified by the tag 'PARAM'. This is done by means of the Element method
         getElementsByTagName.

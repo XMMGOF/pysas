@@ -87,7 +87,7 @@ class ParseArgs:
     # This is the task parser constructor
     def taskparser(self):
 
-        # Define the parser. Not need to make it class wide.
+        # Define the parser. No need to make it class wide.
         parser = argparse.ArgumentParser(
             prog = self.taskname,
             description = 'Parses command parameters and options',
@@ -203,6 +203,25 @@ class ParseArgs:
 
     # Depending on the options entered, performs actions
     def procopt(self):
+        """
+        Method to execute options or parameters that require immediate action.
+
+        There are two sets of otions/parameters that require immediate action:
+
+            1. Options that execute the command and exit. These are: 
+               version(--version, -v), help(--help, -h), param(--param, -p), 
+               dialog(--dialog, -d) and manpage(--manpage, -m).
+               
+            2. Options that set environment variables and then continue running
+               the SAS task. These are:
+               -V/--verbosity (SAS_VERBOSITY), -c/--noclobber, 
+               (SAS_CLOBBER), -a/--ccfpath (SAS_CCFPATH),
+               -i/--ccf (SAS_CCF), -o/--odf (SAS_ODF), -f/--ccffiles,
+               -w/--warning, -t/--trace.
+
+        Returns 'Exit' which if True will send the exit command up the chain.
+        If False, then pySAS will continue to execute.
+        """
 
         # Exit is set to False
         Exit = False
@@ -286,7 +305,7 @@ class ParseArgs:
         # Excluding warning, which I do not know how to handle yet, 
         # the next five options are accumulative, if they are present they change 
         # environment variables. 
-        # They do not return control  to caller.
+        # They do not return control to caller.
         #
         # sas_ccfpath
         if self.parsedargs.sas_ccfpath:
