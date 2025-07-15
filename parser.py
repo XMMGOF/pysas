@@ -54,12 +54,19 @@ import importlib.resources
 
 # Local application imports
 from pysas.param import paramXmlInfoReader
+from pysas.logger import get_logger
 from .configutils import sas_cfg
 
 class ParseArgs:
-    def __init__(self, taskname, arglist):
+    def __init__(self, taskname, arglist, logger = None):
         self.taskname = taskname
         self.arglist = arglist
+        if logger is None:
+            # By default will only output to terminal
+            self.logger = get_logger('ParseArgs')
+        else:
+            # Use logger that was passed in
+            self.logger = logger
 
         # Before any further processing check that SAS_PATH is defined
         sas_path = os.environ.get('SAS_PATH')
@@ -276,12 +283,12 @@ class ParseArgs:
         # Help:
         if self.parsedargs.help:
             print(usage)
-            pf = paramXmlInfoReader(self.taskname)
+            pf = paramXmlInfoReader(self.taskname, logger = self.logger)
             pf.xmlParser()
             pf.printHelp()
             Exit  = True
         if self.parsedargs.param:
-            pf = paramXmlInfoReader(self.taskname)
+            pf = paramXmlInfoReader(self.taskname, logger = self.logger)
             pf.xmlParser()
             pf.printHelp()
             Exit = True
