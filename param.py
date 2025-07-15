@@ -53,7 +53,7 @@ import glob
 from beautifultable import BeautifulTable
 
 # Local application imports
-from pysas.error import Error as Err
+from pysas.logger import get_logger
 
 
 class paramXmlInfoReader:
@@ -69,17 +69,27 @@ class paramXmlInfoReader:
     an argument list.
     """
 
-    def __init__(self, taskname):
+    def __init__(self, taskname, logger = None):
         """taskname to be handled."""
 
         self.taskname = taskname
         self.xmlFile = ''
+        if logger is None:
+            # By default will only output to terminal
+            self.logger = get_logger('paramXmlInfoReader')
+        else:
+            # Use logger that was passed in
+            self.logger = logger
 
         sas_dir = os.environ['SAS_DIR']
+        self.logger.debug(f'SAS_DIR: {sas_dir}')
         parfile = self.taskname + '.par'
+        self.logger.debug(f'Parfile name: {parfile}')
         files = glob.glob(os.path.join(sas_dir, 'config', parfile))
+        self.logger.debug(f'Parfile location: {files}')
         if files:
             self.xmlFile = files[0]
+            self.logger.debug(f'xmlFile: {self.xmlFile}')
 
         if self.xmlFile == '':
             raise Exception(f'Does not exist any file named {parfile}. Wrong syntax?')
@@ -151,9 +161,7 @@ class paramXmlInfoReader:
         try:
             doc = md.parse(self.xmlFile)
         except:
-            Err(client=self.taskname,
-                code='openFileError',
-                msg=f'ERROR opening par file {self.taskname}.par: {self.xmlFile}').error()
+            self.logger.error(f'ERROR opening par file {self.taskname}.par: {self.xmlFile}')
             sys.exit(1)
 
         # self.params
