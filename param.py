@@ -75,13 +75,11 @@ class paramXmlInfoReader:
         self.taskname = taskname
         self.xmlFile = ''
 
-        sas_path = os.environ['SAS_PATH'].split(':')
-        for path in sas_path:
-            parfile = self.taskname + '.par'
-            files = glob.glob(os.path.join(path, 'config', parfile))
-            if files:
-                self.xmlFile = files[0]
-                break
+        sas_dir = os.environ['SAS_DIR']
+        parfile = self.taskname + '.par'
+        files = glob.glob(os.path.join(sas_dir, 'config', parfile))
+        if files:
+            self.xmlFile = files[0]
 
         if self.xmlFile == '':
             raise Exception(f'Does not exist any file named {parfile}. Wrong syntax?')
