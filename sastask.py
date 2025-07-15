@@ -129,6 +129,9 @@ class MyTask:
                                 a log file.
 
 
+    For pySAS v2.0 the inargs has switched to fundamentally being a dictionary.
+    If a list is passed in it will be converted into a dictionary.
+                                
     In the class initialization, the task name and
     the input args to run it are processed. 
     Task parameters as identified by the '=' sign are 
@@ -179,41 +182,25 @@ class MyTask:
             # If a logger object was passed in, then use that.
             self.logger = logger
 
-        # Check if inargs is a 'dict'. If it is then convert to list format.
+        # Check if inargs is a 'dict'.
         if isinstance(self.inargs, dict):
-            # Get dict of default inputs for the task.
-            t = paramXmlInfoReader(self.taskname, logger = self.logger)
-            t.xmlParser()
-            defdict = t.defaultValues()
-            defkeys = defdict.keys()
-            inkeys = self.inargs.keys()
-            outparams = []
-            
-            # Loop over all keys in the inargs dict and add values in 
-            # the outdict, but only if different from default values. 
-            # Build outparams.
-            for key in list(inkeys):
-                if key == 'options':
-                    # Only if 'options' is not empty.
-                    if self.inargs[key] != '':
-                        outparams.append(self.inargs[key])
-                else:
-                    # Safety check to see if a number was passed in.
-                    if isinstance(self.inargs[key], numbers.Number):
-                        self.inargs[key] = str(self.inargs[key])
-                    outparams.append(key+'='+self.inargs[key])
-            self.inargs = outparams
+            # Insert empty string for options if not present
+            if not 'options' in self.inargs.keys():
+                self.inargs['options'] = ''
 
-        # Reorder self.inargs to group together all options and 
-        # all args of type param=value, in that order.
-        sasparams = []
-        options = []
-        for a in self.inargs:
-            if '=' in a.split('=',1):
-                sasparams.append(a)
-            else:
-                options.append(a)
-        self.inargs = [*options, *sasparams]
+        # If inargs is a list, pick off all the options, then put
+        # all other arguments into key-value pairs in the dictionary.
+        if isinstance(self.inargs, list):
+            argsdic = {}
+            options = []
+            for a in self.inargs:
+                if '=' in a:
+                    k, v = a.split('=', 1)
+                    argsdic[k] = v
+                else:
+                    options.append(a)
+            argsdic['options'] = " ".join(options)
+            self.inargs = argsdic
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.taskname}, {self.inargs})'
@@ -231,9 +218,7 @@ class MyTask:
 
     def processargs(self):
         p = ParseArgs(self.taskname, self.inargs, logger = self.logger)
-        p.taskparser()
-        # tparams is a list with the left hands of param=value, if any
-        self.tparams = p.tparams
+        p.optparser()
 
         # Execute options which require immediate action
         # Options which are for environment (which are cumulative) 
@@ -241,23 +226,27 @@ class MyTask:
         self.Exit = p.procopt()
         if self.Exit:
             return self.Exit
+        
+        # Remove the options from inargs
+        self.argsdic = self.inargs.pop('options', None)
+        
 
         # 1st check: Whether or not parameters in inargs are defined in the parameter file
-        for p in self.tparams:
+        for p in self.argsdic.keys():
             if p.strip() not in self.allparams.keys():
                 raise Exception(f'Parameter {p} is not defined in the parameter file')
 
  
         # 2nd check: Whether we have mandatory parameters and subparameters
         for k, v in self.rev_mandpar_dict.items():
-            if k.strip() in v and k.strip() not in self.tparams:
+            if k.strip() in v and k.strip() not in self.argsdic.keys():
                 raise Exception(f'Missing, at least, mandatory parameter {k}')
             if k not in v:
-                for p in self.tparams:
+                for p in self.argsdic.keys():
                     if p in v:
                         implicit = 'yes'
                         for c in v:
-                            if c not in self.tparams:
+                            if c not in self.argsdic.keys():
                                 implicit = 'no'
                                 raise Exception(f'Besides {p}, mandatory subparameter {c} must also be present')
                         if implicit == 'yes':
@@ -270,11 +259,11 @@ class MyTask:
                             elif self.allparams[k]['type'] == 'bool' and defval == 'yes':
                                 alt = 'no'
                             newinarg = k + '=' + alt
-                            self.inargs.append(newinarg)
-                            if k in self.tparams:
+                            self.argsdic[k] = alt
+                            if k in self.argsdic.keys():
                                 print(f'Warning: No need to include {k}. Assumed {newinarg}')
                             break
-                    elif p in v and k not in self.tparams:
+                    elif p in v and k not in self.argsdic.keys():
                         raise Exception(f'Mandatory sub-parameter {p} requires {k} be present')
 
         # If any subparameters of a parent parameter are set in the command
@@ -287,7 +276,7 @@ class MyTask:
 	    # parameters having subparameters. 
 	    # The final effect of this will be visible below when merging 
 	    # the parsdic (the dictionary with the default values for 
-	    # all the parameters) and the argsdic to pass all task  
+	    # all the parameters) and the inargs to pass all task  
 	    # parameters for execution.
 
 	    # Now compute a dictionary for all implicit parameters. 
@@ -314,11 +303,7 @@ class MyTask:
         # argsdic is a dictionary with the pairs param, value 
         # as entered from the command line from 'param=value'
 
-        argsdic = {}
-        for a in self.inargs:
-            if '=' in a:
-                k, v = a.split('=', 1)
-                argsdic[k] = v
+        argsdic = self.inargs
 
         # Load defaults with all parameters default values.
         # Use dictionary method 'setdefault' to set the value for a given key;
@@ -329,10 +314,10 @@ class MyTask:
         for a in self.allparams.values():
             defaults[a['id']] = a.setdefault('default', '')
 
-        # 3rd Check: Whether any subparameter is set in argsdic or not.
+        # 3rd Check: Whether any subparameter is set in self.argsdic or not.
         # We assume the parent is boolean ('yes'/'no').
 
-        for a in argsdic.keys():
+        for a in self.argsdic.keys():
             for k, v in implicitparams.items():
                 if a in v:
                     #print(f'parent = {k}')
@@ -343,12 +328,12 @@ class MyTask:
                     #print(k, a,  defaults[k])
                     break
 
-        # Merge argsdic onto parsdic. Those values set in command line, 
-        # from argsdic, will overwrite the defaults obtained from the par file, 
+        # Merge self.argsdic onto parsdic. Those values set in command line, 
+        # from self.argsdic, will overwrite the defaults obtained from the par file, 
         # from parsdic. The resulting dictionary, self.iparsdic, is what we will 
         # pass to method runtask.
 
-        self.iparsdic = {**defaults, **argsdic}
+        self.iparsdic = {**defaults, **self.argsdic}
 
     def printHelp(self):
         self.paramXmlInfo.printHelp()

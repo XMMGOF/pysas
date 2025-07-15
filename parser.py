@@ -26,7 +26,7 @@ The class initialization checks for the existence of SAS_PATH.
 Then it populates the pysaspkgs list with all packages below pysas.
 This is used to get the version of the package.
 
-The instance method taskparser uses module argparse to define the
+The instance method optparser uses module argparse to define the
 two types of arguments supported: options and parameters.
 Options can be classified into two categories: immediate action and
 execution modifiers. Options are accessed via the a single or a 
@@ -58,9 +58,13 @@ from pysas.logger import get_logger
 from .configutils import sas_cfg
 
 class ParseArgs:
-    def __init__(self, taskname, arglist, logger = None):
+    """
+    For pySAS v2.0 it is now assumed that the input arguments are
+    passed in as a dictionary.
+    """
+    def __init__(self, taskname, argdict, logger = None):
         self.taskname = taskname
-        self.arglist = arglist
+        self.argdict = argdict
         if logger is None:
             # By default will only output to terminal
             self.logger = get_logger('ParseArgs')
@@ -92,7 +96,10 @@ class ParseArgs:
             self.version = subprocess.check_output(cmd, shell=True, text=True)
 
     # This is the task parser constructor
-    def taskparser(self):
+    def optparser(self):
+        """
+        This parses the 'options' from the input.
+        """
 
         # Define the parser. No need to make it class wide.
         parser = argparse.ArgumentParser(
@@ -178,35 +185,21 @@ class ParseArgs:
                             action='store_true',
                             default=False)
 
-        # To give access to real SAS style params in the form param=value,
-        # we add a positional string argument, which can be repeated any
-        # number of times, but always contiguously.
-        # Notice that this is already achieved due to the initial processing
-        # made in self.arglist, where these strings have been grouped together
-        # at the end of self.arglist. We call this argument pvpairs.
+        # Apply parse_args method to parser with the options being passed in. 
+        # Result is put into parsedargs. The parsedargs object is not a 
+        # dictionary but can be shown as such with function vars().
 
-        parser.add_argument('pvpairs', type=str, nargs='*')
-
-        # Apply parse_args method to parser. Result is put into parsedargs.
-        # The parsedargs object is not a dictionary but can be shown as such
-        # with function vars().
-
-        self.parsedargs = parser.parse_args(self.arglist)
+        self.parsedargs = parser.parse_args(self.argdict['options'])
 
         #print(self.parsedargs)
         #print(f'vars(self.parsedargs)          = \n{vars(self.parsedargs)}')
         #print(f'self.parsedargs.pvpairs        = {self.parsedargs.pvpairs}')
 
 
-        # Put into list tparams only the real parameters entered in the command line
+        # Put into list tparams parameters entered in the command line
         # as pairs param=value
-        self.tparams = []
-        pp = ''
-        for p in self.parsedargs.pvpairs:
-            a, b = p.split('=', 1)
-            self.tparams.append(a)
-
-        #print(f'self.tparams                   = {self.tparams}')
+        params = list(self.argdict.keys())
+        self.tparams = params.remove('options')
 
     # Depending on the options entered, performs actions
     def procopt(self):
@@ -268,7 +261,7 @@ class ParseArgs:
         # p.procopt() the return Exit determines wheter to return immediately or
         # not. If Exit is set to True, the method will return immediately.
         #
-        # Some options entered in self.arglist will launch special SAS tasks
+        # Some options entered in self.argdict will launch special SAS tasks
         # designed only to provide  specific result. These are:
         #
         # -d/--dialog   => sasdialog to launch task GUI
@@ -345,7 +338,7 @@ class ParseArgs:
         return Exit
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.taskname} - {self.arglist})'
+        return f'{self.__class__.__name__}({self.taskname} - {self.argdict})'
 
     def runext(self, runcmd):
         self.runcmd = runcmd
