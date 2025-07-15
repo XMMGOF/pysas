@@ -62,4 +62,8 @@ Version 2.0 - 2025-??-?? (RT)
                 2. ODF (Child class of ObsID)
                 3. PPS (Child class of ObsID)
 
++ parser.py : Update documentation, add logger to ParseArgs
+
++ param.py  : Update documentation, add logger to paramXmlInfoReader
+
 
