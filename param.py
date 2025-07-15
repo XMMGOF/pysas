@@ -346,6 +346,7 @@ class paramXmlInfoReader:
         pname = pels[p]
         return pname
 
+# This needs to be rewritten
 def get_input_params(taskname,return_param_obj=False):
     """
     Function to return dictionary of input parameters for a given 
