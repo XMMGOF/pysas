@@ -57,14 +57,11 @@ Version 2.0 - 2025-??-?? (RT)
                     they cannot be used by the end user.
 
 + obsid     : obsid.py introduced. Replaces odfcontrol.
-              Significant changes to pySAS. Three new classes (Parent with two children):
-                1. ObsID (Parent class)
-                2. ODF (Child class of ObsID)
-                3. PPS (Child class of ObsID)
+              Significant changes to pySAS. New class: ObsID
 
 + parser.py : Update documentation, add logger to ParseArgs, changed 'taskparser' to 
               'optparser'.
 
-+ param.py  : Update documentation, add logger to paramXmlInfoReader
++ param.py  : Update documentation, add logger to paramXmlInfoReader.
 
 
