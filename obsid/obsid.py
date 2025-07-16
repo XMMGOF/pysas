@@ -312,8 +312,8 @@ class ObsID:
             obs_dir        = None
             sas_ccf        = None
             sas_odf        = None
-            cifbuild_opts  = []
-            odfingest_opts = []
+            cifbuild_opts  = {}
+            odfingest_opts = {}
             recalibrate    = False
 
         Input arguments for 'epproc', 'emproc', and 'rgsproc' can also be 
@@ -460,38 +460,38 @@ class ObsID:
         self.calibrate_odf(obs_dir        = self.obs_dir,
                            sas_ccf        = kwargs.get('sas_ccf', None),
                            sas_odf        = kwargs.get('sas_odf', None),
-                           cifbuild_opts  = kwargs.get('cifbuild_opts', []),
-                           odfingest_opts = kwargs.get('odfingest_opts', []),
+                           cifbuild_opts  = kwargs.get('cifbuild_opts', {}),
+                           odfingest_opts = kwargs.get('odfingest_opts', {}),
                            recalibrate    = recalibrate)
 
         # Run basic processing
         if run_epproc and not run_epchain:
             self.__run_analysis('epproc',
-                                kwargs.get('epproc_args', []),
+                                kwargs.get('epproc_args', {}),
                                 rerun   = rerun,
                                 logFile = 'epproc.log')
         
         if run_epchain:
             self.__run_analysis('epchain',
-                                kwargs.get('epchain_args', []),
+                                kwargs.get('epchain_args', {}),
                                 rerun   = rerun,
                                 logFile = 'epchain.log')
 
         if run_emproc and not run_emchain:
             self.__run_analysis('emproc',
-                                kwargs.get('emproc_args', []),
+                                kwargs.get('emproc_args', {}),
                                 rerun   = rerun,
                                 logFile = 'emproc.log')
             
         if run_emchain:
             self.__run_analysis('emchain',
-                                kwargs.get('emchain_args', []),
+                                kwargs.get('emchain_args', {}),
                                 rerun   = rerun,
                                 logFile = 'emchain.log')
             
         if run_rgsproc:
             self.__run_analysis('rgsproc',
-                                kwargs.get('rgsproc_args', []),
+                                kwargs.get('rgsproc_args', {}),
                                 rerun   = rerun,
                                 logFile = 'rgsproc.log')
         
@@ -871,8 +871,8 @@ class ObsID:
                       obs_dir = None,
                       sas_ccf = None,
                       sas_odf = None,
-                      cifbuild_opts  = [],
-                      odfingest_opts = [],
+                      cifbuild_opts  = {},
+                      odfingest_opts = {},
                       recalibrate    = False):
         """
         Before running this function an ObsID object must be created first. e.g.
@@ -944,9 +944,9 @@ class ObsID:
         # Deal with the rest of the inputs.
         self.files['sas_ccf'] = sas_ccf
         self.files['sas_odf'] = sas_odf
-        if cifbuild_opts is None: cifbuild_opts = []
+        if cifbuild_opts is None: cifbuild_opts = {}
         self.cifbuild_opts = cifbuild_opts
-        if odfingest_opts is None: odfingest_opts = []
+        if odfingest_opts is None: odfingest_opts = {}
         self.odfingest_opts = odfingest_opts
         
         os.chdir(self.obs_dir)
