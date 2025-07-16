@@ -136,16 +136,16 @@ def get_logger(taskname: str,
                 level=level,
                 mode=sastasklogfmode,
                 enqueue=True,
-                format="<green>{time:DD-MM-YYYY HH:mm:ss.SSS Z}</green> - <cyan>{name}</cyan> - <level>{level: <8}</level> - <level>{message}</level>"
+                format="{time:DD-MM-YYYY HH:mm:ss.SSS Z} - {name} - {level: <8} - {message}"
             )
 
         # Add console sink
         if toterminal:
             task_logger.add(
-                sink=sys.stderr,
+                sink=sys.stdout,
                 level=level,
                 enqueue=True,
-                format="<cyan>{name}</cyan> - <level>{level: <8}</level> - <level>{message}</level>"
+                format="<g>{name}</g> - <level>{level: <8}</level> - <level>{message}</level>"
             )
     else:
         # For non-Python based logging (i.e. subprocess)
@@ -160,7 +160,7 @@ def get_logger(taskname: str,
                 level=level,
                 mode=sastasklogfmode,
                 enqueue=True,
-                format="<green>{time:DD-MM-YYYY HH:mm:ss.SSS Z}</green> - <level>{message}</level>"
+                format="<green>{time:DD-MM-YYYY HH:mm:ss.SSS Z}</green> - {message}"
             )
 
         # Add console sink
@@ -169,7 +169,7 @@ def get_logger(taskname: str,
                 sink=sys.stdout,
                 level=level,
                 enqueue=True,
-                format="<level>{message}</level>",
+                format="{message}",
             )
 
     return task_logger

@@ -427,15 +427,15 @@ class MyTask:
                                            shell=True,
                                            text=True,
                                            stdout=subprocess.PIPE,
-                                           stderr=subprocess.PIPE,
+                                           stderr=subprocess.STDOUT,
                                            universal_newlines=True)
 
                 # Log stdout and stderr in real-time
                 # For non-Python SAS tasks the stout and stderr are combined
                 for line in process.stdout:
                     logger.info(f"{line.strip()}")
-                for line in process.stderr:
-                    logger.info(f"{line.strip()}")
+                # for line in process.stderr:
+                #     logger.info(f"{line.strip()}")
 
                 # Wait for the process to complete and get the return code
                 process.wait()
