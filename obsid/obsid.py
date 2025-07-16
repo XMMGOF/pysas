@@ -1239,7 +1239,7 @@ class ObsID:
             self.logger.info('{0} is present'.format(self.files['sas_ccf']))
             exists = True
         else:
-            self.logger.warning('ccf.cif file not present! User must run calibrate_odf!')
+            self.logger.info('ccf.cif file not present! User must run calibrate_odf!')
 
         return exists
     
