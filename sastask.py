@@ -234,17 +234,20 @@ class MyTask:
         self.rev_mandpar_string_dict = t.rev_mandpar_string_dict
 
     def processargs(self):
-        p = ParseArgs(self.taskname, self.inargs, logger = self.logger)
-        p.optparser()
+        # Only if options are passed in
+        self.Exit = False
+        if len(self.inargs['options']) > 0:
+            p = ParseArgs(self.taskname, self.inargs, logger = self.logger)
+            p.optparser()
 
-        # Execute options which require immediate action
-        # Options which are for environment (which are cumulative) 
-        # do not change default False value of Exit.
-        self.Exit = p.procopt()
-        if self.Exit:
-            return self.Exit
+            # Execute options which require immediate action
+            # Options which are for environment (which are cumulative) 
+            # do not change default False value of Exit.
+            self.Exit = p.procopt()
+            if self.Exit:
+                return self.Exit
 
-        # Remove the options from inargs
+        # Remove the options from argsdic
         self.argsdic = self.inargs
         self.argsdic.pop('options')
 
@@ -410,8 +413,9 @@ class MyTask:
                     cmd += "' "
                 else:
                     cmd += k + '=' + v + ' '
-                
-            print(f'Executing: \n{cmd}')
+
+            if self.output_to_terminal:    
+                print(f'Executing: \n{cmd}')
 
             try:
                 logger = get_logger(self.taskname,
