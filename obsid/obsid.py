@@ -46,6 +46,7 @@ from ..init_sas import initializesas
 from ..sasutils import download_data as dl_data
 from pysas.logger import get_logger
 from pysas.sastask import MyTask
+from pysas.pysasplot_utils.pysasplot_utils import quick_plot as qp
 
 class ObsID:
     """
@@ -101,7 +102,7 @@ class ObsID:
         # 2. data_dir
         # 3. cwd
         if tasklogdir is None:
-            if os.path.exists(self.data_dir):
+            if not self.data_dir is None and os.path.exists(self.data_dir):
                 self.tasklogdir = self.data_dir
             else:
                 # By default get_logger will use cwd
@@ -1277,13 +1278,13 @@ class ObsID:
                 if 'PATH' in line:
                     key, path = line.split()
                     if not os.path.exists(path):
-                        self.logger.error(f'Summary file PATH {path} does not exist. Rerun calibrate_odf with overwrite=True.')
-                        print(f'\nSummary file PATH {path} does not exist. \n\n>>>>Rerun calibrate_odf with overwrite=True.')
+                        self.logger.error(f'Summary file PATH {path} does not exist. Rerun basic_setup with overwrite=True.')
+                        print(f'\nSummary file PATH {path} does not exist. \n\n>>>>Rerun basic_setup with overwrite=True.')
                         exists = False
                     MANIFEST = glob.glob(os.path.join(path, 'MANIFEST*'))
-                    if not os.path.exists(MANIFEST[0]):
-                        self.logger.error(f'Missing {MANIFEST[0]} file in {path}. Missing ODF components? Rerun calibrate_odf with overwrite=True.')
-                        print(f'\nMissing {MANIFEST[0]} file in {path}. Missing ODF components? \n\n>>>>Rerun calibrate_odf with overwrite=True.')
+                    if len(MANIFEST) == 0 or not os.path.exists(MANIFEST[0]):
+                        self.logger.error(f'Missing {MANIFEST[0]} file in {path}. Missing ODF components? Rerun basic_setup with overwrite=True.')
+                        print(f'\nMissing {MANIFEST[0]} file in {path}. Missing ODF components? \n\n>>>>Rerun basic_setup with overwrite=True.')
                         exists = False
 
         return exists
@@ -1308,6 +1309,49 @@ class ObsID:
             print(f'\n\n{out_note}')
             shutil.rmtree(self.work_dir)
 
+    def quick_eplot(self,fits_event_list_file,
+                   image_file = 'image.fits',
+                   ximagesize = '600',
+                   yimagesize = '600',
+                   vmin = 1.0,
+                   vmax = 10.0,
+                   **kwargs):
+        """
+        Quick plot function for EPIC images. As input takes an 
+        event list and uses 'evselect' to create a FITS image file.
+
+        All standard inputs to 'MyTask' can be passed in as optional
+        arguments.
+        """
+        
+        if isinstance(ximagesize, numbers.Number):
+            ximagesize = str(ximagesize)
+        if isinstance(yimagesize, numbers.Number):
+            yimagesize = str(yimagesize)
+        
+        inargs = {'table' : f'{fits_event_list_file}', 
+                  'withimageset' : 'yes',
+                  'imageset' : f'{image_file}', 
+                  'xcolumn' : 'X', 
+                  'ycolumn' : 'Y', 
+                  'imagebinning' : 'imageSize', 
+                  'ximagesize' : f'{ximagesize}', 
+                  'yimagesize' : f'{yimagesize}'}
+
+        # By default this runs silent with no output
+        MyTask('evselect', inargs,
+               logfilename = kwargs.get('logfilename', None),
+               tasklogdir  = kwargs.get('tasklogdir', None),
+               output_to_terminal = kwargs.get('output_to_terminal', False),
+               output_to_file     = kwargs.get('output_to_file', False),
+               logger = kwargs.get('logger', None)).run()
+        
+        ax = qp(image_file,vmin=vmin,vmax=vmax,
+                save_file = kwargs.get('save_file', False),
+                out_fname = kwargs.get('out_fname', 'image.png'))
+
+        return ax
+    
     def __run_analysis(self, task, inargs, 
                        rerun   = False,
                        logFile = None):

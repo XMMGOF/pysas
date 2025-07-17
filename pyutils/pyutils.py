@@ -18,10 +18,10 @@
 # pyutils.py
 
 from .version import VERSION
-from pysas import SAS_RELEASE, SAS_AKA
+#from pysas import SAS_RELEASE, SAS_AKA
 
-__version__ = f'pyutils (pyutils-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]' 
-
+#__version__ = f'pyutils (pyutils-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]' 
+__version__ = f'pyutils (pyutils-{VERSION})'
 
 import numpy as np
 import subprocess

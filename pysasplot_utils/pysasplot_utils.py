@@ -18,22 +18,19 @@
 # pysasplot_utils.py
 
 from .version import VERSION
-from pysas import SAS_RELEASE, SAS_AKA
+#from pysas import SAS_RELEASE, SAS_AKA
 
-__version__ = f'pysasplot_utils (pysasplot_utils-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]' 
+#__version__ = f'pysasplot_utils (pysasplot_utils-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]' 
+__version__ = f'pysasplot_utils (pysasplot_utils-{VERSION})'
 
-
+import os, numbers, sys, re, warnings, pickle
 import pysas.pyutils.pyutils as pyutils
 from astropy.io import fits
+from astropy.wcs import WCS
 import matplotlib.pyplot as plt
-import numpy as np
-import os
 from astropy.table import Table
-import sys
-import re
-import warnings
+import numpy as np
 import matplotlib.backends.backend_pdf
-import pickle
 from pypdf import PdfMerger
 from matplotlib.patches import Rectangle
 from matplotlib.collections import PatchCollection
@@ -107,6 +104,30 @@ def plot_spectra_model(spectrum,plot_file_name='spectra_model_plot.png'):
     fig.savefig(plot_file_name)
 
     return fig, ax0, ax1
+
+def quick_plot(image_file,
+               vmin = 1.0,
+               vmax = 1e2,
+               save_file = False,
+               out_fname = 'image.png'):
+    """
+    Displays a FITS image file. Returns the axis handle.
+    """
+    hdu = fits.open(image_file)[0]
+    wcs = WCS(hdu.header)
+
+    ax = plt.subplot(projection=wcs)
+    plt.imshow(hdu.data, origin='lower', norm='log', vmin=vmin, vmax=vmax)
+    ax.set_facecolor("black")
+    plt.grid(color='blue', ls='solid')
+    plt.xlabel('RA')
+    plt.ylabel('Dec')
+    plt.colorbar()
+    plt.show()
+    if save_file:
+        plt.savefig(out_fname)
+
+    return ax
 
 def text_plot(fits_file, extra_text = ''):
     """

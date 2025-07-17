@@ -137,6 +137,7 @@ class ParseArgs:
                             '--verbosity',
                             dest='verbosity',
                             type=int,
+                            nargs=1,
                             default=default_verbosity,
                             choices=range(11),
                             action='store')
@@ -188,8 +189,8 @@ class ParseArgs:
         # Apply parse_args method to parser with the options being passed in. 
         # Result is put into parsedargs. The parsedargs object is not a 
         # dictionary but can be shown as such with function vars().
-
-        self.parsedargs = parser.parse_args(self.argdict['options'])
+        print([self.argdict['options']])
+        self.parsedargs = parser.parse_args([self.argdict['options']])
 
         #print(self.parsedargs)
         #print(f'vars(self.parsedargs)          = \n{vars(self.parsedargs)}')
@@ -331,9 +332,12 @@ class ParseArgs:
             warning = self.parsedargs.warning
         # verbosity
         if self.parsedargs.verbosity:
-            os.environ['SAS_VERBOSITY'] = str(self.parsedargs.verbosity)
+            verbo = self.parsedargs.verbosity
+            if type(verbo) is list:
+                verbo = verbo[0]
+            os.environ['SAS_VERBOSITY'] = str(verbo)
             if str(os.environ.get('SAS_VERBOSITY')) != '4':
-                print('SAS_VERBOSITY = {}'.format(str(os.environ.get('SAS_VERBOSITY'))))
+                self.logger.info('SAS_VERBOSITY = {}'.format(str(os.environ.get('SAS_VERBOSITY'))))
 
         return Exit
 
