@@ -310,63 +310,67 @@ class ParseArgs:
         Depending on the action, previously set values 
         will be returned.
         """
-        # return_params is a dictionary to hold the 
-        # previously set values.
-        return_params = {}
+        # return_options is a dictionary to hold set options
+        return_options = {}
         env_options_list = []
-        # 
-        # Excluding warning, which I do not know how to handle yet, 
-        # the next five options are accumulative, if they are 
-        # present they change environment variables. 
-        # They do not return control to caller.
-        #
+
+        # The options are accumulative, if they are 
+        # present they are collected into a list and
+        # returned to MyTask. 
+
         # sas_ccfpath
         if self.parsedargs.sas_ccfpath:
-            return_params['SAS_CCFPATH'] = os.environ.get('SAS_CCFPATH')
             envar_val = str(self.parsedargs.sas_ccfpath[0])
             env_options_list.append(f'-a {envar_val}')
+            return_options['SAS_CCFPATH'] = envar_val
             self.logger.info(f'SAS_CCFPATH = {envar_val}')
-            #os.environ['SAS_CCFPATH'] = envar_val
         # noclobber
         if self.parsedargs.noclobber:
-            return_params['SAS_CLOBBER'] = os.environ.get('SAS_CLOBBER')
-            envar_val = '0'
+            envar_val = False
             env_options_list.append('-c')
+            return_options['SAS_CLOBBER'] = envar_val
             self.logger.info(f'SAS_CLOBBER = {envar_val}')
-            #os.environ['SAS_CLOBBER'] = envar_val
         # sas_ccf
         if self.parsedargs.sas_ccf:
-            return_params['SAS_CCF'] = os.environ.get('SAS_CCF')
             envar_val = str(self.parsedargs.sas_ccf[0])
             env_options_list.append(f'-i {envar_val}')
+            return_options['SAS_CCF'] = envar_val
             self.logger.info(f'SAS_CCF = {envar_val}')
-            #os.environ['SAS_CCF'] = envar_val
         # sas_odf
         if self.parsedargs.sas_odf:
-            return_params['SAS_ODF'] = os.environ.get('SAS_ODF')
             envar_val = str(self.parsedargs.sas_odf[0])
             env_options_list.append(f'-o {envar_val}')
+            return_options['SAS_ODF'] = envar_val
             self.logger.info(f'SAS_ODF = {envar_val}')
-            #os.environ['SAS_ODF'] = envar_val
         # ccffiles
         if self.parsedargs.ccffiles:
             envar_val = str(self.parsedargs.sas_odf[0])
             env_options_list.append(f'-f {envar_val}')
+            return_options['CCF_files'] = envar_val
             self.logger.info(f'CCF files = {envar_val}')
         # warning
         if self.parsedargs.warning:
-            warning = self.parsedargs.warning
+            envar_val = str(self.parsedargs.warning[0])
+            env_options_list.append(f'-w {envar_val}')
+            return_options['WARNING'] = envar_val
+            self.logger.info(f'WARNING = {envar_val}')
+        # trace
+        if self.parsedargs.trace:
+            envar_val = True
+            env_options_list.append('-t')
+            return_options['TRACE'] = envar_val
+            self.logger.info(f'Trace = {envar_val}')
         # verbosity
         if self.parsedargs.verbosity:
-            return_params['SAS_VERBOSITY'] = os.environ.get('SAS_VERBOSITY')
             envar_val = str(self.parsedargs.verbosity[0])
             env_options_list.append(f'-V {envar_val}')
+            return_options['SAS_VERBOSITY'] = envar_val
             self.logger.info(f'SAS_VERBOSITY = {envar_val}')
-            #os.environ['SAS_VERBOSITY'] = envar_val
 
-        return_params['env_options'] = " ".join(env_options_list)
+        # Add the list of all options to return_options
+        return_options['env_options'] = " ".join(env_options_list)
 
-        return return_params
+        return return_options
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.taskname} - {self.argdict})'

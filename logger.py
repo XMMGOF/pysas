@@ -57,11 +57,11 @@ def get_logger(taskname: str,
                        of "{taskname}.log". Useful for putting all 
                        output from multiple tasks into the same file.
         - tasklogdir : (default: cwd) Directory where to write the log 
-                        file.
-                        Priority of defaults for task_logdir
-                        1. tasklogdir (passed in to function)
-                        2. SAS_TASKLOGDIR (envirnment variable)
-                        3. cwd (final default)
+                       file.
+                       Priority of defaults for task_logdir
+                         1. tasklogdir (passed in to function)
+                         2. SAS_TASKLOGDIR (envirnment variable)
+                         3. cwd (final default)
         - pylogger   : True: Use logger settings for Python logging
                        False: Use logger settings for subprocess logging
                        Only set to 'False' in sastask.py -> MyTask.run()
@@ -100,7 +100,8 @@ def get_logger(taskname: str,
     if pylogger:
         # For Python based logging
         # Set verbosity
-        verbosity = int(os.getenv('SAS_VERBOSITY'))
+        if verbosity is None:
+            verbosity = int(os.getenv('SAS_VERBOSITY'))
         match(verbosity):
             case 1:
                 level = "CRITICAL"

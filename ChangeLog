@@ -9,17 +9,43 @@ Version 2.0 - 2025-??-?? (RT)
               importlib.resources.
 
 - runtask.py: File has been removed and all functionality has been transferred to 
-	            sastask.py. It only added an extra layer to the process.
+	          sastask.py. It only added an extra layer to the process.
 
 + sastask.py: The class SASTask has been deprecated since it was only an abstract class, 
-	            with only abstract methods and a single child, MyTask. MyTask was the only 
-	            class used in the rest of the code. To simplify things, MyTask has been 
-	            made the only useful class, but SASTask is declared as a child of MyTask
+	          with only abstract methods and a single child, MyTask. MyTask was the only 
+	          class used in the rest of the code. To simplify things, MyTask has been 
+	          made the only useful class, but SASTask is declared as a child of MyTask
               for legacy purposes, until all references to it can be removed.
 
-	            Functionality from runtask has been placed in the 'run' method in MyTask.
+	          Functionality from runtask has been placed in the 'run' method in MyTask.
               The method 'runtask' has been kept as a place holder for legacy code. It 
               just calls 'run'.
+
+              Changed how options that affect environment variables are handled. For 
+              Python based SAS tasks, pySAS will *temporarily* change the environment 
+              variables, run the task, and then restore the environment variables to
+              their previous setting. For non-Python based SAS tasks, these options are
+              passed to the subprocess command to run the task.
+
+              Options that will execute and exit are:
+                -v (version)
+                -h (help)
+                -p (param)
+                -d (dialog)
+                -m (manpage)
+
+              For **only** Python based tasks:
+              Options that will *temporarily* set environment variables are:
+                -V (SAS_VERBOSITY)
+                -a (SAS_CCFPATH)
+                -i (SAS_CCF)
+                -o (SAS_ODF)
+
+               Options that are not handled for Python based SAS tasks (but are
+               passed to the task in 'iparsdic', so in principle they can be used.)
+                -f/--ccffiles
+                -w/--warning
+                -t/--trace
 
 - wrapper.py: The Wrapper class has been deprecated since its only function was to create 
               a MyTask object. It has been left in place until legacy code can be switched
@@ -31,14 +57,14 @@ Version 2.0 - 2025-??-?? (RT)
               'get_logger' function, but through the MyTask object which accepts all 
               necessary inputs.
 
-	            The user can declare a directory for the log files, or even a single log file
+	          The user can declare a directory for the log files, or even a single log file
               for all output from all SAS tasks called.
 
 + version.py: At the top level version.py only contains the version information for pySAS.
               For independent tasks they maintain their own version numbers, but for all
               other subdirectories they all point to the master pySAS version file.
 
-	            get_sas_version dedicated function to run 'sasversion' and get SAS version 
+	          get_sas_version dedicated function to run 'sasversion' and get SAS version 
               information.
 
 + */version.py: All version files for individual SAS tasks now only contain their version
@@ -60,7 +86,10 @@ Version 2.0 - 2025-??-?? (RT)
               Significant changes to pySAS. New class: ObsID
 
 + parser.py : Update documentation, add logger to ParseArgs, changed 'taskparser' to 
-              'optparser'.
+              'optparser'. 'procopt' has been split into 'exe_options' and 
+              'env_options' to handle options that require immediate action
+              (exe_options), and options that handle environment variables 
+              (env_options).
 
 + param.py  : Update documentation, add logger to paramXmlInfoReader.
 
