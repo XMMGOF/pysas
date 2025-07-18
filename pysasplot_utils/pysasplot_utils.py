@@ -105,11 +105,11 @@ def plot_spectra_model(spectrum,plot_file_name='spectra_model_plot.png'):
 
     return fig, ax0, ax1
 
-def quick_plot(image_file,
-               vmin = 1.0,
-               vmax = 1e2,
-               save_file = False,
-               out_fname = 'image.png'):
+def quick_image_plot(image_file,
+                     vmin = 1.0,
+                     vmax = 1e2,
+                     save_file = False,
+                     out_fname = 'image.png'):
     """
     Displays a FITS image file. Returns the axis handle.
     """
@@ -128,6 +128,22 @@ def quick_plot(image_file,
         plt.savefig(out_fname)
 
     return ax
+
+def quick_light_curve_plot(light_curve_file,
+                           save_file = False,
+                           out_fname = 'light_curve.png'):
+    """
+    Plots a light curve from a light curve FITS file.
+    """
+    ts = Table.read(light_curve_file,hdu=1)
+    plt.plot(ts['TIME'],ts['RATE'])
+    plt.xlabel('Time (s)')
+    plt.ylabel('Count Rate (ct/s)')
+    plt.show()
+    if save_file:
+        plt.savefig(out_fname)
+
+    return plt
 
 def text_plot(fits_file, extra_text = ''):
     """
