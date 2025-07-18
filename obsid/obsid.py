@@ -46,7 +46,8 @@ from ..init_sas import initializesas
 from ..sasutils import download_data as dl_data
 from pysas.logger import get_logger
 from pysas.sastask import MyTask
-from pysas.pysasplot_utils.pysasplot_utils import quick_plot as qp
+from pysas.pysasplot_utils.pysasplot_utils import quick_image_plot as qip
+from pysas.pysasplot_utils.pysasplot_utils import quick_light_curve_plot as qlcp
 
 class ObsID:
     """
@@ -1346,11 +1347,49 @@ class ObsID:
                output_to_file     = kwargs.get('output_to_file', False),
                logger = kwargs.get('logger', None)).run()
         
-        ax = qp(image_file,vmin=vmin,vmax=vmax,
-                save_file = kwargs.get('save_file', False),
-                out_fname = kwargs.get('out_fname', 'image.png'))
+        ax = qip(image_file,vmin=vmin,vmax=vmax,
+                 save_file = kwargs.get('save_file', False),
+                 out_fname = kwargs.get('out_fname', 'image.png'))
 
         return ax
+    
+    def quick_lcplot(self,fits_event_list_file,
+                     light_curve_file = 'light_curve.fits',
+                     timebinsize      = '100',
+                     **kwargs):
+        """
+        Quick plot function to generate a light curve. As input takes an 
+        event list and uses 'evselect' to create a FITS image file.
+
+        All standard inputs to 'MyTask' can be passed in as optional
+        arguments.
+        """
+        
+        if isinstance(timebinsize, numbers.Number):
+            timebinsize = str(timebinsize)
+        
+        inargs = {'table'          : f'{fits_event_list_file}', 
+                  'withrateset'    : 'yes',
+                  'rateset'        : f'{light_curve_file}', 
+                  'maketimecolumn' : 'yes', 
+                  'timecolumn'     : 'TIME', 
+                  'imagebinning'   : 'imageSize', 
+                  'timebinsize'    : f'{timebinsize}', 
+                  'makeratecolumn' : 'yes'}
+
+        # By default this runs silent with no output
+        MyTask('evselect', inargs,
+               logfilename = kwargs.get('logfilename', None),
+               tasklogdir  = kwargs.get('tasklogdir', None),
+               output_to_terminal = kwargs.get('output_to_terminal', False),
+               output_to_file     = kwargs.get('output_to_file', False),
+               logger = kwargs.get('logger', None)).run()
+        
+        plt = qlcp(light_curve_file,
+                   save_file = kwargs.get('save_file', False),
+                   out_fname = kwargs.get('out_fname', 'light_curve.png'))
+
+        return plt
     
     def __run_analysis(self, task, inargs, 
                        rerun   = False,
