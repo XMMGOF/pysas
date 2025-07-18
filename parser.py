@@ -36,8 +36,6 @@ value. Within the value there can be more '=' symbols.
 
 Method procopt either executes the immediate options or sets the 
 environment variables that modify the execution of the task.
-
-Task parameters entered are returned in list tparams.
 """
 
 
@@ -189,39 +187,31 @@ class ParseArgs:
         # Apply parse_args method to parser with the options being passed in. 
         # Result is put into parsedargs. The parsedargs object is not a 
         # dictionary but can be shown as such with function vars().
-        print([self.argdict['options']])
+
         self.parsedargs = parser.parse_args([self.argdict['options']])
 
         #print(self.parsedargs)
         #print(f'vars(self.parsedargs)          = \n{vars(self.parsedargs)}')
         #print(f'self.parsedargs.pvpairs        = {self.parsedargs.pvpairs}')
 
-
-        # Put into list tparams parameters entered in the command line
-        # as pairs param=value
-        params = list(self.argdict.keys())
-        self.tparams = params.remove('options')
-
     # Depending on the options entered, performs actions
-    def procopt(self):
+    def exe_options(self):
         """
-        Method to execute options or parameters that require immediate action.
+        Method to execute options or parameters that 
+        require immediate action.
 
-        There are two sets of otions/parameters that require immediate action:
+        These include options that execute the command 
+        and exit. These are: 
 
-            1. Options that execute the command and exit. These are: 
-               version(--version, -v), help(--help, -h), param(--param, -p), 
-               dialog(--dialog, -d) and manpage(--manpage, -m).
-               
-            2. Options that set environment variables and then continue running
-               the SAS task. These are:
-               -V/--verbosity (SAS_VERBOSITY), -c/--noclobber, 
-               (SAS_CLOBBER), -a/--ccfpath (SAS_CCFPATH),
-               -i/--ccf (SAS_CCF), -o/--odf (SAS_ODF), -f/--ccffiles,
-               -w/--warning, -t/--trace.
+            version(--version, -v)
+            help(--help, -h)
+            param(--param, -p)
+            dialog(--dialog, -d)
+            manpage(--manpage, -m)
 
-        Returns 'Exit' which if True will send the exit command up the chain.
-        If False, then pySAS will continue to execute.
+        Returns 'Exit' which if True will send the exit 
+        command up the chain. If False, then pySAS will 
+        continue to execute.
         """
 
         # Exit is set to False
@@ -302,44 +292,81 @@ class ParseArgs:
         if Exit:
             return Exit
 
+    def env_options(self):
+        """
+        Method to execute options or parameters that 
+        set environment variables and then continue running
+        the SAS task. These are:
+
+               -V/--verbosity (SAS_VERBOSITY)
+               -c/--noclobber (SAS_CLOBBER)
+               -a/--ccfpath (SAS_CCFPATH)
+               -i/--ccf (SAS_CCF)
+               -o/--odf (SAS_ODF)
+               -f/--ccffiles
+               -w/--warning
+               -t/--trace
+
+        Depending on the action, previously set values 
+        will be returned.
+        """
+        # return_params is a dictionary to hold the 
+        # previously set values.
+        return_params = {}
+        env_options_list = []
         # 
         # Excluding warning, which I do not know how to handle yet, 
-        # the next five options are accumulative, if they are present they change 
-        # environment variables. 
+        # the next five options are accumulative, if they are 
+        # present they change environment variables. 
         # They do not return control to caller.
         #
         # sas_ccfpath
         if self.parsedargs.sas_ccfpath:
-            print('SAS_CCFPATH = {}'.format(str(self.parsedargs.sas_ccfpath[0])))
-            os.environ['SAS_CCFPATH'] = str(self.parsedargs.sas_ccfpath[0])
+            return_params['SAS_CCFPATH'] = os.environ.get('SAS_CCFPATH')
+            envar_val = str(self.parsedargs.sas_ccfpath[0])
+            env_options_list.append(f'-a {envar_val}')
+            self.logger.info(f'SAS_CCFPATH = {envar_val}')
+            #os.environ['SAS_CCFPATH'] = envar_val
         # noclobber
         if self.parsedargs.noclobber:
-            os.environ['SAS_CLOBBER'] = '0'
-            print('SAS_CLOBBER = {}'.format(str(os.environ.get('SAS_CLOBBER'))))
+            return_params['SAS_CLOBBER'] = os.environ.get('SAS_CLOBBER')
+            envar_val = '0'
+            env_options_list.append('-c')
+            self.logger.info(f'SAS_CLOBBER = {envar_val}')
+            #os.environ['SAS_CLOBBER'] = envar_val
         # sas_ccf
         if self.parsedargs.sas_ccf:
-            print('SAS_CCF = {}'.format(str(self.parsedargs.sas_ccf[0])))
-            os.environ['SAS_CCF'] = str(self.parsedargs.sas_ccf[0])
+            return_params['SAS_CCF'] = os.environ.get('SAS_CCF')
+            envar_val = str(self.parsedargs.sas_ccf[0])
+            env_options_list.append(f'-i {envar_val}')
+            self.logger.info(f'SAS_CCF = {envar_val}')
+            #os.environ['SAS_CCF'] = envar_val
         # sas_odf
         if self.parsedargs.sas_odf:
-            print('SAS_ODF = {}'.format(str(self.parsedargs.sas_odf[0])))
-            os.environ['SAS_ODF'] = str(self.parsedargs.sas_odf[0])
+            return_params['SAS_ODF'] = os.environ.get('SAS_ODF')
+            envar_val = str(self.parsedargs.sas_odf[0])
+            env_options_list.append(f'-o {envar_val}')
+            self.logger.info(f'SAS_ODF = {envar_val}')
+            #os.environ['SAS_ODF'] = envar_val
         # ccffiles
         if self.parsedargs.ccffiles:
-            print('CCF files = {}'.format(str(self.parsedargs.ccffiles[0])))
+            envar_val = str(self.parsedargs.sas_odf[0])
+            env_options_list.append(f'-f {envar_val}')
+            self.logger.info(f'CCF files = {envar_val}')
         # warning
         if self.parsedargs.warning:
             warning = self.parsedargs.warning
         # verbosity
         if self.parsedargs.verbosity:
-            verbo = self.parsedargs.verbosity
-            if type(verbo) is list:
-                verbo = verbo[0]
-            os.environ['SAS_VERBOSITY'] = str(verbo)
-            if str(os.environ.get('SAS_VERBOSITY')) != '4':
-                self.logger.info('SAS_VERBOSITY = {}'.format(str(os.environ.get('SAS_VERBOSITY'))))
+            return_params['SAS_VERBOSITY'] = os.environ.get('SAS_VERBOSITY')
+            envar_val = str(self.parsedargs.verbosity[0])
+            env_options_list.append(f'-V {envar_val}')
+            self.logger.info(f'SAS_VERBOSITY = {envar_val}')
+            #os.environ['SAS_VERBOSITY'] = envar_val
 
-        return Exit
+        return_params['env_options'] = " ".join(env_options_list)
+
+        return return_params
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.taskname} - {self.argdict})'
