@@ -230,10 +230,11 @@ class MyTask:
             - mandpar   : List of all mandatory parameters/subparameters
             - mainparams: List of main paramaters
             - parmap    : Dictionary { pname: [ subparameters ...], ...}
-            - mandpar_dict: Dictionary, key = mandatory subparamater, value=its parent parameter
-            - rev_mandpar_dict: Dictionary, keys  = parent paramater, 
+            - mandpar_dict: Dictionary, key = mandatory subparamater, 
+                            value=its parent parameter
+            - rev_mandpar_dict: Dictionary, keys = parent paramater, 
                                 value = list of all mandatory subparameters
-            - rev_mandpar_string_dict: Dictionary, keys  = parent parameter type 'string'
+            - rev_mandpar_string_dict: Dictionary, keys = parent parameter type 'string'
                                        value = list of alternatives
         """
         t = paramXmlInfoReader(self.taskname, logger = self.logger)
@@ -267,14 +268,13 @@ class MyTask:
 
         # Remove the options from argsdic
         self.argsdic = dict(self.inargs)
-        self.argsdic.pop('options')
+        self.argsdic.pop('options',None)
 
         # 1st check: Whether or not parameters in inargs are defined in the parameter file
         for p in self.argsdic.keys():
             if p.strip() not in self.allparams.keys():
                 raise Exception(f'Parameter {p} is not defined in the parameter file')
 
- 
         # 2nd check: Whether we have mandatory parameters and subparameters
         for k, v in self.rev_mandpar_dict.items():
             if k.strip() in v and k.strip() not in self.argsdic.keys():

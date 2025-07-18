@@ -45,7 +45,6 @@ import sys
 import subprocess
 import argparse
 from importlib import import_module
-from contextlib import suppress
 import importlib.resources
 
 # Third party imports
@@ -194,7 +193,7 @@ class ParseArgs:
         #print(f'vars(self.parsedargs)          = \n{vars(self.parsedargs)}')
         #print(f'self.parsedargs.pvpairs        = {self.parsedargs.pvpairs}')
 
-    # Depending on the options entered, performs actions
+    # If these options are present, will execute a command and return Exit
     def exe_options(self):
         """
         Method to execute options or parameters that 
@@ -212,6 +211,23 @@ class ParseArgs:
         Returns 'Exit' which if True will send the exit 
         command up the chain. If False, then pySAS will 
         continue to execute.
+
+        # Process options entered in command line
+        #
+        # Options version(--version, -v), help(--help, -h), param(--param, -p)
+        # dialog(--dialog, -d) and manpage(--manpage, -m) are exclusive.  
+        # Only one can be present and will set Exit to True. 
+        # When exe_options is executed on the instance of ParseArgs (e.g. p), as
+        # p.exe_options() the return Exit determines wheter to return immediately or
+        # not. If Exit is set to True, the method will return immediately.
+        #
+        # Some options entered in self.argdict will launch special SAS tasks
+        # designed only to provide specific result. These are:
+        #
+        # -d/--dialog   => sasdialog to launch task GUI
+        # -m/--manpage  => sashelp to show HTML doc in the default web browser
+        #
+
         """
 
         # Exit is set to False
@@ -241,24 +257,6 @@ class ParseArgs:
         [param1=value1]                   An optional parameter. If not present, it might have a default value
         ...
         """
-
-
-        # Process options entered in command line
-        #
-        # Options version(--version, -v), help(--help, -h), param(--param, -p)
-        # dialog(--dialog, -d) and manpage(--manpage, -m) are exclusive.  
-        # Only one can be present and will set Exit to True. 
-        # When procopt is executed on the instance of ParseArgs (e.g. p), as
-        # p.procopt() the return Exit determines wheter to return immediately or
-        # not. If Exit is set to True, the method will return immediately.
-        #
-        # Some options entered in self.argdict will launch special SAS tasks
-        # designed only to provide  specific result. These are:
-        #
-        # -d/--dialog   => sasdialog to launch task GUI
-        # -m/--manpage  => sashelp to show HTML doc in the default web browser
-        #
-
 
         # Version:
         if self.parsedargs.version:
@@ -292,11 +290,11 @@ class ParseArgs:
         if Exit:
             return Exit
 
+    # If these options are present, they will be returned for handling
     def env_options(self):
         """
-        Method to execute options or parameters that 
-        set environment variables and then continue running
-        the SAS task. These are:
+        Method to collect options that set environment variables 
+        and then continue running the SAS task. These are:
 
                -V/--verbosity (SAS_VERBOSITY)
                -c/--noclobber (SAS_CLOBBER)
@@ -306,9 +304,6 @@ class ParseArgs:
                -f/--ccffiles
                -w/--warning
                -t/--trace
-
-        Depending on the action, previously set values 
-        will be returned.
         """
         # return_options is a dictionary to hold set options
         return_options = {}

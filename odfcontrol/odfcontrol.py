@@ -27,6 +27,7 @@ odfcontrol.py
 
 # Standard library imports
 import os, sys, shutil, glob, numbers
+from warnings import warn
 
 # Third party imports
 
@@ -84,6 +85,14 @@ class ODFobject(object):
     """
 
     def __init__(self,odfid,data_dir=None):
+        warn(
+             """
+             The ODFobject class has been depricated. Use ObsID instead.
+             ex: 
+                 my_obs = pysas.obsid.ObsID(obsid)
+             instead of
+                 odf = pysas.odfcontrol.ODFobject(obsid)
+             """)
         if isinstance(odfid, numbers.Number):
             odfid = str(odfid)
         self.odfid = odfid
