@@ -100,8 +100,7 @@ def get_logger(taskname: str,
     if pylogger:
         # For Python based logging
         # Set verbosity
-        if verbosity is None:
-            verbosity = int(os.getenv('SAS_VERBOSITY'))
+        verbosity = int(os.getenv('SAS_VERBOSITY'))
         match(verbosity):
             case 1:
                 level = "CRITICAL"
