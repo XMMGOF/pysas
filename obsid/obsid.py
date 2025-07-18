@@ -1385,11 +1385,11 @@ class ObsID:
                output_to_file     = kwargs.get('output_to_file', False),
                logger = kwargs.get('logger', None)).run()
         
-        plt = qlcp(light_curve_file,
-                   save_file = kwargs.get('save_file', False),
-                   out_fname = kwargs.get('out_fname', 'light_curve.png'))
+        qlcp(light_curve_file,
+             save_file = kwargs.get('save_file', False),
+             out_fname = kwargs.get('out_fname', 'light_curve.png'))
 
-        return plt
+        return
     
     def __run_analysis(self, task, inargs, 
                        rerun   = False,
