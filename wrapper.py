@@ -18,7 +18,7 @@
 """wrapper.py
 
 This file is only here for legacy reasons. Its only purpose
-is to point to the SASTask class in sastask.py.
+is to point to the MyTask class in sastask.py.
 """
 
 # Standard library imports
@@ -33,9 +33,9 @@ class Wrapper:
     """Class Wrapper
 
     This class is only here for legacy reasons. Its only purpose
-    is to point to the SASTask class in sastask.py.
+    is to point to the MyTask class in sastask.py.
 
-    Method run instantiates SASTask and calls 'run' from SASTask.
+    Method run instantiates MyTask and calls 'run' from MyTask.
     """
     def __init__(self, taskname, inargs, 
                  logfilename = None, 
