@@ -223,6 +223,19 @@ class MyTask:
         return f'{self.__class__.__name__}({self.taskname}, {self.inargs})'
 
     def readparfile(self):
+        """
+        Reads the parameter file (taskname.par) for the task. Returns 
+        various lists and dictionaries.
+            - allparams : Dictionary { parameter: {attributes} }
+            - mandpar   : List of all mandatory parameters/subparameters
+            - mainparams: List of main paramaters
+            - parmap    : Dictionary { pname: [ subparameters ...], ...}
+            - mandpar_dict: Dictionary, key = mandatory subparamater, value=its parent parameter
+            - rev_mandpar_dict: Dictionary, keys  = parent paramater, 
+                                value = list of all mandatory subparameters
+            - rev_mandpar_string_dict: Dictionary, keys  = parent parameter type 'string'
+                                       value = list of alternatives
+        """
         t = paramXmlInfoReader(self.taskname, logger = self.logger)
         t.xmlParser()
         self.allparams = t.allparams
@@ -246,6 +259,10 @@ class MyTask:
                 return self.Exit
             
             # Deal with options that set environment variables
+            # For non-Python based tasks these will be passed in
+            # as part of the command for the subprocess call.
+            # For Python based tasks, they will have to be handled
+            # in the .run() function.
             env_opts = pararg.env_options()
 
         # Remove the options from argsdic
@@ -282,7 +299,7 @@ class MyTask:
                             newinarg = k + '=' + alt
                             self.argsdic[k] = alt
                             if k in self.argsdic.keys():
-                                print(f'Warning: No need to include {k}. Assumed {newinarg}')
+                                self.logger.warning(f'No need to include {k}. Assumed {newinarg}')
                             break
                     elif p in v and k not in self.argsdic.keys():
                         raise Exception(f'Mandatory sub-parameter {p} requires {k} be present')
@@ -345,8 +362,13 @@ class MyTask:
                     break
 
         # Return options that modify the environment to argdic
+        self.env_options = {}
         if len(self.inargs['options']) > 0:
-            self.argsdic['options'] = env_opts['env_options']
+            for k, v in env_opts.items():
+                if k == 'env_options':
+                    self.argsdic['options'] = env_opts['env_options']
+                else:
+                    self.env_options[k] = v
 
         # Merge self.argsdic onto parsdic. Those values set in command line, 
         # from self.argsdic, will overwrite the defaults obtained from the par file, 
@@ -369,9 +391,13 @@ class MyTask:
         If taskname is not a Python SAS task, there will not be
         a run function, so we will invoke subprocess
         """
+        self.logger.debug(f'Running {self.taskname}')
+        self.logger.debug(f'Reading parameter file.')
         self.readparfile()
+        self.logger.debug(f'Processing input arguments')
         self.processargs()
         if self.Exit:
+            self.logger.debug(f'Exit called by processargs')
             return self.Exit
         sas_path = os.environ.get('SAS_PATH')
 
@@ -384,14 +410,51 @@ class MyTask:
         for line in (my_resources / "pysaspkgs").read_text().splitlines():
             pysaspkgs.append(line)
 
+        # For Python based SAS tasks
         if self.taskname in pysaspkgs:
-
+            self.logger.debug(f'Using Python based SAS task: {self.taskname}')
+            # Add the environment options to iparsdic
+            self.logger.debug(f'Adding environment options to iparsdic')
+            self.iparsdic['options'] = dict(self.env_options)
+            temp_dict = {}
+            for k, v in self.env_options.items():
+                match(k):
+                    case 'SAS_CCFPATH' | 'SAS_CCF' | 'SAS_ODF' | 'SAS_VERBOSITY':
+                        temp_dict[k] = os.getenv(k)
+                        self.logger.debug(f'Storing previous setting of {k}={temp_dict[k]}')
+                        os.environ[k] = v
+                        self.logger.debug(f'Temporarely changing {k} to {v}')
+                    case 'SAS_CLOBBER' | 'CCF_files' | 'WARNING' | 'TRACE':
+                        # This needs to be handled by the individual task
+                        pass
+                    case _:
+                        pass
+            
+            self.logger.debug(f'Importing module {self.taskname}')
             m = import_module('pysas.' + self.taskname + '.' + self.taskname)
 
+            self.logger.debug(f'Running module {self.taskname}')
             m.run(self.iparsdic)
-
+            
+            # Reset Environment variables
+            for k, v in temp_dict.items():
+                match(k):
+                    case 'SAS_CCFPATH' | 'SAS_CCF' | 'SAS_ODF' | 'SAS_VERBOSITY':
+                        self.logger.debug(f'Resetting {k} to {temp_dict[k]}')
+                        if temp_dict[k] is None:
+                            os.environ.pop(k,None)
+                        else:
+                            os.environ[k] = temp_dict[k]
+                    case 'SAS_CLOBBER' | 'CCF_files' | 'WARNING' | 'TRACE':
+                        # This needs to be handled by the individual task
+                        pass
+                    case _:
+                        pass
+            
+        # For all other SAS tasks
         else:
             # Build a list of parameters based on iparsdic
+            self.logger.debug(f'Using non-Python based SAS task: {self.taskname}')
             cmd_list = []
             cmd_list.append(self.taskname)
             for k, v in self.iparsdic.items():
@@ -444,8 +507,6 @@ class MyTask:
                 # For non-Python SAS tasks the stout and stderr are combined
                 for line in process.stdout:
                     logger.info(f"{line.strip()}")
-                # for line in process.stderr:
-                #     logger.info(f"{line.strip()}")
 
                 # Wait for the process to complete and get the return code
                 process.wait()
