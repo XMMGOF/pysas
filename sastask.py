@@ -237,18 +237,19 @@ class MyTask:
         # Only if options are passed in
         self.Exit = False
         if len(self.inargs['options']) > 0:
-            p = ParseArgs(self.taskname, self.inargs, logger = self.logger)
-            p.optparser()
+            pararg = ParseArgs(self.taskname, self.inargs, logger = self.logger)
+            pararg.optparser()
 
             # Execute options which require immediate action
-            # Options which are for environment (which are cumulative) 
-            # do not change default False value of Exit.
-            self.Exit = p.procopt()
+            self.Exit = pararg.exe_options()
             if self.Exit:
                 return self.Exit
+            
+            # Deal with options that set environment variables
+            env_opts = pararg.env_options()
 
         # Remove the options from argsdic
-        self.argsdic = self.inargs
+        self.argsdic = dict(self.inargs)
         self.argsdic.pop('options')
 
         # 1st check: Whether or not parameters in inargs are defined in the parameter file
@@ -320,11 +321,6 @@ class MyTask:
         # in the command line, let us produce now a single object with all 
         # parameters which we can pass to the module to run.
 
-        # argsdic is a dictionary with the pairs param, value 
-        # as entered from the command line from 'param=value'
-
-        argsdic = self.inargs
-
         # Load defaults with all parameters default values.
         # Use dictionary method 'setdefault' to set the value for a given key;
         # here the key is 'default'.
@@ -347,6 +343,10 @@ class MyTask:
                         defaults[k] = 'no'
                     #print(k, a,  defaults[k])
                     break
+
+        # Return options that modify the environment to argdic
+        if len(self.inargs['options']) > 0:
+            self.argsdic['options'] = env_opts['env_options']
 
         # Merge self.argsdic onto parsdic. Those values set in command line, 
         # from self.argsdic, will overwrite the defaults obtained from the par file, 
@@ -391,10 +391,13 @@ class MyTask:
             m.run(self.iparsdic)
 
         else:
-            cmd = ''
-            cmd += self.taskname + ' '
-            for parval in self.iparsdic.items():
-                k, v = parval
+            # Build a list of parameters based on iparsdic
+            cmd_list = []
+            cmd_list.append(self.taskname)
+            for k, v in self.iparsdic.items():
+                if k == 'options':
+                    cmd_list.append(v)
+                    continue
                 #Remove single quotes a double quotes from the python input parameters
                 #SOC-SPR-7684
                 if v.startswith("\"") or v.endswith("\""):
@@ -403,17 +406,20 @@ class MyTask:
                     v = v.replace('\'','')
                 
                 if ' ' or '|' in v:
-                    cmd += k + '=' + "'"
+                    singparam = k + '=' + "'"
                     vc = v.split(' ')
                     for i in range(len(vc)):
                         if i == len(vc) - 1:
-                            cmd += vc[i]
+                            singparam += vc[i]
                         else:
-                            cmd += vc[i] + ' '
-                    cmd += "' "
+                            singparam += vc[i] + ' '
+                    singparam += "'"
+                    cmd_list.append(singparam)
                 else:
-                    cmd += k + '=' + v + ' '
+                    cmd_list.append(k + '=' + v)
 
+            # Join all the parameters into a single command
+            cmd = " ".join(cmd_list)
             if self.output_to_terminal:    
                 print(f'Executing: \n{cmd}')
 
