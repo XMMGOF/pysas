@@ -573,16 +573,25 @@ class ObsID:
             if overwrite:
                 # If obs_dir exists and overwrite = True then remove obs_dir.
                 self.logger.info(f'Removing existing directory {self.obs_dir} ...')
-                print(f'\n\nRemoving existing directory {self.obs_dir} ...')
+                print(f'\nRemoving existing directory {self.obs_dir} ...')
                 shutil.rmtree(self.obs_dir)
             else:
                 # Check for files
                 what_exists = self.__parse_obs_dir()
-                if what_exists['odf_dir'] and what_exists['manifest']:
+                if what_exists['odf_dir'] and what_exists['ODF_files'] and what_exists['manifest']:
                     self.logger.info(f'Existing ODF directory {self.odf_dir} found ...')
                     call_download_data = False
-                    self.logger.info(f'Data found in {self.obs_dir} not downloading again.')
-                    print(f'Data found in {self.obs_dir} not downloading again.')
+                    print(f'Data found in {self.odf_dir} not downloading again.')
+                else:
+                    if not what_exists['odf_dir']:
+                        self.logger.info(f'Existing ODF directory missing. Will download data.')
+                    else:
+                        if not what_exists['ODF_files']:
+                            self.logger.info(f'ODF files missing from {self.odf_dir}. Will download data.')
+                            shutil.rmtree(self.odf_dir)
+                        elif not what_exists['manifest']:
+                            self.logger.info(f'MANIFEST missing from {self.odf_dir}. Will download data.')
+                            shutil.rmtree(self.odf_dir)
 
         if call_download_data:
             self.logger.info(f'Will download ODF data for Obs ID {self.obsid}.')
@@ -954,14 +963,6 @@ class ObsID:
         os.chdir(self.obs_dir)
         self.logger.info(f'Changed directory to {self.obs_dir}')
 
-        print(f'''
-
-        Starting SAS session
-
-        Data directory = {self.obs_dir}
-
-        ''')
-
         # Set directories for the odf and work.
         # Set odf_dir
         if not hasattr(self, 'odf_dir'):
@@ -1283,9 +1284,9 @@ class ObsID:
                         print(f'\nSummary file PATH {path} does not exist. \n\n>>>>Rerun basic_setup with overwrite=True.')
                         exists = False
                     MANIFEST = glob.glob(os.path.join(path, 'MANIFEST*'))
-                    if len(MANIFEST) == 0 or not os.path.exists(MANIFEST[0]):
-                        self.logger.error(f'Missing {MANIFEST[0]} file in {path}. Missing ODF components? Rerun basic_setup with overwrite=True.')
-                        print(f'\nMissing {MANIFEST[0]} file in {path}. Missing ODF components? \n\n>>>>Rerun basic_setup with overwrite=True.')
+                    if len(MANIFEST) == 0:
+                        self.logger.error(f'Missing MANIFEST file in {path}. Missing ODF components? Rerun basic_setup with overwrite=True.')
+                        print(f'\nMissing MANIFEST file in {path}. Missing ODF components? \n\n>>>>Rerun basic_setup with overwrite=True.')
                         exists = False
 
         return exists

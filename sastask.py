@@ -260,6 +260,9 @@ class MyTask:
 
     def processargs(self):
         # Only if options are passed in
+        if 'option' in self.inargs.keys():
+            self.logger.warning("Input arguments include the key 'option'. Use 'options' (with an 's') instead.")
+                    
         self.Exit = False
         if len(self.inargs['options']) > 0:
             pararg = ParseArgs(self.taskname, self.inargs, logger = self.logger)
