@@ -113,7 +113,7 @@ def get_logger(taskname: str,
             case 8 | 9 | 10:
                 level = "DEBUG"
             case _:
-                level = "DEBUG"
+                level = "INFO"
         
         # 98% of the time pysas_verbosity == SAS_VERBOSITY.
         # But for debugging purposes it is convienent to have

@@ -98,7 +98,7 @@ from warnings import warn
 # Third party imports
 
 # Local application imports
-from pysas.param import paramXmlInfoReader
+from pysas.param import paramXmlInfoReader, SASParams
 from pysas.parser import ParseArgs
 from pysas.logger import get_logger
 
@@ -197,6 +197,17 @@ class MyTask:
                         self.inargs[key] = 'yes'
                     else:
                         self.inargs[key] = 'no'
+
+        # Check if inargs is a 'SASParams' dict.
+        if isinstance(self.inargs, SASParams):
+            argsdic = {}
+            # Pull off the parameters that have been modified
+            for k, v in self.inargs.inparams.items():
+                if v[1]:
+                    argsdic[k] = v[0]
+            self.inargs = dict(argsdic)
+            if not 'options' in self.inargs.keys():
+                self.inargs['options'] = ''
 
         # Check if inargs is a single string. If it is, then split
         # it at all spaces. This is not fool proof!
