@@ -317,7 +317,7 @@ def run(iparsdic):
             cmd = ['odfingest'] 
             cmd = cmd + odfingest_opts_list
             logger.info(f'Running odfingest with {odfingest_opts} ...')
-            print(f'\nRunning odfingest with {odfiingest_opts} ...')
+            print(f'\nRunning odfingest with {odfingest_opts} ...')
         else:
             cmd = ['odfingest']
             logger.info('Running odfingest...') 

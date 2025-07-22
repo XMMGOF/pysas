@@ -505,6 +505,34 @@ class ObsID:
         
         return
     
+    def run_MyTask(self, taskname, inargs, **kwargs):
+        """
+        This acts as a wrapper around 'MyTask'. This provides a way of calling
+        SAS tasks, while using the values set when the 'ObsID' object was 
+        instantiated.
+
+        Required inputs (just like MyTask):
+            taskname
+            inargs
+
+        Optional inputs (just like MyTask, but **only** use these if you want 
+        them to be different from the values used when instantiating 'ObsID'):
+            logfilename
+            tasklogdir
+            output_to_terminal
+            output_to_file
+            logger (Only in very rare circumstances **DO NOT USE** unless you
+                    know exactly what you are doing!!)
+        """
+
+        MT = MyTask(taskname, inargs, 
+                    logfilename = kwargs.get('logfilename', self.logfilename), 
+                    tasklogdir  = kwargs.get('tasklogdir', self.tasklogdir),
+                    output_to_terminal = kwargs.get('output_to_terminal', self.output_to_terminal), 
+                    output_to_file     = kwargs.get('output_to_file', self.output_to_file),
+                    logger = kwargs.get('logger', None)).run()
+        
+    
     def download_ODF_data(self,
                           repo        = 'esa',
                           data_dir    = None,

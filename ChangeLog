@@ -83,14 +83,120 @@ Version 2.0 - 2025-??-?? (RT)
                     they cannot be used by the end user.
 
 + obsid     : obsid.py introduced. Replaces odfcontrol.
-              Significant changes to pySAS. New class: ObsID
+              Significant changes to pySAS.
+              
+              New class: ObsID
 
-+ parser.py : Update documentation, add logger to ParseArgs, changed 'taskparser' to 
-              'optparser'. 'procopt' has been split into 'exe_options' and 
+              New and replacement methods from odfcontrol (methods with leading __ are not 
+              accessible to the end user):
+
+                1. __set_obsid: Not accessible to the end user. Auto detects if Obs ID data
+                   is present, and looks for event lists and other critical files. 
+                   Automatically called when ObsID object is instantiated.
+            
+                2. basic_setup: Downloads data, runs cifbuild, odfingest, epproc or epchain,
+                   emproc or emchain, and rgsproc.
+
+                3. run_MyTask: Convienence wrapper around 'MyTask'. Used to call a task 
+                   from the ObsID object.
+
+                4. download_ODF_data: Downloads ODF data. Called by basic_setup.
+
+                5. download_PPS_data: Downloads PPS data.
+
+                6. download_ALL_data: Downloads both ODF and PPS data.
+
+                7. calibrate_odf: Runs cifbuild and odfingest. Called by basic_setup.
+
+                8. get_active_instruments: Creates active_instruments dict with boolean
+                   values indicating if the instrument was active for that Obs ID.
+
+                9. inisas: Can reinitialize SAS. Generally not used.
+
+                10. sas_talk: Changes SAS_VERBOSITY and SAS_SUPPRESS_WARNING
+
+                11. find_event_list_files: Checks the observation directory (obs_dir) for
+                    basic unfiltered event list files created by 'epproc', 'emproc', 
+                    and 'rgsproc'.
+
+                12. find_rgs_spectra_files: Checks obs_dir for RGS spectra files created 
+                    by 'rgsproc'.
+
+                13. get_ccf_cif: Stores ccf.cif file path in ObsID.files.
+
+                14. get_SUM_SAS: Stores *SUM.SAS file path in ObsID.files.
+
+                15. clear_obs_dir: Removes all files and subdirectories from the obs_dir.
+
+                16. clear_work_dir: Removes all files and subdirectories from the work_dir.
+
+                17. quick_eplot: Runs 'evselect' on an event list to create a simple image 
+                    file. Then uses 'quick_image_plot' from 'pysasplot_utils' to plot the 
+                    image using matplotlib.
+
+                18. quick_lcplot: Runs 'evselect' on an event list to create a simple light 
+                    curve file. Then uses 'quick_light_curve_plot' from 'pysasplot_utils' to 
+                    plot the light curve using matplotlib.
+
+                19. __run_analysis: Used by 'basic_setup' to run epproc or epchain,
+                    emproc or emchain, and rgsproc.
+
+                20. __run_calibration: Called by calibrate_odf to actually run cifbuild and 
+                    odfingest.
+
+                21. __reset_logger: Used to reset the logger object with different inputs.
+
+                22. __parse_obs_dir: Parses the obs_dir to see what is there (ODF files, 
+                    PPS files, ccf.cif file, manifest, event lists, etc.).
+
+                23. __set_data_dir: Sets the data_dir.
+
+                24. __check_for_ccf_cif: Checks for existence of the ccf.cif file.
+                    Does not return path.
+
+                25. __check_for_SUM_SAS: Checks for existence of the *SUM.SAS file. 
+                    Does not return path.
+
+                26. __check_for_manifest: Checks for existence of the MANIFEST file. 
+                    Does not return path.
+
+                27. __get_list_of_ODF_files: Returns list of files in odf_dir.
+
+                28. __get_list_of_PPS_files: Returns list of files in pps_dir.
+
+                29. __remove_attr: Can be used to remove an attribute from the 
+                    ObsID object.
+
++ parser.py : Update documentation, add logger to ParseArgs, changed 'taskparser' 
+              to 'optparser'. 'procopt' has been split into 'exe_options' and 
               'env_options' to handle options that require immediate action
               (exe_options), and options that handle environment variables 
               (env_options).
 
+              When options that affect environment variables are passed back to 
+              MyTask, for Python based tasks the environment variables will be 
+              set temporarily, and then reset after the task finishes. For 
+              non-Python based tasks these options will be passed directly to the 
+              task through the subprocess call.
+
 + param.py  : Update documentation, add logger to paramXmlInfoReader.
+              
+              Add 'SASParams' dict for returning defaults to the user. 
+              If the user modifies the default values, SASParams will keep track 
+              of which parameters have been modified.
+
+              Include function 'get_input_params' that returns a filled out 
+              SASParams dict with the default parameters. Recommended that the 
+              user get a SASParams dict *only* through 'get_input_params'.
+
++ pysasplot_utils.py: Updated to include two new functions:
+
+                1. quick_image_plot: Uses matplotlib to plot a simple 
+                   FITS image file.
+                2. quick_light_curve_plot: Uses matplotlib to plot a simple 
+                   light curve file.
+
+            Both are intended to be used with ObsID.quick_eplot and 
+            ObsID.quick_lcplot respectively.
 
 
