@@ -17,12 +17,6 @@
 
 # pysasplot_utils.py
 
-from .version import VERSION
-#from pysas import SAS_RELEASE, SAS_AKA
-
-#__version__ = f'pysasplot_utils (pysasplot_utils-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]' 
-__version__ = f'pysasplot_utils (pysasplot_utils-{VERSION})'
-
 import os, numbers, sys, re, warnings, pickle
 import pysas.pyutils.pyutils as pyutils
 from astropy.io import fits
