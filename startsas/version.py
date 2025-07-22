@@ -19,4 +19,4 @@
 #
 # 16-Apr-2023
 
-VERSION              = '0.7'
+VERSION = '0.7'
