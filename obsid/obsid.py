@@ -532,7 +532,6 @@ class ObsID:
                     output_to_file     = kwargs.get('output_to_file', self.output_to_file),
                     logger = kwargs.get('logger', None)).run()
         
-    
     def download_ODF_data(self,
                           repo        = 'esa',
                           data_dir    = None,
@@ -1340,12 +1339,12 @@ class ObsID:
             shutil.rmtree(self.work_dir)
 
     def quick_eplot(self,fits_event_list_file,
-                   image_file = 'image.fits',
-                   ximagesize = '600',
-                   yimagesize = '600',
-                   vmin = 1.0,
-                   vmax = 10.0,
-                   **kwargs):
+                    image_file = 'image.fits',
+                    ximagesize = '600',
+                    yimagesize = '600',
+                    vmin = 1.0,
+                    vmax = 10.0,
+                    **kwargs):
         """
         Quick plot function for EPIC images. As input takes an 
         event list and uses 'evselect' to create a FITS image file.
@@ -1359,14 +1358,14 @@ class ObsID:
         if isinstance(yimagesize, numbers.Number):
             yimagesize = str(yimagesize)
         
-        inargs = {'table' : f'{fits_event_list_file}', 
+        inargs = {'table' : fits_event_list_file, 
                   'withimageset' : 'yes',
-                  'imageset' : f'{image_file}', 
+                  'imageset' : image_file, 
                   'xcolumn' : 'X', 
                   'ycolumn' : 'Y', 
                   'imagebinning' : 'imageSize', 
-                  'ximagesize' : f'{ximagesize}', 
-                  'yimagesize' : f'{yimagesize}'}
+                  'ximagesize' : ximagesize, 
+                  'yimagesize' : yimagesize}
 
         # By default this runs silent with no output
         MyTask('evselect', inargs,
@@ -1397,13 +1396,13 @@ class ObsID:
         if isinstance(timebinsize, numbers.Number):
             timebinsize = str(timebinsize)
         
-        inargs = {'table'          : f'{fits_event_list_file}', 
+        inargs = {'table'          : fits_event_list_file, 
                   'withrateset'    : 'yes',
-                  'rateset'        : f'{light_curve_file}', 
+                  'rateset'        : light_curve_file, 
                   'maketimecolumn' : 'yes', 
                   'timecolumn'     : 'TIME', 
                   'imagebinning'   : 'imageSize', 
-                  'timebinsize'    : f'{timebinsize}', 
+                  'timebinsize'    : timebinsize, 
                   'makeratecolumn' : 'yes'}
 
         # By default this runs silent with no output

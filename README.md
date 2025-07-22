@@ -1,6 +1,6 @@
 ### Installing pySAS
 
-This development version of pySAS can be used with versions 20 and up of XMM-Newton SAS. After installing SAS [following the installation instructions](https://www.cosmos.esa.int/web/xmm-newton/sas-installation) you can then install the development version of pySAS using
+This version of pySAS can be used with versions 20 and up of XMM-Newton SAS. After installing SAS [following the installation instructions](https://www.cosmos.esa.int/web/xmm-newton/sas-installation) you can then install the development version of pySAS using
 ```
 pip install xmmpysas
 ```
@@ -62,17 +62,17 @@ It is recommended that you add this line to your .bash_profile file (or equivele
 
 ### Example Scripts
 
-There are example scripts and Jupyter notebooks available on [GitHub demonstrating how to use pySAS](https://github.com/XMMGOF/pysas/tree/main/documentation). We are expanding the number of example scripts and Jupyter notebooks.
+There are example scripts and Jupyter notebooks available on [GitHub demonstrating how to use pySAS](https://github.com/XMMGOF/pysas/tree/main/documentation). We are expanding the number of example scripts and Jupyter notebooks. With the documentation on GitHub there are notebooks explaining the [basics of pySAS](https://github.com/XMMGOF/pysas/blob/main/documentation/Basics_of_pySAS.ipynb), and using [pySAS v2.0](https://github.com/XMMGOF/pysas/blob/main/documentation/Using_pySASv2.ipynb).
 
 ### FAQ
 
 Q: Will this break my SAS inatallation?
 
-A: No. All changes have been made to keep this developmental version of pySAS working with SAS.
+A: No. All changes have been made to keep this version of pySAS working with SAS.
 
 Q: I have already been working with pySAS and I have several Python scripts already written. Will this make them break?
 
-A: No. This developmental version of pySAS is fully backwards compatible with the standard pySAS distributed with SAS. The develomental version only adds capabilites. The features included here will eventually work their way into the standard version of pySAS.
+A: No. This version of pySAS is fully backwards compatible with the standard pySAS distributed with SAS. This version only adds capabilites. The features included here will eventually work their way into the standard version of pySAS.
 
 Q: Can I contribute changes to pySAS?
 
