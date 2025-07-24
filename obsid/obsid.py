@@ -78,7 +78,7 @@ class ObsID:
                  output_to_terminal = True,
                  output_to_file     = False):
         if isinstance(obsid, numbers.Number):
-            obsid = str(obsid)
+            obsid = f'{obsid:010}'
         self.obsid       = obsid
         self.data_dir    = data_dir
         self.files       = {}
@@ -1340,8 +1340,11 @@ class ObsID:
 
     def quick_eplot(self,fits_event_list_file,
                     image_file = 'image.fits',
+                    xcolumn    = 'X',
+                    ycolumn    = 'Y',
                     ximagesize = '600',
                     yimagesize = '600',
+                    expression = None,
                     vmin = 1.0,
                     vmax = 10.0,
                     **kwargs):
@@ -1361,11 +1364,14 @@ class ObsID:
         inargs = {'table' : fits_event_list_file, 
                   'withimageset' : 'yes',
                   'imageset' : image_file, 
-                  'xcolumn' : 'X', 
-                  'ycolumn' : 'Y', 
+                  'xcolumn' : xcolumn, 
+                  'ycolumn' : ycolumn, 
                   'imagebinning' : 'imageSize', 
                   'ximagesize' : ximagesize, 
                   'yimagesize' : yimagesize}
+        
+        if not expression is None:
+            inargs['expression'] = expression
 
         # By default this runs silent with no output
         MyTask('evselect', inargs,
