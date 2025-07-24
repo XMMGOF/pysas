@@ -100,8 +100,10 @@ def plot_spectra_model(spectrum,plot_file_name='spectra_model_plot.png'):
     return fig, ax0, ax1
 
 def quick_image_plot(image_file,
-                     vmin = 1.0,
-                     vmax = 1e2,
+                     xlabel = None,
+                     ylabel = None,
+                     vmin   = 1.0,
+                     vmax   = 1e2,
                      save_file = False,
                      out_fname = 'image.png'):
     """
@@ -114,8 +116,10 @@ def quick_image_plot(image_file,
     plt.imshow(hdu.data, origin='lower', norm='log', vmin=vmin, vmax=vmax)
     ax.set_facecolor("black")
     plt.grid(color='blue', ls='solid')
-    plt.xlabel('RA')
-    plt.ylabel('Dec')
+    if not xlabel is None:
+        plt.xlabel(xlabel)
+    if not ylabel is None:
+        plt.ylabel(ylabel)
     plt.colorbar()
     plt.show()
     if save_file:

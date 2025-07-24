@@ -1161,7 +1161,7 @@ class ObsID:
                          'M2': 'M2evt_list',
                          'R1': 'R1evt_list',
                          'R2': 'R2evt_list',
-                         'OM': 'XXXXXXXXXX'}
+                         'OM': 'OMimg_list'}
         find_list =     {'PN': 'EPN',
                          'M1': 'EMOS1',
                          'M2': 'EMOS2',
@@ -1381,7 +1381,11 @@ class ObsID:
                output_to_file     = kwargs.get('output_to_file', False),
                logger = kwargs.get('logger', None)).run()
         
-        ax = qip(image_file,vmin=vmin,vmax=vmax,
+        ax = qip(image_file,
+                 xlabel = kwargs.get('xlabel', 'RA'),
+                 ylabel = kwargs.get('ylabel', 'Dec'),
+                 vmin = vmin,
+                 vmax = vmax,
                  save_file = kwargs.get('save_file', False),
                  out_fname = kwargs.get('out_fname', 'image.png'))
 
