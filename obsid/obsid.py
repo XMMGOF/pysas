@@ -23,14 +23,7 @@
 """
 obsid.py
 
-In this file there are three classes:
-
-Parent Class:
-    - ObsID: Class with methods for dealing with a single Obs ID.
-
-Children:
-    - ODF: Class dedicated for dealing with only ODF files.
-    - PPS: Class dedicated for dealing with only PPS files.
+- ObsID: Class with methods for dealing with a single Obs ID.
 
 """
 
