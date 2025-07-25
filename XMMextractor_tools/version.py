@@ -19,11 +19,4 @@
 #
 # 16-Apr-2023
 
-VERSION              = '0.8.5'
-
-SAS_RELEASE          = 'xmmsas_20230412_1735'
-SAS_AKA              = '21.0.0'
-SAS_COMPILATION_DATE = 'Sun Apr 16 21:03:35 CEST 2023'
-SAS_COMPILATION_HOST = 'xmml103.iuser.lan'
-SAS_COMPILATION_USER = 'sasbuild'
-SAS_PLATFORM         = 'Ubuntu22.04'
+VERSION = '0.8.5'

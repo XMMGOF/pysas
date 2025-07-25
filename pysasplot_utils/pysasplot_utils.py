@@ -17,22 +17,14 @@
 
 # pysasplot_utils.py
 
-from .version import VERSION, SAS_RELEASE, SAS_AKA
-
-__version__ = f'pysasplot_utils (pysasplot_utils-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]' 
-
-
+import os, numbers, sys, re, warnings, pickle
 import pysas.pyutils.pyutils as pyutils
 from astropy.io import fits
+from astropy.wcs import WCS
 import matplotlib.pyplot as plt
-import numpy as np
-import os
 from astropy.table import Table
-import sys
-import re
-import warnings
+import numpy as np
 import matplotlib.backends.backend_pdf
-import pickle
 from pypdf import PdfMerger
 from matplotlib.patches import Rectangle
 from matplotlib.collections import PatchCollection
@@ -107,6 +99,48 @@ def plot_spectra_model(spectrum,plot_file_name='spectra_model_plot.png'):
 
     return fig, ax0, ax1
 
+def quick_image_plot(image_file,
+                     xlabel = None,
+                     ylabel = None,
+                     vmin   = 1.0,
+                     vmax   = 1e2,
+                     save_file = False,
+                     out_fname = 'image.png'):
+    """
+    Displays a FITS image file. Returns the axis handle.
+    """
+    hdu = fits.open(image_file)[0]
+    wcs = WCS(hdu.header)
+
+    ax = plt.subplot(projection=wcs)
+    plt.imshow(hdu.data, origin='lower', norm='log', vmin=vmin, vmax=vmax)
+    ax.set_facecolor("black")
+    plt.grid(color='blue', ls='solid')
+    if not xlabel is None:
+        plt.xlabel(xlabel)
+    if not ylabel is None:
+        plt.ylabel(ylabel)
+    plt.colorbar()
+    plt.show()
+    if save_file:
+        plt.savefig(out_fname)
+
+    return ax
+
+def quick_light_curve_plot(light_curve_file,
+                           save_file = False,
+                           out_fname = 'light_curve.png'):
+    """
+    Plots a light curve from a light curve FITS file.
+    """
+    ts = Table.read(light_curve_file,hdu=1)
+    plt.plot(ts['TIME'],ts['RATE'])
+    plt.xlabel('Time (s)')
+    plt.ylabel('Count Rate (ct/s)')
+    plt.show()
+    if save_file:
+        plt.savefig(out_fname)
+
 def text_plot(fits_file, extra_text = ''):
     """
     Prepares the text for the plot reading Keywords from the given FITS file.
@@ -131,7 +165,6 @@ def text_plot(fits_file, extra_text = ''):
     text_plot = 'OBS ID: {}\nInstrument: {}\nExposure: {}\nRevolution: {}\nDate: {}\nRA & DEC: ({} {})\n\n{}'.format(obs, inst, expo, revolut, date_obs, ra, dec, extra_text)
 
     return text_plot
-
 
 def ingest_data(fits_file, in_data, label = 'label'):
     """
@@ -203,7 +236,6 @@ def ingest_data(fits_file, in_data, label = 'label'):
 
     return data
 
-
 def is_iterable(py_obj):
     """
     Given a Python object, will return True or False if it's and iterable object aside
@@ -222,7 +254,6 @@ def is_iterable(py_obj):
         return True
     else:
         return False
-
 
 def get_time_deltas(fits_file, extension = 1, points = 512, x_data = 'TIME', card = 'TIMEDEL'):
     """
@@ -277,7 +308,6 @@ def get_time_deltas(fits_file, extension = 1, points = 512, x_data = 'TIME', car
     DTout = int(np.round((tf - t0) / points))
 
     return DTin, DTout
-
 
 def TSrebin(tstable, DTin, DTout, t_xlabel = 'TIME', t_ylabel = 'RATE', t_elabel = 'ERROR', fracexp = 'FRACEXP'):
     """
@@ -368,7 +398,6 @@ def TSrebin(tstable, DTin, DTout, t_xlabel = 'TIME', t_ylabel = 'RATE', t_elabel
 
     return ntstable
 
-
 def load_figures(list_of_saved_figs):
     """
     Loads a list of pickled figures (passed as a list of paths) and returns a list of figure objects.
@@ -392,7 +421,6 @@ def load_figures(list_of_saved_figs):
                 saved_figs.append(None)
 
     return saved_figs
-
 
 def saves_in_pdf(fig_list, output_name = 'output', papertype = 'a4'):
     """
@@ -434,7 +462,6 @@ def saves_in_pdf(fig_list, output_name = 'output', papertype = 'a4'):
         warnings.warn('The pdf is empty due to all figures being non-compatible.')
 
     return os.path.abspath('{}'.format(output_name))
-
 
 def simple_1d_hist(y_data, x_label = 'x', y_label = 'y', add_text = '', scale = '', nbins = 20, sharebins = False, \
     fits_file = '', fits_info = True, plot_title = '', outformat = 'pdf'):
@@ -534,7 +561,6 @@ def simple_1d_hist(y_data, x_label = 'x', y_label = 'y', add_text = '', scale = 
                 warnings.warn('Unrecognised format, will not be saved.')
 
     return fig
-
 
 def simple_2d_plot(x_data, y_data, x_data_errors = '', y_data_errors = '', plot_title = '', x_label = 'x', y_label = 'y', fits_file = '', fits_info = True, \
     add_text = '', scale = '', points = 512, outformat = 'png'):
@@ -669,7 +695,6 @@ def simple_2d_plot(x_data, y_data, x_data_errors = '', y_data_errors = '', plot_
 
     return fig
 
-
 def ingest_table(table, points, x_label, y_labels, x_error_label = None, y_errors_label = None):
     """
     Ingest the data from a given table and returns the data using Python
@@ -732,7 +757,6 @@ def ingest_table(table, points, x_label, y_labels, x_error_label = None, y_error
 
     return(x_data, y_data, x_error, y_error)
 
-
 def merge_pdf(pdf_files, output_file):
     """
     Merges several PDF files passed as the arguments. 
@@ -769,7 +793,6 @@ def merge_pdf(pdf_files, output_file):
 
     return 1
 
-
 def plot_image(path_to_image, ext = 0, output = None):
     """
     Plots and saves an image corresponding to a FITS image.
@@ -799,7 +822,6 @@ def plot_image(path_to_image, ext = 0, output = None):
 
     return 0
 
-
 def check_format_compatibility(out_format):
     """
     Checks if the input format is available as a matplotlib backend format.
@@ -817,7 +839,6 @@ def check_format_compatibility(out_format):
         return True
     else:
         return False
-
 
 def plot_region_box(ax, x1, y1, width, height, angle = 0, fill = False, colour = 'green', text = None, transform = None):
     '''
@@ -852,7 +873,6 @@ def plot_region_box(ax, x1, y1, width, height, angle = 0, fill = False, colour =
     ax.add_collection(pc)
     
     return None
-
 
 def reg_to_list(reg):
     ''' 

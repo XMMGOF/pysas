@@ -17,33 +17,50 @@
 
 """wrapper.py
 
-This is a wrapper for SAS tasks which are not based on Python.
-This code can be used from Jupyter Notebooks and ipython interactive
-sessions
+This file is only here for legacy reasons. Its only purpose
+is to point to the MyTask class in sastask.py.
 """
 
 # Standard library imports
-import subprocess
+from warnings import warn
 
 # Third party imports
 
 # Local application imports
 from pysas.sastask import MyTask
 
-
 class Wrapper:
     """Class Wrapper
 
-    Method run instantiates MyTask to read the parameter file,
-    process the input arguments and run the task.
+    This class is only here for legacy reasons. Its only purpose
+    is to point to the MyTask class in sastask.py.
+
+    Method run instantiates MyTask and calls 'run' from MyTask.
     """
-    def __init__(self, taskname, inargs,logFile='DEFAULT'):
-        self.taskname = taskname
-        self.inargs = inargs
-        self.logFile = logFile
+    def __init__(self, taskname, inargs, 
+                 logfilename = None, 
+                 tasklogdir  = None,
+                 output_to_terminal = True, 
+                 output_to_file     = False):
+        self.taskname    = taskname
+        self.inargs      = inargs
+        self.logfilename = logfilename
+        self.tasklogdir  = tasklogdir
+        self.output_to_terminal = output_to_terminal
+        self.output_to_file     = output_to_file
+        warn(
+             """
+             The wrapper class has been depricated. Use MyTask instead.
+             ex: 
+                 from pysas.sastask import MyTask
+             instead of
+                 from pysas.wrapper import Wrapper
+             """)
 
     def run(self):
-        t = MyTask(self.taskname, self.inargs,self.logFile)
-        t.readparfile()
-        t.processargs()
-        t.runtask()
+        MyTask(self.taskname, self.inargs, 
+               logfilename = self.logfilename, 
+               tasklogdir  = self.tasklogdir,
+               output_to_terminal = self.output_to_terminal, 
+               output_to_file     = self.output_to_file
+               ).run()

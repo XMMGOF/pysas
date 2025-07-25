@@ -17,7 +17,6 @@
 
 # rgsdupframesfix.py
 
-from .version import VERSION, SAS_RELEASE, SAS_AKA
 from astropy.io import fits
 from astropy.table import Table
 import numpy as np
@@ -27,13 +26,14 @@ import glob
 from collections import Counter
 import os
 import argparse
-from pysas.logger import TaskLogger as TL
+from logger import get_logger
 
-
+from .version import VERSION
+from pysas import SAS_RELEASE, SAS_AKA
 
 __version__ = f'rgsdupframesfix (rgsdupframesfix-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]' 
 
-rgsdupframesix_log = TL('rgsdupframesfix')
+rgsdupframesix_log = get_logger('rgsdupframesfix')
 
 def fixScience(odfdir,outdir,expoNumber,badDict,frameDict,goodDict):
         
@@ -53,7 +53,7 @@ def fixScience(odfdir,outdir,expoNumber,badDict,frameDict,goodDict):
         inst = fileNameSci[16:18]
 
 
-        rgsdupframesix_log.log('info','FILE NAME: '+fileNameSci)
+        rgsdupframesix_log.info('FILE NAME: '+fileNameSci)
 
         v = len(badDict[ccdidExp])
         if (len(badDict[ccdidExp]) != 0):
@@ -71,8 +71,8 @@ def fixScience(odfdir,outdir,expoNumber,badDict,frameDict,goodDict):
                 frameindexgood = np.where(oldSPEdata['FRAME'] == y)
                 #print('Frame value ',x, ' appears in indexes ',frameindex)
                 #print(oldSPEdata[x])
-                rgsdupframesix_log.log('debug','ORI[{}:{}:{}]  {}'.format(obsid,expoNumber,ccdidExp,oldSPEdata[frameindexgood].tolist()))
-                rgsdupframesix_log.log('debug','DUP[{}:{}:{}]  {}'.format(obsid,expoNumber,ccdidExp,oldSPEdata[frameindex].tolist()))
+                rgsdupframesix_log.debug('ORI[{}:{}:{}]  {}', obsid, expoNumber, ccdidExp, oldSPEdata[frameindexgood].tolist())
+                rgsdupframesix_log.debug('DUP[{}:{}:{}]  {}', obsid, expoNumber, ccdidExp, oldSPEdata[frameindex].tolist())
 
                 #for y in frameindex:
                 
@@ -82,7 +82,7 @@ def fixScience(odfdir,outdir,expoNumber,badDict,frameDict,goodDict):
                     
             #print('SPE After ', obsid, ' ', expoNumber, ' ', ccdidExp, ' =  ',len(newdataSPE))
             totalFramesRemovedFromSciFiles = totalFramesRemovedFromSciFiles + len(data2Sci)-len(newdataSPE)
-            rgsdupframesix_log.log('info','FRAMES removed in SPE file [{} {} {} {}]: {}'.format(revno,  obsid, expoNumber,  ccdidExp , len(data2Sci)-len(newdataSPE)))
+            rgsdupframesix_log.info('FRAMES removed in SPE file [{} {} {} {}]: {}', revno,  obsid, expoNumber,  ccdidExp , len(data2Sci)-len(newdataSPE))
             
             for key, value in frameDict.items():
                 newdataSPE['FRAME'] = np.where(newdataSPE['FRAME'] == key, value, newdataSPE['FRAME'])
@@ -95,7 +95,7 @@ def fixScience(odfdir,outdir,expoNumber,badDict,frameDict,goodDict):
             
             new_hduSPE.writeto(outdir+newFileName,overwrite=True,output_verify='silentfix')
                 
-    rgsdupframesix_log.log('info','Science Summary: [REVNO: {} OBSID: {} EXPO: {}]  FRAMES REMOVED IN ALL CCDS: {} '.format(revno,  obsid, expoNumber , totalFramesRemovedFromSciFiles))
+    rgsdupframesix_log.info('Science Summary: [REVNO: {} OBSID: {} EXPO: {}]  FRAMES REMOVED IN ALL CCDS: {} ', revno,  obsid, expoNumber , totalFramesRemovedFromSciFiles)
         #else:
         #    if os.path.exists(fileName):
         #        os.remove(fileName)
@@ -115,13 +115,13 @@ def fixAUX(file,outdir):
     
     if len(data1) == 0:
         hdul1.close()
-        rgsdupframesix_log.log('warning',"NO AUX DATA")
+        rgsdupframesix_log.warning("NO AUX DATA")
         if os.path.exists(fileName):
             os.remove(fileName)
         return(0,0,0,0,0)
         
     if ( "FTCOARSE" not in hdul1[1].columns.names):
-        rgsdupframesix_log.log('warning', "NO FTCOARSE")
+        rgsdupframesix_log.warning("NO FTCOARSE")
         hdul1.close()
         if os.path.exists(fileName):
             os.remove(fileName)
@@ -154,18 +154,18 @@ def fixAUX(file,outdir):
     yy,ind,counts = np.unique(np.array(ntuple),return_index=True,axis=0, return_counts=True)
     dup = len(ntuple)-len(yy)
     
-    rgsdupframesix_log.log('info','AUX summary: REVNO: {:5}  OBSID: {:10} EXPOSURE: {:6} FRAMES: {:8} DUPLICATED FRAMES: {:8}'.format(revno, obsid,expoNumber, len(ntuple) , len(ntuple)-len(yy)))
+    rgsdupframesix_log.info('AUX summary: REVNO: {:5}  OBSID: {:10} EXPOSURE: {:6} FRAMES: {:8} DUPLICATED FRAMES: {:8}'.format(revno, obsid,expoNumber, len(ntuple) , len(ntuple)-len(yy)))
     
     ll = np.where(counts != 1)
     bad = []
     badDict = {"1": [],"2": [],"3": [],"4": [],"5": [],"6": [],"7": [],"8": [],"9": []}
     goodDict = {"1": [],"2": [],"3": [],"4": [],"5": [],"6": [],"7": [],"8": [],"9": []}
-    rgsdupframesix_log.log('info','    {:12} {:17} {:18} {:9} {:10} {:19} {:8} {:4} {:6} {:6} {:6} {:6} {:6}'.format('INDEX','FRAME','FTCOARSE','FTFINE','CCDID','EOSCOARSE','EOSFINE','FRMTIME','SEQINDEX','NACCEPTC','NUPPERC','NDPP','NLOSTEVT','ABORTFLG'))
+    rgsdupframesix_log.info('    {:12} {:17} {:18} {:9} {:10} {:19} {:8} {:4} {:6} {:6} {:6} {:6} {:6}'.format('INDEX','FRAME','FTCOARSE','FTFINE','CCDID','EOSCOARSE','EOSFINE','FRMTIME','SEQINDEX','NACCEPTC','NUPPERC','NDPP','NLOSTEVT','ABORTFLG'))
     for x in ll:
         for y in x:
             ind = np.where( (ftcoarse == yy[y][0]) & (ftfine ==  yy[y][1]) & (ccdid == yy[y][2]) & (nrejectc == yy[y][7]) & (seqindex == yy[y][6]) & (nacceptc == yy[y][8]) )
 
-            rgsdupframesix_log.log('info','{} {} {} {} {} {} {} {} {} {} {} {} {}'.format(ind[0], frame[ind],ftcoarse[ind],ftfine[ind],ccdid[ind],eoscoars[ind],eosfine[ind],frmtime[ind],seqindex[ind],nacceptc[ind],nupperc[ind],ndpp[ind],nlostevt[ind],abortflg[ind]))
+            rgsdupframesix_log.info('{} {} {} {} {} {} {} {} {} {} {} {} {}'.format(ind[0], frame[ind],ftcoarse[ind],ftfine[ind],ccdid[ind],eoscoars[ind],eosfine[ind],frmtime[ind],seqindex[ind],nacceptc[ind],nupperc[ind],ndpp[ind],nlostevt[ind],abortflg[ind]))
 
             ind = np.array(ind)
             bad.append(ind[0,1])
@@ -206,7 +206,7 @@ def fixAUX(file,outdir):
     del abortflg
     
 
-    rgsdupframesix_log.log('info', 'FRAMES removed from AUX file [{} {} {}]: {} number of jumps: {}'.format(revno, obsid, expoNumber, len(datao)-len(newdata2), len(jumpindex[0])))
+    rgsdupframesix_log.info( 'FRAMES removed from AUX file [{} {} {}]: {} number of jumps: {}', revno, obsid, expoNumber, len(datao)-len(newdata2), len(jumpindex[0]))
         
     if ( (dup > 0) and  (len(jumpindex[0]) != 0) ):
         jump = 0
@@ -283,7 +283,7 @@ def run(iparsdic):
     elif instrument == 'RGS2':
         expr = 'R2'
     else:
-        rgsdupframesix_log.log('error','Wrong instrument')
+        rgsdupframesix_log.error('Wrong instrument')
         
         
         

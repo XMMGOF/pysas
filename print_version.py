@@ -15,37 +15,38 @@
 #    You should have received a copy of the GNU General Public License
 #    along with SAS.  If not, see <http://www.gnu.org/licenses/>.
 
-# sasver.py
+# print_version.py
 
-import os
-from .version import * 
-
-__version__ = f'sasver (sasver-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]' 
+import os, sys
+from pysas import VERSION, SAS_RELEASE, SAS_AKA, SAS_COMPILATION_DATE
+from pysas import SAS_COMPILATION_USER, SAS_COMPILATION_HOST, SAS_PLATFORM
+from pysas import SAS_COMMIT_ID
 
 '''
 Shows release and information about the XMM-Newton Science Analysis System (SAS).
 '''
 
-def run(args):
+def print_sas_version():
     sas_dir = os.environ.get('SAS_DIR')
     if sas_dir == None:
-        print('Error: sasver : SAS_DIR is undefined')
+        print('Error: print_version : SAS_DIR is undefined')
         sys.exit()
-
 
     sas_path = os.environ.get('SAS_PATH')
     sas_ccfpath = os.environ.get('SAS_CCFPATH')
     sas_ccf = os.environ.get('SAS_CCF')
     sas_odf = os.environ.get('SAS_ODF')
-    sas_mmod = os.environ.get('SAS_MEMORY_MODEL')
 
     print(f'''
     XMM-Newton SAS - release and build information
 
-    SAS release: {SAS_RELEASE}-{SAS_AKA}
-    Compiled on: {SAS_COMPILATION_DATE}
-    Compiled by: {SAS_COMPILATION_USER}@{SAS_COMPILATION_HOST}
-    Platform   : {SAS_PLATFORM}
+    SAS release  : {SAS_RELEASE}
+    SAS AKA      : {SAS_AKA}
+    SAS commit ID: {SAS_COMMIT_ID}
+    Compiled on  : {SAS_COMPILATION_DATE}
+    Compiled by  : {SAS_COMPILATION_USER}@{SAS_COMPILATION_HOST}
+    Platform     : {SAS_PLATFORM}
+    pySAS version: {VERSION}
 
     SAS-related environment variables set:
 
@@ -55,4 +56,3 @@ def run(args):
     print(f'SAS_CCFPATH    = {sas_ccfpath}') if sas_ccfpath != None else None
     print(f'SAS_CCF        = {sas_ccf}') if sas_ccf != None else None
     print(f'SAS_ODF        = {sas_odf}') if sas_odf != None else None
-

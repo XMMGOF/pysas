@@ -17,19 +17,7 @@
 #
 """sastask.py
 
-Defines a template SASTask Python class
-based on the ABC (Abstract Base Classes) module.
-
-All SAS Pyhton based tasks will derive from SASTask.
-However, they will not instantiate it but instead a
-subclass of it, MyTask. There could be other similar
-to MyTask, but for the time being we simply define this one.
-
-The methods defined in SASTask (decorated with
-the @abstractmethod decorator), must be redefined in MyTask.
-Otherwise, the instantiation of MyTask will fail.
-By particularizing the methods defined in SASTask
-we ensure all SAS Python based tasks have unified methods.
+All stand alone SAS tasks can be called by using MyTask.
 
 As any other SAS task, Python based tasks are used to
 perform specific data processing jobs.
@@ -56,30 +44,25 @@ e.g. -v or --version (to show the task version and exit), -V or
 Some of these options modify shell environment variables, e.g.
 SAS_VERBOSITY is modified by the value given to --verbosity, etc.
 
-Let be mytask a new Python based task. It will be an instance of MyTask
+Let be mytask a new SAS task. It will be an instance of MyTask
  
 mytask = MyTask('mytask', args)
   
 where args is a list that includes all arguments we pass to mytask
-in the command line. As we will see this is not the only way to
-pass arguments to the task.
+in the command line.
 
-mytask mandatory files and directories will be created by pkgmaker,
-a Python script responsible of creating any type of SAS task, including
-also those based on C++, Fortran 90 and Perl.
-
-The specific Python code for mytask, and possibly othe auxiliary Python
+The specific Python code for mytask, and possibly other auxiliary Python
 code which might be required by mytask to operate, will be placed all
 within the directory structure of mytask.
 
 A typical invocation of mytask could be of the form
 
-mytask param0=value0 [param1=value1] ... [Options]
+MyTask('mytask', ['param0=value0','param1=value1', ... [Options]).run()
 
 where param0, param1, etc, are any task parameters defined in
 a file named mytask.par, and [Options] are any of the generic options
 common to all SAS task. If a parameter, e.g. param0, is defined in
-mytask.par as 'mandatory', it must be present in the command line.
+mytask.par as 'mandatory', it must be present.
 
 Of course, the presence of some of the Options, will trigger specific
 immediate actions: e.g. the option -v or --version will immediately
@@ -89,73 +72,71 @@ Arguments of the form param=value can alternate with Options.
 The only requirement is that Options with a value, e.g. -V 4, must be
 adjacent.
 
-Methods defined by SASTask (identified so far):
+Methods defined by MyTask (identified so far):
 
 1. readparfile: Read and loads the task parameter file.
 
-2. processargs : Parses arguments and acts accordingly. 
+2. processargs: Parses arguments and acts accordingly. 
 
-3. runtask: Executes the task with the proper arguments.
+3. run: Executes the task with the proper arguments.
 
-MyTask will actually implement these three methods.
+4. printHelp: Prints information about the task, equivalent to
+              MyTask('mytask', ['-h']).run()
 
 The readparfile method used class paramXmlInfoReader from
 param.py module.
 
-The processargs methdos uses the class ParseArgs based on argparse.
- 
-The runtask method uses class RunTask.
+The processargs methods uses the class ParseArgs based on argparse.
 """
 
 # Standard library imports
-from abc import ABC, abstractmethod
-import os, numbers
+import os, numbers, subprocess
+from importlib import import_module
+import importlib.resources
+from warnings import warn
 
 # Third party imports
 
 # Local application imports
-from pysas.param import paramXmlInfoReader
+from pysas.param import paramXmlInfoReader, SASParams
 from pysas.parser import ParseArgs
-from pysas.runtask import RunTask
+from pysas.logger import get_logger
 
-
-# Class SASTask
-
-class SASTask(ABC):
-    """This is the abstract base class for all SAS Python tasks"""
-
-    def __init__(self, taskname, inargs):
-        self.name = taskname
-        self.inargs = inargs
-
-    def __repr__(self):
-        return f'{self.__class__.__name__}({self.taskname} - {self.inargs})'
-
-    @abstractmethod
-    def readparfile(self):
-        pass
-
-    @abstractmethod
-    def processargs(self):
-        pass
-
-    @abstractmethod
-    def runtask(self):
-        pass
-
-
-
-class MyTask(SASTask):
+# Class MyTask
+class MyTask:
     """
-    Class MyTask is a children of SASTask which 
-    implements all its abstract methods.
+    The SASTask class replaces the Wrapper class from
+    wrapper.py.
 
+    Inputs:
+    (required)
+        - taskname   : Name of the task to be run.
+        - inargs     : Input arguments.
+    (optional)
+        - logfilename: Designated log file name. Will be used instead
+                        of "{taskname}.log". Useful for putting all 
+                        output from multiple tasks into the same file.
+        - tasklogdir : (default: cwd) Directory where to write the log 
+                        file.
+                        Priority of defaults for task_logdir
+                        1. tasklogdir (passed in to function)
+                        2. SAS_TASKLOGDIR (envirnment variable)
+                        3. cwd (final default)
+
+        - output_to_terminal : (default: True) Output will be written to 
+                                the terminal.
+        - output_to_file     : (default: False) Output will be written to 
+                                a log file.
+
+
+    For pySAS v2.0 the inargs has switched to fundamentally being a dictionary.
+    If a list is passed in it will be converted into a dictionary.
+                                
     In the class initialization, the task name and
-    the input args to run it are passed from the 
-    instatiation of MyTask. Task parameters as
-    identified by the '=' sign are separated of 
-    task options, to reorder them to avoid conflicts 
-    at the time of parsing them.
+    the input args to run it are processed. 
+    Task parameters as identified by the '=' sign are 
+    separated of task options, to reorder them to 
+    avoid conflicts at the time of parsing them.
 
     The instance method 'readparfile' gets a full
     picture of the task parameter file, receiving
@@ -165,56 +146,109 @@ class MyTask(SASTask):
     The instance method 'processargs' performs the
     processing of any immediate options and filter out
     the legitimate and mandatory parameters so as
-    they can be used in the ' runtask' instance method.
+    they can be used in the 'run' instance method.
     """
 
-    def __init__(self, taskname, inargs,logFile='DEFAULT'):
-        super().__init__(taskname, inargs)
-        self.taskname = taskname
-        self.inargs = inargs
-        self.logFile = logFile
-
-        # Check if inargs is a 'dict'. If it is then convert to list format.
-        if isinstance(self.inargs, dict):
-            # Get dict of default inputs for the task.
-            t = paramXmlInfoReader(self.taskname)
-            t.xmlParser()
-            defdict = t.defaultValues()
-            defkeys = defdict.keys()
-            inkeys = self.inargs.keys()
-            outparams = []
-            
-            # Loop over all keys in the inargs dict and add values in 
-            # the outdict, but only if different from default values. 
-            # Build outparams.
-            for key in list(inkeys):
-                if key == 'options':
-                    # Only if 'options' is not empty.
-                    if self.inargs[key] != '':
-                        outparams.append(self.inargs[key])
-                else:
-                    # Safety check to see if a number was passed in.
-                    if isinstance(self.inargs[key], numbers.Number):
-                        self.inargs[key] = str(self.inargs[key])
-                    outparams.append(key+'='+self.inargs[key])
-            self.inargs = outparams
-
-        # Reorder self.inargs to group together all options and 
-        # all args of type param=value, in that order.
-        sasparams = []
-        options = []
-        for a in self.inargs:
-            if '=' in a.split('=',1):
-                sasparams.append(a)
+    def __init__(self, taskname, inargs, 
+                 logfilename = None, 
+                 tasklogdir  = None,
+                 output_to_terminal = True, 
+                 output_to_file     = False,
+                 logger = None):
+        self.taskname    = taskname
+        self.inargs      = inargs
+        self.logfilename = logfilename
+        self.tasklogdir  = tasklogdir
+        self.output_to_terminal = output_to_terminal
+        self.output_to_file     = output_to_file
+        
+        # The logger object assigned here will only be used for log information
+        # generated by pySAS. Log information generated by SAS tasks will not 
+        # be controled by this logger object.
+        # If a logger object was not passed in, then generate one
+        if logger is None:
+            if logfilename is None:
+                # If no logfilename is given, then only write out to terminal
+                self.logger = get_logger('MyTask',
+                                         toterminal  = self.output_to_terminal)
             else:
-                options.append(a)
-        self.inargs = [*options, *sasparams]
+                # If a logfilename was given then use that
+                self.logger = get_logger('MyTask',
+                                         toterminal  = self.output_to_terminal, 
+                                         tofile      = self.output_to_file, 
+                                         logfilename = self.logfilename,
+                                         tasklogdir  = self.tasklogdir)
+        else:
+            # If a logger object was passed in, then use that.
+            self.logger = logger
+
+        # Check if inargs is a 'dict'.
+        if isinstance(self.inargs, dict):
+            # Insert empty string for options if not present
+            if not 'options' in self.inargs.keys():
+                self.inargs['options'] = ''
+            for key in self.inargs.keys():
+                # Safety check to see if a number was passed in.
+                if isinstance(self.inargs[key], numbers.Number):
+                        self.inargs[key] = str(self.inargs[key])
+                # Convert booleans to 'yes' and 'no'
+                if self.inargs[key] is bool:
+                    if self.inargs[key]:
+                        self.inargs[key] = 'yes'
+                    else:
+                        self.inargs[key] = 'no'
+
+        # Check if inargs is a 'SASParams' dict.
+        if isinstance(self.inargs, SASParams):
+            argsdic = {}
+            # Pull off the parameters that have been modified
+            for k, v in self.inargs.inparams.items():
+                if v[1]:
+                    argsdic[k] = v[0]
+            self.inargs = dict(argsdic)
+            if not 'options' in self.inargs.keys():
+                self.inargs['options'] = ''
+
+        # Check if inargs is a single string. If it is, then split
+        # it at all spaces. This is not fool proof!
+        # ***STRONGLY*** NOT RECOMMENDED
+        # (unless the input is very simple, such as '-h')
+        if isinstance(self.inargs, str):
+            self.inargs = self.inargs.split()
+
+        # If inargs is a list, pick off all the options, then put
+        # all other arguments into key-value pairs in the dictionary.
+        if isinstance(self.inargs, list):
+            argsdic = {}
+            options = []
+            for a in self.inargs:
+                if '=' in a:
+                    k, v = a.split('=', 1)
+                    argsdic[k] = v
+                else:
+                    options.append(a)
+            argsdic['options'] = " ".join(options)
+            self.inargs = argsdic
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.taskname} - {self.inargs})'
+        return f'{self.__class__.__name__}({self.taskname}, {self.inargs})'
 
     def readparfile(self):
-        t = paramXmlInfoReader(self.taskname)
+        """
+        Reads the parameter file (taskname.par) for the task. Returns 
+        various lists and dictionaries.
+            - allparams : Dictionary { parameter: {attributes} }
+            - mandpar   : List of all mandatory parameters/subparameters
+            - mainparams: List of main paramaters
+            - parmap    : Dictionary { pname: [ subparameters ...], ...}
+            - mandpar_dict: Dictionary, key = mandatory subparamater, 
+                            value=its parent parameter
+            - rev_mandpar_dict: Dictionary, keys = parent paramater, 
+                                value = list of all mandatory subparameters
+            - rev_mandpar_string_dict: Dictionary, keys = parent parameter type 'string'
+                                       value = list of alternatives
+        """
+        t = paramXmlInfoReader(self.taskname, logger = self.logger)
         t.xmlParser()
         self.allparams = t.allparams
         self.mandparams = t.mandpar
@@ -224,36 +258,47 @@ class MyTask(SASTask):
         self.rev_mandpar_dict = t.rev_mandpar_dict
         self.rev_mandpar_string_dict = t.rev_mandpar_string_dict
 
-
     def processargs(self):
-        p = ParseArgs(self.taskname, self.inargs)
-        p.taskparser()
-        # tparams is a list with the left hands of param=value, if any
-        self.tparams = p.tparams
+        # Only if options are passed in
+        if 'option' in self.inargs.keys():
+            self.logger.warning("Input arguments include the key 'option'. Use 'options' (with an 's') instead.")
+                    
+        self.Exit = False
+        if len(self.inargs['options']) > 0:
+            pararg = ParseArgs(self.taskname, self.inargs, logger = self.logger)
+            pararg.optparser()
 
-        # Execute options which require immediate action
-        # Options which are for environment (which are cumulative) 
-        # do not change default False value of Exit.
-        self.Exit = p.procopt()
-        if self.Exit:
-            return self.Exit
+            # Execute options which require immediate action
+            self.Exit = pararg.exe_options()
+            if self.Exit:
+                return self.Exit
+            
+            # Deal with options that set environment variables
+            # For non-Python based tasks these will be passed in
+            # as part of the command for the subprocess call.
+            # For Python based tasks, they will have to be handled
+            # in the .run() function.
+            env_opts = pararg.env_options()
+
+        # Remove the options from argsdic
+        self.argsdic = dict(self.inargs)
+        self.argsdic.pop('options',None)
 
         # 1st check: Whether or not parameters in inargs are defined in the parameter file
-        for p in self.tparams:
+        for p in self.argsdic.keys():
             if p.strip() not in self.allparams.keys():
                 raise Exception(f'Parameter {p} is not defined in the parameter file')
 
- 
         # 2nd check: Whether we have mandatory parameters and subparameters
         for k, v in self.rev_mandpar_dict.items():
-            if k.strip() in v and k.strip() not in self.tparams:
+            if k.strip() in v and k.strip() not in self.argsdic.keys():
                 raise Exception(f'Missing, at least, mandatory parameter {k}')
             if k not in v:
-                for p in self.tparams:
+                for p in self.argsdic.keys():
                     if p in v:
                         implicit = 'yes'
                         for c in v:
-                            if c not in self.tparams:
+                            if c not in self.argsdic.keys():
                                 implicit = 'no'
                                 raise Exception(f'Besides {p}, mandatory subparameter {c} must also be present')
                         if implicit == 'yes':
@@ -266,11 +311,11 @@ class MyTask(SASTask):
                             elif self.allparams[k]['type'] == 'bool' and defval == 'yes':
                                 alt = 'no'
                             newinarg = k + '=' + alt
-                            self.inargs.append(newinarg)
-                            if k in self.tparams:
-                                print(f'Warning: No need to include {k}. Assumed {newinarg}')
+                            self.argsdic[k] = alt
+                            if k in self.argsdic.keys():
+                                self.logger.warning(f'No need to include {k}. Assumed {newinarg}')
                             break
-                    elif p in v and k not in self.tparams:
+                    elif p in v and k not in self.argsdic.keys():
                         raise Exception(f'Mandatory sub-parameter {p} requires {k} be present')
 
         # If any subparameters of a parent parameter are set in the command
@@ -283,7 +328,7 @@ class MyTask(SASTask):
 	    # parameters having subparameters. 
 	    # The final effect of this will be visible below when merging 
 	    # the parsdic (the dictionary with the default values for 
-	    # all the parameters) and the argsdic to pass all task  
+	    # all the parameters) and the inargs to pass all task  
 	    # parameters for execution.
 
 	    # Now compute a dictionary for all implicit parameters. 
@@ -307,15 +352,6 @@ class MyTask(SASTask):
         # in the command line, let us produce now a single object with all 
         # parameters which we can pass to the module to run.
 
-        # argsdic is a dictionary with the pairs param, value 
-        # as entered from the command line from 'param=value'
-
-        argsdic = {}
-        for a in self.inargs:
-            if '=' in a:
-                k, v = a.split('=', 1)
-                argsdic[k] = v
-
         # Load defaults with all parameters default values.
         # Use dictionary method 'setdefault' to set the value for a given key;
         # here the key is 'default'.
@@ -325,10 +361,10 @@ class MyTask(SASTask):
         for a in self.allparams.values():
             defaults[a['id']] = a.setdefault('default', '')
 
-        # 3rd Check: Whether any subparameter is set in argsdic or not.
+        # 3rd Check: Whether any subparameter is set in self.argsdic or not.
         # We assume the parent is boolean ('yes'/'no').
 
-        for a in argsdic.keys():
+        for a in self.argsdic.keys():
             for k, v in implicitparams.items():
                 if a in v:
                     #print(f'parent = {k}')
@@ -339,19 +375,188 @@ class MyTask(SASTask):
                     #print(k, a,  defaults[k])
                     break
 
-        # Merge argsdic onto parsdic. Those values set in command line, 
-        # from argsdic, will overwrite the defaults obtained from the par file, 
+        # Return options that modify the environment to argdic
+        self.env_options = {}
+        if len(self.inargs['options']) > 0:
+            for k, v in env_opts.items():
+                if k == 'env_options':
+                    self.argsdic['options'] = env_opts['env_options']
+                else:
+                    self.env_options[k] = v
+
+        # Merge self.argsdic onto parsdic. Those values set in command line, 
+        # from self.argsdic, will overwrite the defaults obtained from the par file, 
         # from parsdic. The resulting dictionary, self.iparsdic, is what we will 
         # pass to method runtask.
 
-        self.iparsdic = {**defaults, **argsdic}
-
-
-    def runtask(self):
-        if self.Exit:
-            return self.Exit
-        r = RunTask(self.taskname, self.iparsdic,self.logFile)
-        r.run()
+        self.iparsdic = {**defaults, **self.argsdic}
 
     def printHelp(self):
         self.paramXmlInfo.printHelp()
+    
+    def run(self):
+        """
+        Method run
+
+        If taskname is a Python module, therefore it is in the
+        list pysaspkgs, then import it and pass to its run
+        function the dictionary of parameters, iparsdic
+
+        If taskname is not a Python SAS task, there will not be
+        a run function, so we will invoke subprocess
+        """
+        self.logger.debug(f'Running {self.taskname}')
+        self.logger.debug(f'Reading parameter file.')
+        self.readparfile()
+        self.logger.debug(f'Processing input arguments')
+        self.processargs()
+        if self.Exit:
+            self.logger.debug(f'Exit called by processargs')
+            return self.Exit
+        sas_path = os.environ.get('SAS_PATH')
+
+        if not sas_path:
+            raise Exception('SAS_PATH is undefined! SAS not initialised?')
+
+        pysaspkgs = []
+
+        my_resources = importlib.resources.files("pysas")
+        for line in (my_resources / "pysaspkgs").read_text().splitlines():
+            pysaspkgs.append(line)
+
+        # For Python based SAS tasks
+        if self.taskname in pysaspkgs:
+            self.logger.debug(f'Using Python based SAS task: {self.taskname}')
+            # Add the environment options to iparsdic
+            self.logger.debug(f'Adding environment options to iparsdic')
+            self.iparsdic['options'] = dict(self.env_options)
+            temp_dict = {}
+            for k, v in self.env_options.items():
+                match(k):
+                    case 'SAS_CCFPATH' | 'SAS_CCF' | 'SAS_ODF' | 'SAS_VERBOSITY':
+                        temp_dict[k] = os.getenv(k)
+                        self.logger.debug(f'Storing previous setting of {k}={temp_dict[k]}')
+                        os.environ[k] = v
+                        self.logger.debug(f'Temporarely changing {k} to {v}')
+                    case 'SAS_CLOBBER' | 'CCF_files' | 'WARNING' | 'TRACE':
+                        # This needs to be handled by the individual task
+                        pass
+                    case _:
+                        pass
+            
+            self.logger.debug(f'Importing module {self.taskname}')
+            m = import_module('pysas.' + self.taskname + '.' + self.taskname)
+
+            self.logger.debug(f'Running module {self.taskname}')
+            m.run(self.iparsdic)
+            
+            # Reset Environment variables
+            for k, v in temp_dict.items():
+                match(k):
+                    case 'SAS_CCFPATH' | 'SAS_CCF' | 'SAS_ODF' | 'SAS_VERBOSITY':
+                        self.logger.debug(f'Resetting {k} to {temp_dict[k]}')
+                        if temp_dict[k] is None:
+                            os.environ.pop(k,None)
+                        else:
+                            os.environ[k] = temp_dict[k]
+                    case 'SAS_CLOBBER' | 'CCF_files' | 'WARNING' | 'TRACE':
+                        # This needs to be handled by the individual task
+                        pass
+                    case _:
+                        pass
+            
+        # For all other SAS tasks
+        else:
+            # Build a list of parameters based on iparsdic
+            self.logger.debug(f'Using non-Python based SAS task: {self.taskname}')
+            cmd_list = []
+            cmd_list.append(self.taskname)
+            for k, v in self.iparsdic.items():
+                if k == 'options':
+                    cmd_list.append(v)
+                    continue
+                #Remove single quotes a double quotes from the python input parameters
+                #SOC-SPR-7684
+                if v.startswith("\"") or v.endswith("\""):
+                    v = v.replace('"','')
+                if v.startswith("'") or v.endswith("'"):
+                    v = v.replace('\'','')
+                
+                if ' ' or '|' in v:
+                    singparam = k + '=' + "'"
+                    vc = v.split(' ')
+                    for i in range(len(vc)):
+                        if i == len(vc) - 1:
+                            singparam += vc[i]
+                        else:
+                            singparam += vc[i] + ' '
+                    singparam += "'"
+                    cmd_list.append(singparam)
+                else:
+                    cmd_list.append(k + '=' + v)
+
+            # Join all the parameters into a single command
+            cmd = " ".join(cmd_list)
+            if self.output_to_terminal:    
+                print(f'Executing: \n{cmd}')
+
+            try:
+                logger = get_logger(self.taskname,
+                                    toterminal  = self.output_to_terminal, 
+                                    tofile      = self.output_to_file, 
+                                    logfilename = self.logfilename,
+                                    tasklogdir  = self.tasklogdir,
+                                    pylogger    = False)
+                                    # The only place pylogger should be set to false
+                # Start the subprocess
+                process = subprocess.Popen(cmd, 
+                                           bufsize=1,
+                                           shell=True,
+                                           text=True,
+                                           stdout=subprocess.PIPE,
+                                           stderr=subprocess.STDOUT,
+                                           universal_newlines=True)
+
+                # Log stdout and stderr in real-time
+                # For non-Python SAS tasks the stout and stderr are combined
+                for line in process.stdout:
+                    logger.info(f"{line.strip()}")
+
+                # Wait for the process to complete and get the return code
+                process.wait()
+
+            except Exception as e:
+                logger.exception(f"An error occurred while running the command: {e}")
+
+            if process.returncode == 0:
+                logger.success(f"{self.taskname} executed successfully!")
+            else:
+                logger.critical(f"{self.taskname} failed!")
+
+    def runtask(self):
+        """
+        This method is here for legacy reasons since some Python
+        based SAS tasks still create a MyTask object.
+        e.g.
+            # Instatntiate MyTask for the task
+            t = MyTask('sasver', args)
+            t.readparfile()
+            t.processargs()
+            t.runtask()
+        """
+        self.run()
+
+
+class SASTask(MyTask):
+    """
+    Class SASTask is a child of MyTask and has access to all
+    of the methods in MyTask. It's only purpose is to act as
+    a placeholder for legacy code.
+    """
+    def __init__(self, taskname, inargs):
+        super().__init__(taskname,inargs)
+        warn(
+             """
+             The class SASTask has been depricated. Use MyTask instead.
+             ex: from pysas.sastask import MyTask
+             """)

@@ -17,8 +17,6 @@
 
 # XMMextractor_tools
 
-
-
 import os
 from astropy.coordinates import SkyCoord
 from astropy import units as u
@@ -27,15 +25,16 @@ from astropy.time import Time
 from astropy.io import fits
 import subprocess
 from pysas.pyutils import pyutils
-from pysas.logger import TaskLogger as TL
-tool_log = TL('aux.log')
+from logger import get_logger
 import glob
 import shutil
-from pysas.wrapper import Wrapper as W
+from pysas.sastask import MyTask as W
 import warnings
 import tarfile
 import urllib.request
 from astroquery.esa.xmm_newton import XMMNewton 
+
+tool_log = get_logger('aux.log')
 
 def ODF_times(SAS_file = ''):
     '''
@@ -256,10 +255,10 @@ def event_file_spectral_info(event_file, instr):
     backscale = get_back_scale(event_file, 1)
     areascale = get_area_scale(event_file, 1)
 
-    tool_log.log('info', '   #> Information from Spectra file: {}'.format(event_file))
-    tool_log.log('info', '   {} live time : {} (Weighted live time of CCDs in extraction region)'.format(instr, live_time))
-    tool_log.log('info', '   {} Backscale : {}'.format(instr, backscale))
-    tool_log.log('info', '   {} Areascale : {}'.format(instr, areascale))
+    tool_log.info('   #> Information from Spectra file: {}', event_file)
+    tool_log.info('   {} live time : {} (Weighted live time of CCDs in extraction region)', instr, live_time)
+    tool_log.info('   {} Backscale : {}', instr, backscale)
+    tool_log.info('   {} Areascale : {}', instr, areascale)
 
     return (live_time, backscale, areascale)
 
@@ -330,8 +329,8 @@ def print_SAS_setup():
         if 'SAS' in i:
             SAS_info = SAS_info + i + '=' + os.environ.get(i) + '\n'
 
-    tool_log.log('debug', '   #> This is the current SAS set-up: ')
-    tool_log.log('info', SAS_info)
+    tool_log.debug('   #> This is the current SAS set-up: ')
+    tool_log.info(SAS_info)
 
 
 def set_coordinates(obs, ra = '', dec = ''):
@@ -354,11 +353,11 @@ def set_coordinates(obs, ra = '', dec = ''):
     odfingest_file = test_odfingest[1]
 
     if not test_odfingest[0]:
-        tool_log.log('error','    Run odfingest first')
+        tool_log.error('    Run odfingest first')
         RunCifbuild.run_odfingest()
 
     if ra != '' or dec != '':
-        tool_log.log('info', '   #> Using user defined coordinates')
+        tool_log.info('   #> Using user defined coordinates')
         if ra != '':
             obs.set_coord(ra = str(ra))
         if dec != '':
@@ -369,9 +368,9 @@ def set_coordinates(obs, ra = '', dec = ''):
         # obs = XMMXMLextractor_classes.Observation(filename)
 
     else:
-        tool_log.log('info', "   #> Not user defined coordinates found. Using the SUM.SAS RA_OBJ and DE_OBJ coordinates.")
-        tool_log.log('info','   #> RA_OBJ = {}'.format(obs.ra))
-        tool_log.log('info','   #> DEC_OBJ = {}'.format(obs.dec))
+        tool_log.info("   #> Not user defined coordinates found. Using the SUM.SAS RA_OBJ and DE_OBJ coordinates.")
+        tool_log.info('   #> RA_OBJ = {}', obs.ra)
+        tool_log.info('   #> DEC_OBJ = {}', obs.dec)
 
     return obs
 
@@ -390,7 +389,7 @@ def produce_image(event_file, image_file, instr, mode):
         0 if run successfully; 1 otherwise.
     '''
 
-    tool_log.log('info', '   #> Producing image from {} .... '.format(event_file))
+    tool_log.info('   #> Producing image from {} .... ', event_file)
     if instr == 'EPN':
         expr = '#XMMEA_EP'
     if instr == 'EMOS1':
@@ -413,7 +412,7 @@ def produce_image(event_file, image_file, instr, mode):
         xval = 'RAWX'
         yval = 'TIME'
     else:
-        tool_log.log('error', 'ERROR producing image: {}'.format(image_file))
+        tool_log.error( 'ERROR producing image: {}', image_file)
         return 1
 
     args = ['table=\"{}\"'.format(event_file), 'expression=\"{}\"'.format(expr), ' withimageset=yes', +\
@@ -423,7 +422,7 @@ def produce_image(event_file, image_file, instr, mode):
 
     t.run()
 
-    tool_log.log('info', 'Image: done: {}'.format(image_file))
+    tool_log.info('Image: done: {}', image_file)
     
     return 0
 
@@ -442,7 +441,7 @@ def produce_image_4GUI(event_file, image_file, instr, mode):
         0 if run successfully; 1 otherwise.
     '''
 
-    tool_log.log('info', ' Producing image from {} .... '.format(event_file))
+    tool_log.info(' Producing image from {} .... ', event_file)
 
     if instr == 'EPN':
         expr = '#XMMEA_EP'
@@ -468,7 +467,7 @@ def produce_image_4GUI(event_file, image_file, instr, mode):
         yval = 'TIME'
         extra_params = []
     else:
-        tool_log.log('error', 'ERROR producing image for GUI: {}'.format(image_file))
+        tool_log.error( 'ERROR producing image for GUI: {}', image_file)
         return 1
 
     #image_file = image_file[image_file.rfind('/') + 1:]
@@ -479,7 +478,7 @@ def produce_image_4GUI(event_file, image_file, instr, mode):
     t = W('evselect', inargs)
     t.run()
 
-    tool_log.log('info', 'Image: done')
+    tool_log.info('Image: done')
 
     return 0
 
@@ -548,7 +547,7 @@ def produce_smooth_image(event_file, image_file, smooth_file, instr, mode):
         0 (success) or 1 (error).
     '''
 
-    tool_log.log('info', '   #> Producing smooth image from {} .... '.format(event_file))
+    tool_log.info('   #> Producing smooth image from {} .... ', event_file)
 
     if instr == 'EPN':
         expr = '#XMMEA_EP'
@@ -574,7 +573,7 @@ def produce_smooth_image(event_file, image_file, smooth_file, instr, mode):
         xval = 'RAWX'
         yval = 'TIME'
     else:
-        tool_log.log('error', 'ERROR producing smooth image.')
+        tool_log.error( 'ERROR producing smooth image.')
         return 1
 
     inargs = ['table=\"{}\"'.format(event_file), 'expression=\"{}\"'.format(exptr), 'withimageset=yes', + \
@@ -587,12 +586,12 @@ def produce_smooth_image(event_file, image_file, smooth_file, instr, mode):
     cmd = "(asmooth inset=\"{}\" outset=\"{}\" smoothstyle=simple convolverstyle=gaussian width=2.5)".format(image_file, smooth_file)
     if os.system(cmd):
         warnings.warn('Could not run asmooth')
-        tool_log.log('error', 'Could not run asmooth.')
+        tool_log.error('Could not run asmooth.')
         return 1
 
     shutil.copy(smooth_file, obs.image_dir)
 
-    tool_log.log('info', 'Smooth image created. Ok')
+    tool_log.info('Smooth image created. Ok')
     return 0
 
 
@@ -613,8 +612,8 @@ def GTI_file_info(event_file):
     instr = pyutils.get_key_word(event_file, 'INSTRUME')
     GTI_time = pyutils.get_key_word('ONTIME')
 
-    tool_log.log('info', '#> Information from GTI file: {}'.format(event_file))
-    tool_log.log('info', '{} Sum of all Good Time Intervals: {}'.format(instr, GTI_time))
+    tool_log.info('#> Information from GTI file: {}', event_file)
+    tool_log.info('{} Sum of all Good Time Intervals: {}', instr, GTI_time)
 
     return GTI_time
 
@@ -835,9 +834,9 @@ def build_expression(instr, mode, shape, values, current_log = ''):
         expr = '(({},{}) in {}({},{},{},{}))'.format(xval, yval, shape, xc, yc, L1, L2)
 
     if expr == '':
-        tool_log.log('warning', '\n Something wrong happened while writting an expression.')
+        tool_log.warning('\n Something wrong happened while writting an expression.')
     if current_log != '':
-        tool_log.log('info', 'Expression for the given parameters: {}'.format(expr))
+        tool_log.info('Expression for the given parameters: {}', expr)
 
     return expr
 
@@ -876,12 +875,12 @@ def prepare_region_log_file(instr, exposure, current_product, current_log, src_i
     else:
         product = 'spectra'
 
-    tool_log.log('debug', "   #> {} processing...".format(product))
-    tool_log.log('debug', "   #> Centroid of source to analyze (Physical Units)")
-    tool_log.log('debug', "   #> INSTRUMENT: {} EXPOSURE: {}".format(instr, exposure.expid))
-    tool_log.log('debug', "         SRC Region : {}".format(src_shape))
-    tool_log.log('debug', "         SRC XC     : {}".format(src_xc))
-    tool_log.log('debug'"         SRC YC     : {}".format(src_yc))
+    tool_log.debug("   #> {} processing...", product)
+    tool_log.debug("   #> Centroid of source to analyze (Physical Units)")
+    tool_log.debug("   #> INSTRUMENT: {} EXPOSURE: {}", instr, exposure.expid)
+    tool_log.debug("         SRC Region : {}", src_shape)
+    tool_log.debug("         SRC XC     : {}", src_xc)
+    tool_log.debug("         SRC YC     : {}", src_yc)
 
     if src_shape == "circle":
         if src_L1 == 0:
@@ -890,18 +889,18 @@ def prepare_region_log_file(instr, exposure, current_product, current_log, src_i
         else:
             if src_L2 == 0:
                 src_r = src_L1
-        tool_log.log('info', '         SRC R    : {}'.format(src_r))
+        tool_log.info('         SRC R    : {}', src_r)
     if src_shape == "annulus":
-        tool_log.log('info', '         SRC R1 - SRC R2    : {} - {}'.format(src_L1, src_L2))
+        tool_log.info('         SRC R1 - SRC R2    : {} - {}', src_L1, src_L2)
         if src_L1 > src_L2:
-            tool_log.log('warning',' source inner radius is bigger than outer radius')
+            tool_log.warning(' source inner radius is bigger than outer radius')
     if src_shape == "box":
-        tool_log.log('info', "         SRC BOX    : {} {}".format(src_L1, src_L2))
+        tool_log.info("         SRC BOX    : {} {}", src_L1, src_L2)
 
     # BKG
-    tool_log.log('debug', "         BKG Region : {}".format(bkg_shape))
-    tool_log.log('info', "         BKG XC     : {}".format(bkg_xc))
-    tool_log.log('info', "         BKG YC     : {}".format(bkg_yc))
+    tool_log.debug("         BKG Region : {}", bkg_shape)
+    tool_log.info("         BKG XC     : {}", bkg_xc)
+    tool_log.info("         BKG YC     : {}", bkg_yc)
     
     if bkg_shape == "circle":
         if bkg_L1 == 0:
@@ -910,19 +909,19 @@ def prepare_region_log_file(instr, exposure, current_product, current_log, src_i
         else:
             if bkg_L2 == 0:
                 bkg_r = bkg_L1
-        tool_log.log('info', '         BKG R    : {}'.format(bkg_r))
+        tool_log.info('         BKG R    : {}', bkg_r)
     if bkg_shape == "annulus":
-        tool_log.log('info','         BKG R1 - BKG R2    : {} - {}'.format(bkg_L1, bkg_L2))
+        tool_log.info('         BKG R1 - BKG R2    : {} - {}', bkg_L1, bkg_L2)
         if bkg_L1 > bkg_L2:
-            tool_log.log('warning', 'WARNING: bkg inner radius is bigger than outer radius')
+            tool_log.warning('WARNING: bkg inner radius is bigger than outer radius')
     if bkg_shape == "box":
-        tool_log.log('info', "         BKG BOX    : {} {}".format(bkg_L1, bkg_L2))
+        tool_log.info("         BKG BOX    : {} {}", bkg_L1, bkg_L2)
         area_factor = exposure.get_products(product)[0].get_tasks("xmmextractor","details")[0].get_params("areafactor")[0].param['default']
-        tool_log.log('info', "         BKG AREA SCALE FACTOR : {} (Only area taken into account)".format(area_factor))
+        tool_log.info("         BKG AREA SCALE FACTOR : {} (Only area taken into account)", area_factor)
         if bkg_L1 == 6000 or bkg_L2 == 6000 or src_L1 == 6000 or src_L2 == 6000:
-            tool_log.log('warning', "         WARNING : PN regions : Maximum allowed radius reached")
+            tool_log.warning("         WARNING : PN regions : Maximum allowed radius reached")
 
-    tool_log.log('info', 'Finished writing region log.')
+    tool_log.info('Finished writing region log.')
     return 0
 
 
@@ -966,17 +965,17 @@ def event_file_info(event_file, instr):
 
     # Writting to the given log...
 
-    tool_log.log('info', '    #> Information from Event File: {}'.format(event_file))
-    tool_log.log('info',"       {} OBS DATE          : {}".format(instr, utc_obsdate))
-    tool_log.log('info',"       {} OBS STARTING TIME : {} (1st Event)".format(instr, t_start))
-    tool_log.log('info', "       {} OBS ENDING TIME   : {} (Last Event)".format(instr, t_end))
-    tool_log.log('info', "       {} EXPOSURE ID  : {} ".format(instr, exposure))
-    tool_log.log('info', "       {} OBS DURATION : {}   ".format(instr, obs_duration))
-    tool_log.log('info', "       {} OBS ONTIME   : {}".format(instr, ontime))
-    tool_log.log('info', "       {} OBS LIVETIME : {}".format(instr, livetime))
-    tool_log.log('info', "       {} D MODE       : {}  ".format(instr, dmode))
-    tool_log.log('info', "       {} SUBMODE      : {}   ".format(instr, submode))
-    tool_log.log('info', "       {} FILTER       : {} ".format(instr, filter_info))
+    tool_log.info('    #> Information from Event File: {}', event_file)
+    tool_log.info("       {} OBS DATE          : {}", instr, utc_obsdate)
+    tool_log.info("       {} OBS STARTING TIME : {} (1st Event)", instr, t_start)
+    tool_log.info("       {} OBS ENDING TIME   : {} (Last Event)", instr, t_end)
+    tool_log.info("       {} EXPOSURE ID  : {} ", instr, exposure)
+    tool_log.info("       {} OBS DURATION : {}   ", instr, obs_duration)
+    tool_log.info("       {} OBS ONTIME   : {}", instr, ontime)
+    tool_log.info("       {} OBS LIVETIME : {}", instr, livetime)
+    tool_log.info("       {} D MODE       : {}  ", instr, dmode)
+    tool_log.info("       {} SUBMODE      : {}   ", instr, submode)
+    tool_log.info("       {} FILTER       : {} ", instr, filter_info)
 
     return (dmode, filter_info, submode, utc_obsdate, obs_duration, ontime, livetime, t_start, t_end)
 

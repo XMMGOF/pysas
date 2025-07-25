@@ -17,7 +17,8 @@
 
 # pymakethumbs.py
 
-from .version import VERSION, SAS_RELEASE, SAS_AKA
+from .version import VERSION
+from pysas import SAS_RELEASE, SAS_AKA
 
 __version__ = f'pymakethumbs (pymakethumbs-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]'
 
@@ -27,14 +28,13 @@ import matplotlib.pyplot as plt
 import os
 import sys
 from pysas.pyutils import pyutils as pyutils
-from pysas.logger import TaskLogger as TL
-thumb_log = TL('makethumb')
+from logger import get_logger
 from astropy.wcs import WCS
 from astropy.io import fits
 import numpy as np
 from matplotlib.colors import LogNorm
 
-
+thumb_log = get_logger('makethumb')
 
 def str_to_bool(string_param):
     '''
@@ -86,7 +86,7 @@ def prepare_text(hdu, manual_parameters, n_image, srcindexstyle, iau = ''):
         try:
             instr = hdu['INSTRUME']
         except KeyError:
-            thumb_log.log('warning', 'Could not find the INSTRUME keyword in the given FITS image.')
+            thumb_log.warning('Could not find the INSTRUME keyword in the given FITS image.')
             instr = 'unknown'
     else:
         instr = inststr
@@ -122,7 +122,7 @@ def info_from_catalogue(cat_file, cat_ext, srcnum):
         iau_vals: an array containing the IAUNAME data.
     '''
 
-    thumb_log.log('debug', 'Getting source info from source catalogue.')
+    thumb_log.debug('Getting source info from source catalogue.')
 
     if srcnum == 0:
         with fits.open(cat_file) as cat_f:
@@ -130,7 +130,7 @@ def info_from_catalogue(cat_file, cat_ext, srcnum):
             try:
                 iau_vals = data_cat['IAUNAME']
             except KeyError:
-                thumb_log.log('warning', 'Could not locate IAUNAME column in the source data catalogue.')
+                thumb_log.warning('Could not locate IAUNAME column in the source data catalogue.')
                 iau_vals = [''] * len(data_cat)
             try:
                 detids = data_cat['detid']
@@ -138,7 +138,7 @@ def info_from_catalogue(cat_file, cat_ext, srcnum):
                 try:
                     detids = data_cat['DETID']
                 except KeyError:
-                    thumb_log.log('warning', 'Could not locate DETID column in catalogue data.')
+                    thumb_log.warning('Could not locate DETID column in catalogue data.')
                     detids = [''] * len(data_cat)
             try:
                 srcids = data_cat['srcid']
@@ -166,23 +166,23 @@ def info_from_catalogue(cat_file, cat_ext, srcnum):
                 try:
                     numhex = hex(int(srcnum))
                 except TypeError:
-                    thumb_log.log('warning', 'Could not convert the given src number to hexagesimal.')
+                    thumb_log.warning('Could not convert the given src number to hexagesimal.')
                     numhex = ''
             else:
                 try:
                     src_nums = np.array((data_cat['SRC_NUM'][srcnum]))[0]
                 except (IndexError, KeyError) as e:
-                    thumb_log.log('warning', 'Could not find SRC_NUM in the given catalogue table: {}:{}.'.format(cat_file, cat_ext))
+                    thumb_log.warning('Could not find SRC_NUM in the given catalogue table: {}:{}.', cat_file, cat_ext)
                     src_nums = srcnum
                 try:
                     iau_vals = np.array((data_cat['IAUNAME'][srcnum]))[0]
                 except (IndexError, KeyError) as e:
-                    thumb_log.log('warning', 'Could not find IAUNAME in the given catalogue table: {}:{}.'.format(cat_file, cat_ext))
+                    thumb_log.warning('Could not find IAUNAME in the given catalogue table: {}:{}.', cat_file, cat_ext)
                     iau_vals = ''
                 try:
                     detids = np.array((data_cat['detid'][srcnum]))[0]
                 except (IndexError, KeyError) as e:
-                    thumb_log.log('warning', 'Could not find DETID in the given catalogue table: {}:{}.'.format(cat_file, cat_ext))
+                    thumb_log.warning('Could not find DETID in the given catalogue table: {}:{}.', cat_file, cat_ext)
                     detids = ''
                     try:
                         numhex = hex(int(src_num))
@@ -191,7 +191,7 @@ def info_from_catalogue(cat_file, cat_ext, srcnum):
                 try:
                     srcids = np.array((data_cat['SRCID'][srcnum]))[0]
                 except (IndexError, KeyError) as e:
-                    thumb_log.log('warning', 'Could not find SRCID in the given catalogue table: {}:{}.'.format(cat_file, cat_ext))
+                    thumb_log.warning('Could not find SRCID in the given catalogue table: {}:{}.', cat_file, cat_ext)
                     srcids = ''
                     numhex = ''
 
@@ -213,10 +213,10 @@ def source_from_table(src_file, src_ext, srcnum):
         n_images: the number of images that will be produced.
     '''
 
-    thumb_log.log('debug', 'Getting source info from source table.')
+    thumb_log.debug('Getting source info from source table.')
     
     if srcnum == 0:
-        thumb_log.log('info', 'Selecting all sources available in file {}:{}.'.format(src_file, src_ext))
+        thumb_log.info('Selecting all sources available in file {}:{}.', src_file, src_ext)
         with fits.open(src_file) as src_f:
             try:
                 ra_coords = src_f[src_ext].data['RA']
@@ -224,14 +224,14 @@ def source_from_table(src_file, src_ext, srcnum):
                 try:
                     src_nums = src_f[src_ext].data['SRC_NUM']
                 except KeyError:
-                    thumb_log.log('debug', 'Could not locate SRC_NUM in file {}. Will try with SRCNUM.'.format(src_file))
+                    thumb_log.debug('Could not locate SRC_NUM in file {}. Will try with SRCNUM.', src_file)
                     try:
                         src_nums = src_f[src_ext].data['SRCNUM']
                     except KeyError:
                         src_nums = np.arange(len(ra_coords))
-                        thumb_log('warning', 'Could not locate srcnum info. Using a ordered list instead.')
+                        thumb_log.warning('Could not locate srcnum info. Using a ordered list instead.')
             except (IndexError, KeyError) as e:
-                thumb_log.log('error', 'Could not find RA/DEC info in the given source file: {}:{}.'.format(src_file, src_ext))
+                thumb_log.error('Could not find RA/DEC info in the given source file: {}:{}.', src_file, src_ext)
                 sys.exit(0)
     else:
         with fits.open(src_file) as src_f:
@@ -240,18 +240,18 @@ def source_from_table(src_file, src_ext, srcnum):
                 dec_coords = src_f[src_ext].data[src_f[src_ext].data['SRC_NUM'] == srcnum]['DEC']
                 src_nums = srcnum
             else:
-                thumb_log.log('warning', 'Could not find SRC_NUM in the sourcelist data columns. Selecting the srcnum element in list.')
+                thumb_log.warning('Could not find SRC_NUM in the sourcelist data columns. Selecting the srcnum element in list.')
                 try:
                     ra_coords = np.array((src_f[src_ext].data['RA'][srcnum]))
                     dec_coords = np.array((src_f[src_ext].data['DEC'][srcnum]))
                     src_nums = srcnum
                 except (IndexError, KeyError) as e:
-                    thumb_log.log('error', 'Could not find RA/DEC info in the given source file: {}:{}.'.format(src_file, src_ext))
+                    thumb_log.error('Could not find RA/DEC info in the given source file: {}:{}.', src_file, src_ext)
                     sys.exit(0)
 
     n_images = len(ra_coords)
     if n_images == 0:
-        thumb_log.log('error', 'No RA/DEC coordinates were found in the SourceList.')
+        thumb_log.error('No RA/DEC coordinates were found in the SourceList.')
         sys.exit(0)
 
     coords = []
@@ -280,7 +280,7 @@ def plot_thumb(data, hdu, plot_config, plot_text):
         None
     '''
 
-    thumb_log.log('info', 'Running plot_thumb...')
+    thumb_log.info('Running plot_thumb...')
 
     plt.style.use('dark_background')
 
@@ -291,7 +291,7 @@ def plot_thumb(data, hdu, plot_config, plot_text):
     
     imagesize = imagesize * 3
     
-    thumb_log.log('info', 'Making plot with center coordinates RA: {0} DEC:{1}.'.format(ra, dec))
+    thumb_log.info('Making plot with center coordinates RA: {} DEC:{}.', ra, dec)
 
     # defining center and corners
     xc, yc = wcs.wcs_world2pix(ra, dec, 0)
@@ -393,7 +393,7 @@ def get_plot_title(gifroot, fnamestyle, gifsuffix, fnameseparator, cat_info = ''
 
     if not isinstance(cat_info, str):
         src_num, srcid, detid, num_hex = cat_info 
-        thumb_log.log('debug', 'Catalogue info gathered: {}.'.format(cat_info))
+        thumb_log.debug('Catalogue info gathered: {}.', cat_info)
         if use_srcid != -1:
             full_str_l[use_srcid] = use_srcid
         else:
@@ -411,7 +411,7 @@ def get_plot_title(gifroot, fnamestyle, gifsuffix, fnameseparator, cat_info = ''
         else:
             full_str_l.remove('')
             
-    thumb_log.log('debug', 'Full string iteration: {}. Separators: {}. full_str: {}'.format(full_str_l, separators, full_str))
+    thumb_log.debug('Full string iteration: {}. Separators: {}. full_str: {}', full_str_l, separators, full_str)
 
     if len(full_str_l) == 0:
         full_str = ''
@@ -444,7 +444,7 @@ def get_separators(nameseparators):
     char_list = list(nameseparators)
 
     if len(char_list) == 0:
-        thumb_log.log('warning', 'Could not find separators. Using _ by default.')
+        thumb_log.warning('Could not find separators. Using _ by default.')
         char_list = ['_'] * 4
     
     while len(char_list) < 4:
@@ -499,7 +499,7 @@ def run(iparsdic):
     printparams = str_to_bool(printparams)
     
     if printparams:
-        thumb_log.log('info', 'Full parameter info: {}'.format(iparsdic))
+        thumb_log.info('Full parameter info: {}', iparsdic)
 
     dryrun = iparsdic['dryrun']
     dryrun = str_to_bool(dryrun)
@@ -508,7 +508,7 @@ def run(iparsdic):
     imageset = iparsdic['imageset']
     
     if not os.path.isfile(imageset):
-        thumb_log.log('error', 'The given imageset cannot be found.')
+        thumb_log.error('The given imageset cannot be found.')
         sys.exit(0)
     else:
         with fits.open(imageset) as imset:
@@ -526,7 +526,7 @@ def run(iparsdic):
         withsrclist = True
 
     if not withsrclist and not withcoords:
-        thumb_log.log('error', 'Either withcoords or withsrclist must be true.')
+        thumb_log.error('Either withcoords or withsrclist must be true.')
         sys.exit(0)
 
 
@@ -545,11 +545,11 @@ def run(iparsdic):
         try:
             src_file, src_ext = srclisttab.split(':')
         except ValueError:
-            thumb_log.log('warning', 'Could not split srclisttab. Will use The first non-primary extension.')
+            thumb_log.warning('Could not split srclisttab. Will use The first non-primary extension.')
             src_file = srclisttab
             src_ext = 1
         coords, n_images, srcnums = source_from_table(src_file, src_ext, srcnum)
-        thumb_log.log('debug', 'Info from srclisttab: coords: {}. source numbers: {}.'.format(coords, srcnums))
+        thumb_log.debug('Info from srclisttab: coords: {}. source numbers: {}.', coords, srcnums)
     else:
         # manual coordinates selection
         if withcoords:
@@ -563,7 +563,7 @@ def run(iparsdic):
         try:
             cat_file, cat_ext = cattab.split(':')
         except ValueError:
-            thumb_log.log('warning', 'Could not split cattab. Will use The first non-primary extension.')
+            thumb_log.warning('Could not split cattab. Will use The first non-primary extension.')
             cat_file = cattab
             cat_ext = 1
         if isinstance(srcnums, int):
@@ -583,7 +583,7 @@ def run(iparsdic):
                 iau_vals.append(iau_vals_i)
 
 
-        thumb_log.log('debug', 'Catalogue overall info: src_nums: {0}, srcids: {1}, detids: {2}. Num.Hex: {3}.'.format(src_nums, srcids, detids, numhex))
+        thumb_log.debug('Catalogue overall info: src_nums: {}, srcids: {}, detids: {}. Num.Hex: {}.', src_nums, srcids, detids, numhex)
 
     
     # formatting parameters:
@@ -594,14 +594,14 @@ def run(iparsdic):
         outfilename = iparsdic['outfilename']
         plot_title = outfilename
         if n_images != 1:
-            thumb_log.log('warning', 'Since a fixed filename was passed but more than one images were expected only the first one will be created.')
+            thumb_log.warning('Since a fixed filename was passed but more than one images were expected only the first one will be created.')
             n_images = 1
     else:
         gifroot = iparsdic['gifroot']
         fnamestyle = iparsdic['fnamestyle']
         gifsuffix = iparsdic['gifsuffix']
         if '.GIF' in gifsuffix.upper():
-            thumb_log.log('warning', 'matplotlib does not support GIF format. Changing to png.')
+            thumb_log.warning('matplotlib does not support GIF format. Changing to png.')
             gifsuffix = '.png'
         fnameseparator = iparsdic['fnameseparator']
         
@@ -622,14 +622,14 @@ def run(iparsdic):
         srcindexstyle = '/'
     elif srcindexstyle.upper() == 'HEXSRCNUM':
         srcindexstyle == ''
-        thumb_log.log('warning', 'srcindexstyle=hexsrcnum is not yet supported. Switched to none')
+        thumb_log.warning('srcindexstyle=hexsrcnum is not yet supported. Switched to none')
     elif srcindexstyle.upper() == 'DETID':
         srcindexstyle = ':'
     elif srcindexstyle.upper() == 'SRCID':
         srcindexstyle = '/'
     else:
         srcindexstyle = ''
-        thumb_log.log('warning', 'Unrecognised format. Using none.')
+        thumb_log.warning('Unrecognised format. Using none.')
 
     # plotting options
     iaunameprefix = iparsdic['iaunameprefix']
@@ -649,7 +649,7 @@ def run(iparsdic):
     try:
         colourmap = plt.cm.get_cmap(colourmap)
     except ValueError:
-        thumb_log.log('warning', "The selected colourmap is not present in the matplotlib cmap list. Using 'plasma' by default.")
+        thumb_log.warning("The selected colourmap is not present in the matplotlib cmap list. Using 'plasma' by default.")
         colourmap = plt.cm.get_cmap('plasma')
 
     for i in range(0, n_images):
@@ -661,13 +661,13 @@ def run(iparsdic):
                 num_hex = numhex[i]
                 iau = iaunameprefix + iau_vals[i]
                 cat_info = src_num, srcid, detid, num_hex
-                thumb_log.log('debug', 'Plot info for image {}'.format(i))
+                thumb_log.debug('Plot info for image {}', i)
                 plot_title = get_plot_title(gifroot, fnamestyle, gifsuffix, fnameseparator, cat_info)
             else:
                 plot_title = gifroot + str(1 + i) + gifsuffix
-                thumb_log.log('debug', 'Plot title: {}.'.format(plot_title))
+                thumb_log.debug('Plot title: {}.', plot_title)
         else:
-            thumb_log.log('debug', 'Plot title: {}.'.format(plot_title))
+            thumb_log.debug('Plot title: {}.', plot_title)
         
         ra_dec = coords[i]
         

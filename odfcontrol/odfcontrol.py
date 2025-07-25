@@ -27,19 +27,17 @@ odfcontrol.py
 
 # Standard library imports
 import os, sys, shutil, glob, numbers
+from warnings import warn
 
 # Third party imports
 
 # Local application imports
-# from .version import VERSION, SAS_RELEASE, SAS_AKA
-from ..logger import TaskLogger as TL
 from ..configutils import sas_cfg
 from ..init_sas import initializesas
 from ..wrapper import Wrapper as w
 from ..sasutils import generate_logger
 from ..sasutils import download_data as dl_data
 
-__version__ = 'odfcontrol (odfcontrol-1.2.0)'
 __all__ = ['ODFobject']
 
 
@@ -87,6 +85,14 @@ class ODFobject(object):
     """
 
     def __init__(self,odfid,data_dir=None):
+        warn(
+             """
+             The ODFobject class has been depricated. Use ObsID instead.
+             ex: 
+                 my_obs = pysas.obsid.ObsID(obsid)
+             instead of
+                 odf = pysas.odfcontrol.ODFobject(obsid)
+             """)
         if isinstance(odfid, numbers.Number):
             odfid = str(odfid)
         self.odfid = odfid
@@ -1092,6 +1098,7 @@ class ODFobject(object):
         
         if os.path.exists(self.odf_dir):
             print(f'odf_dir found at {self.odf_dir}.')
+            os.environ['SAS_ODF'] = self.odf_dir
             if os.path.exists(self.pps_dir):
                 print(f'pps_dir found at {self.pps_dir}.')
         else:

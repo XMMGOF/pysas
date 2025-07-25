@@ -17,7 +17,8 @@
 
 # omdrifthist.py
 
-from .version import VERSION, SAS_RELEASE, SAS_AKA
+from .version import VERSION
+from pysas import SAS_RELEASE, SAS_AKA
 
 __version__ = f'omdrifthist (omdrifthist-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]'
 
@@ -37,9 +38,9 @@ from astropy.io import fits
 from astropy.table import Table
 import time
 import pysas.pysasplot_utils.pysasplot_utils as sasplt
-from pysas.logger import TaskLogger as TL
+from logger import get_logger
 
-logger = TL('omdrifthist')
+logger = get_logger('omdrifthist')
 
 ########################################
 ############ CALC FUNCTIONS ############
@@ -80,7 +81,7 @@ def incremental_drift(history, x0, y0, rpixel):
         n_out_0: the number of pixels outside the original radius at x0, y0
     """
 
-    logger.log('debug', 'Calculating incremental drift arrays...')
+    logger.debug('Calculating incremental drift arrays...')
 
     n_out = 0
     incdrift = [euclid_modulus(history[0])]
@@ -98,7 +99,7 @@ def incremental_drift(history, x0, y0, rpixel):
             n_out_0 = n_out_0 + 1
 
     increments = np.vstack(increments)
-    logger.log('debug', 'Incremental drift arrays calculated.')
+    logger.debug('Incremental drift arrays calculated.')
 
     return incdrift, increments, n_out, n_out_0
 
@@ -137,12 +138,12 @@ def get_platescale(filt):
         platescale: the value for the plate scale as float.
     """
 
-    logger.log('debug', 'Looking for platescale...')
+    logger.debug('Looking for platescale...')
 
     try:
         ccfpath = os.environ['SAS_CCFPATH']
     except KeyError:
-        logger.log('error', 'Could not locate variable SAS_CCFPATH. Quitting...')
+        logger.error('Could not locate variable SAS_CCFPATH. Quitting...')
         sys.exit(0)
 
 
@@ -150,31 +151,31 @@ def get_platescale(filt):
     if len(folders) == 1:
         om_ccf_file = glob.glob(os.environ['SAS_CCFPATH'] + '/OM_ASTR*')
         om_ccf_file = get_more_recent_ccf(om_ccf_file)
-        logger.log('debug', 'CCF file used: {0}.'.format(om_ccf_file))
+        logger.debug('CCF file used: {}.', om_ccf_file)
         search_extension = 'FILTER-' + filt.upper()
         platescale = pyutils.get_key_word(om_ccf_file, 'PLTSCALE', search_extension)
     else:
         om_ccf_list = []
-        logger.log('debug', 'List of folders found in CCF path: {0}'.format(folders))
+        logger.debug('List of folders found in CCF path: {}', folders)
         for folder in folders:
             try:
                 om_ccf_file = os.path.abspath(glob.glob(folder + '/OM_ASTR*')[0])
             except IndexError:
-                logger.log('debug', '{} does not contain OM astronometry calibration file.'.format(folder))
+                logger.debug('{} does not contain OM astronometry calibration file.', folder)
                 continue
             om_ccf_list.append(om_ccf_file)
-        logger.log('debug', 'Found the following OM CCF compatible files: {0}'.format(om_ccf_list))
+        logger.debug('Found the following OM CCF compatible files: {}', om_ccf_list)
         latest_ccf = get_more_recent_ccf(om_ccf_list)
-        logger.log('debug', 'CCF file used: {0}.'.format(latest_ccf))
+        logger.debug('CCF file used: {}.', latest_ccf)
         search_extension = 'FILTER-' + filt.upper()
         platescale = pyutils.get_key_word(latest_ccf, 'PLTSCALE', search_extension)
 
 
     if platescale == 'unknown':
-        logger.log('warning', 'Could not find the platescale keyword in the CCF. Will use the most frequen value.')
+        logger.warning('Could not find the platescale keyword in the CCF. Will use the most frequen value.')
         platescale = 0.476513
     else:
-        logger.log('info', 'Platescale retrieved from ccf file. Value: {}.'.format(platescale))
+        logger.info('Platescale retrieved from ccf file. Value: {}.', platescale)
     return float(platescale)
 
 
@@ -198,7 +199,7 @@ def evaluate_zerodrift(tracking_header):
         zerodrift_flag = False
 
     if zerodrift_flag:
-        logger.log('error', 'The file was marked as inadequate to work with omdrifthist.')
+        logger.error('The file was marked as inadequate to work with omdrifthist.')
         sys.exit(0)
 
     return 1
@@ -229,11 +230,11 @@ def omdrifthist1(datax, datay, x0, y0, r0, scale = '', nbins = 50, added_text ='
         1 when finished, 0 if could not finish the plot.
     """
 
-    logger.log('info', 'Working on plot 1.')
+    logger.info('Working on plot 1.')
     # evaluating data
 
     if len(datax) != len(datay):
-        logger.log('warning', 'The coordinate length is not the same for bot axes. Plot 1 will not be produced...')
+        logger.warning('The coordinate length is not the same for bot axes. Plot 1 will not be produced...')
         return 0
 
     ####################################
@@ -351,7 +352,7 @@ def omdrifthist1(datax, datay, x0, y0, r0, scale = '', nbins = 50, added_text ='
     else:
         out1 = output + '.' + out_format
 
-    logger.log('debug', 'Saving plot 1: {}.{} ({})'.format(output, out_format, out1))
+    logger.debug('Saving plot 1: {}.{} ({})', output, out_format, out1)
 
     try:
         plt.savefig(out1)
@@ -361,12 +362,12 @@ def omdrifthist1(datax, datay, x0, y0, r0, scale = '', nbins = 50, added_text ='
             os.makedirs(dirs)
             plt.savefig(out1)
         except:
-            logger.log('error', 'Could not create {}. Could not resolve the given path.'.format(out1))
+            logger.error('Could not create {}. Could not resolve the given path.', out1)
 
     if pyutils.is_notebook():
         plt.show()
     
-    logger.log('info', 'Plot produced: {}'.format(out1))
+    logger.info('Plot produced: {}', out1)
     
     return 1
 
@@ -394,7 +395,7 @@ def omdrifthist2(roll, nframes, datax, datay, incremental_drift, scale = '', nbi
         1 when finished.
     """
 
-    logger.log('info', 'Working on plot 2.')
+    logger.info('Working on plot 2.')
 
     roll = np.array(roll) * 180 / math.pi
     f, ax = plt.subplots(2, 2, figsize = (8, 10), sharey=False, sharex=False)
@@ -446,7 +447,7 @@ def omdrifthist2(roll, nframes, datax, datay, incremental_drift, scale = '', nbi
     else:
         out2 = output + '.' + out_format
 
-    logger.log('debug', 'Saving plot 2: {}.{} ({})'.format(output, out_format, out2))
+    logger.debug('Saving plot 2: {}.{} ({})', output, out_format, out2)
 
     try:
         plt.savefig(out2)
@@ -456,11 +457,11 @@ def omdrifthist2(roll, nframes, datax, datay, incremental_drift, scale = '', nbi
             os.makedirs(dirs)
             plt.savefig(out2)
         except:
-            logger.log('error', 'Could not create {}. Could not resolve the path.'.format(out2))
+            logger.error('Could not create {}. Could not resolve the path.', out2)
 
     if pyutils.is_notebook():
         plt.show()
-    logger.log('info', 'Plot produced: {}'.format(out2))
+    logger.info('Plot produced: {}', out2)
 
     return 1
 
@@ -469,7 +470,7 @@ def omdrifthist2(roll, nframes, datax, datay, incremental_drift, scale = '', nbi
 
 
 def run(iparsdic):
-    logger.log('warning', f'Executing {__file__} {iparsdic}')
+    logger.warning(f'Executing {__file__} {iparsdic}')
 
     t_start = time.time()
     fits_file = iparsdic['set']
@@ -486,30 +487,30 @@ def run(iparsdic):
     if output_base[1] == '':
         output = plot_abs_path
         out_format = 'pdf'
-        logger.log('warning', 'Format not found in the plotfile parameter. Using {0}.{1} as default.'.format(plot_abs_path, out_format))
+        logger.warning('Format not found in the plotfile parameter. Using {}.{} as default.', plot_abs_path, out_format)
     else:
         output_base, out_format = output_base
         out_format = out_format.replace('.', '')
         output = output_base
-        logger.log('debug', 'Using {}.{}'.format(output, out_format))
+        logger.debug('Using {}.{}', output, out_format)
 
-    logger.log('debug', 'Working with {}.{}'.format(output, out_format))
+    logger.debug('Working with {}.{}', output, out_format)
     nbins = int(iparsdic['nbins'])
     verbosity = int(os.environ['SAS_VERBOSITY'])
 
     if not out_format.upper() in ('PNG', 'PDF'):
-        logger.log('error', 'Format {} not understood. Please use only pdf or png formats.'.format(out_format))
+        logger.error('Format {} not understood. Please use only pdf or png formats.', out_format)
         sys.exit(0)
 
     TBD = 10
 
     if not os.path.isfile(fits_file):
-        logger.log('error', 'The input file does not exist.')
+        logger.error('The input file does not exist.')
         sys.exit(0)
 
     datamode = pyutils.get_key_word(fits_file, 'DATAMODE')
     if datamode != 'TRACKING':
-        logger.log('error', 'Invalid datamode ({0}) for tracking history.'.format(datamode))
+        logger.error('Invalid datamode ({}) for tracking history.', datamode)
         sys.exit(0)
 
     try:
@@ -520,7 +521,7 @@ def run(iparsdic):
         filt = pyutils.get_key_word(fits_file, 'FILTER')
         frametime = pyutils.get_key_word(fits_file, 'FRMTIME')
     except FileNotFoundError:
-        logger.log('error', 'Could not open the fits file. Quitting...')
+        logger.error('Could not open the fits file. Quitting...')
         sys.exit(0)
 
     platescale = get_platescale(filt)
@@ -532,12 +533,12 @@ def run(iparsdic):
             tracking_header = f[1].header
             t = Table(f[1].data)
     else:
-        logger.log('error', 'Could not find the fits file. Quitting...')
+        logger.error('Could not find the fits file. Quitting...')
         sys.exit(0)
 
     evaluate_zerodrift(tracking_header)
 
-    logger.log('debug', 'File {0} read.'.format(fits_file))
+    logger.debug('File {} read.', fits_file)
     rpixel = trackradius
 
     try:
@@ -549,12 +550,12 @@ def run(iparsdic):
         nggs = t['NGGS']
     except KeyError:
         pyutils.pymodhdu(fits_file, 1, 'ZERODRIFT', 1, comment = 'File not suitable for working with omdrifthist.')
-        logger.log('error', 'At least one column could not be loaded.')
+        logger.error('At least one column could not be loaded.')
         sys.exit(0)
 
     if len(nframes) == 0:
         pyutils.pymodhdu(fits_file, 1, 'ZERODRIFT', 1, comment = 'File not suitable for working with omdrifthist.')
-        logger.log('warning', 'Not a valid tracking history file. Will write extension to notify.')
+        logger.warning('Not a valid tracking history file. Will write extension to notify.')
         sys.exit(0)
 
     nrows = len(t)
@@ -613,17 +614,17 @@ def run(iparsdic):
         omdrifthist2(roll, nframes, inc_x, inc_y, incdrift, nbins = nbins, added_text = text, output = output, fig_title = fig_title)
 
     if '1' in str(pages) and '2' in str(pages) and out_format.upper() == 'PDF':
-        logger.log('debug', 'More than one PDF created. Merging...')
+        logger.debug('More than one PDF created. Merging...')
         pdf_files_found = glob.glob(os.path.splitext(output)[0] + '*DRIFT_TEMP*')
         pdf_files_found.sort()
-        logger.log('debug', 'sorted list: {}'.format(pdf_files_found))
+        logger.debug('sorted list: {}', pdf_files_found)
         output = output.replace('DRIFT_TEMP', '')
         status = sasplt.merge_pdf(pdf_files_found, os.path.splitext(output)[0] + '.{}'.format(out_format))
 
         if status == 0:
-            logger.log('warning', 'Could not merge the two PDFs')
+            logger.warning('Could not merge the two PDFs')
         else:
-            logger.log('debug', 'PDF merged. Cleaning up...')
+            logger.debug('PDF merged. Cleaning up...')
             for pdffile in pdf_files_found:
                 if pdffile == output + '.{}'.format(out_format):
                     pass
@@ -631,6 +632,6 @@ def run(iparsdic):
                     os.remove(pdffile)
 
     t_stop = time.time()
-    logger.log('info', 'Finished running omdrifthist in {:.2f} seconds.'.format(t_stop - t_start))
+    logger.info('Finished running omdrifthist in {:.2f} seconds.'.format(t_stop - t_start))
     print('Finished running omdrifthist in {:.2f} seconds.'.format(t_stop - t_start))
 

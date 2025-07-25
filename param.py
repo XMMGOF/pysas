@@ -48,12 +48,13 @@ from xml.dom import minidom as md
 import os
 import sys
 import glob
+from collections import UserDict
 
 # Third party imports
 from beautifultable import BeautifulTable
 
 # Local application imports
-from pysas.error import Error as Err
+from pysas.logger import get_logger
 
 
 class paramXmlInfoReader:
@@ -69,19 +70,27 @@ class paramXmlInfoReader:
     an argument list.
     """
 
-    def __init__(self, taskname):
+    def __init__(self, taskname, logger = None):
         """taskname to be handled."""
 
         self.taskname = taskname
         self.xmlFile = ''
+        if logger is None:
+            # By default will only output to terminal
+            self.logger = get_logger('paramXmlInfoReader')
+        else:
+            # Use logger that was passed in
+            self.logger = logger
 
-        sas_path = os.environ['SAS_PATH'].split(':')
-        for path in sas_path:
-            parfile = self.taskname + '.par'
-            files = glob.glob(os.path.join(path, 'config', parfile))
-            if files:
-                self.xmlFile = files[0]
-                break
+        sas_dir = os.environ['SAS_DIR']
+        self.logger.debug(f'SAS_DIR: {sas_dir}')
+        parfile = self.taskname + '.par'
+        self.logger.debug(f'Parfile name: {parfile}')
+        files = glob.glob(os.path.join(sas_dir, 'config', parfile))
+        self.logger.debug(f'Parfile location: {files}')
+        if files:
+            self.xmlFile = files[0]
+            self.logger.debug(f'xmlFile: {self.xmlFile}')
 
         if self.xmlFile == '':
             raise Exception(f'Does not exist any file named {parfile}. Wrong syntax?')
@@ -90,7 +99,7 @@ class paramXmlInfoReader:
     def xmlParser(self):
         """
         The first task of xmlParser is to get the whole XML file as an object 
-        of type Document (iFor a list of all objects, look at the xml.dom documentation).
+        of type Document (For a list of all objects, look at the xml.dom documentation).
         Then, it produces a list of Element objects in the paramater file which are 
         identified by the tag 'PARAM'. This is done by means of the Element method
         getElementsByTagName.
@@ -153,9 +162,7 @@ class paramXmlInfoReader:
         try:
             doc = md.parse(self.xmlFile)
         except:
-            Err(client=self.taskname,
-                code='openFileError',
-                msg=f'ERROR opening par file {self.taskname}.par: {self.xmlFile}').error()
+            self.logger.error(f'ERROR opening par file {self.taskname}.par: {self.xmlFile}')
             sys.exit(1)
 
         # self.params
@@ -340,27 +347,86 @@ class paramXmlInfoReader:
         pname = pels[p]
         return pname
 
-def get_input_params(taskname,return_param_obj=False):
+class SASParams(UserDict):
+    """
+    The class 'SASParams' is a child of 'UserDict', which is 
+    like a normal Python dict, but allows for special modifications.
+
+    Upon instatiation the object will create a parallel dict which
+    keeps track if the values of the main dict have been modified.
+
+    The end user should interact with the SASParams dict like a normal
+    Python dictionary.
+    
+    The special methods are intended for internal pySAS use only!
+
+    How to use:
+        from pysas.param import SASParams
+        my_task_inputs = SASParams({})
+        my_task_inputs.set_inparams_to_defaults(taskname)
+    """
+    def __init__(self, *args, **kwargs):
+        self.inparams = {}
+        super().__init__(*args, **kwargs)
+        for key in self.data.keys():
+            self.inparams[key] = (self.data[key],False)
+    def __setitem__(self, key, value):
+        self.inparams[key] = (value,True)
+        super().__setitem__(key, value)
+
+    def get_task_defaults(self,taskname):
+        """
+        Function to get the default parameters for a SAS task.
+        """
+        t = paramXmlInfoReader(taskname)
+        t.xmlParser()
+        self.defaults = t.defaultValues()
+        self.defaults['options'] = ''
+
+    def get_task_params(self,taskname):
+        """
+        Function to get ALL the parameter information
+        for a SAS task.
+        """
+        t = paramXmlInfoReader(taskname)
+        t.xmlParser()
+        self.allparams = t.allparams
+        self.mandparams = t.mandpar
+        self.mainparams = t.mainparams
+        self.parmap = t.parmap
+        self.mandpar_dict = t.mandpar_dict
+        self.rev_mandpar_dict = t.rev_mandpar_dict
+        self.rev_mandpar_string_dict = t.rev_mandpar_string_dict
+
+    def set_inparams_to_defaults(self, taskname):
+        """
+        Sets special dictionary 'inparams' to defaults without
+        setting 'modified' to 'True'.
+
+        Silently overwrites previous values!
+        """
+        self.get_task_defaults(taskname)
+        for k, v in self.defaults.items():
+            self.inparams[k] = (v,False)
+            super().__setitem__(k, v)
+
+def get_input_params(taskname):
     """
     Function to return dictionary of input parameters for a given 
     SAS task.
 
         Input:
         - taskname (string)
-        - return_param_obj (boolean) default: False
 
         Output:
-        - dictionary of input parameters with defaults.
-        - (optional) paramXmlInfoReader object, but only if 
-          return_param_obj = True
+        - Special dictionary of input parameters with defaults.
+          The dictionary will be of the type 'SASParams', which
+          behaves like a normal dictionary, but keeps track of 
+          which parameters have been modified.
+        
     """
+    
+    return_dict = SASParams({})
+    return_dict.set_inparams_to_defaults(taskname)
 
-    t = paramXmlInfoReader(taskname)
-    t.xmlParser()
-    defaults = t.defaultValues()
-    defaults['options'] = ''
-
-    if return_param_obj:
-        return defaults, t
-    else:
-        return defaults
+    return return_dict

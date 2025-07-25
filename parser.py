@@ -22,11 +22,11 @@ The parser module implements the class ParseArgs which includes
 all the methods required to parse any arguments entered either 
 via the command line or through a list.
 
-The class initialization  checks for the existence of SAS_PATH.
+The class initialization checks for the existence of SAS_PATH.
 Then it populates the pysaspkgs list with all packages below pysas.
 This is used to get the version of the package.
 
-The instance method taskparser uses module argparse to define the
+The instance method optparser uses module argparse to define the
 two types of arguments supported: options and parameters.
 Options can be classified into two categories: immediate action and
 execution modifiers. Options are accessed via the a single or a 
@@ -36,8 +36,6 @@ value. Within the value there can be more '=' symbols.
 
 Method procopt either executes the immediate options or sets the 
 environment variables that modify the execution of the task.
-
-Task parameters entered are returned in list tparams.
 """
 
 
@@ -46,34 +44,41 @@ import os
 import sys
 import subprocess
 import argparse
-import pkgutil
 from importlib import import_module
-from contextlib import suppress
+import importlib.resources
 
 # Third party imports
 
 # Local application imports
 from pysas.param import paramXmlInfoReader
+from pysas.logger import get_logger
+from .configutils import sas_cfg
 
 class ParseArgs:
-    def __init__(self, taskname, arglist):
+    """
+    For pySAS v2.0 it is now assumed that the input arguments are
+    passed in as a dictionary.
+    """
+    def __init__(self, taskname, argdict, logger = None):
         self.taskname = taskname
-        self.arglist = arglist
+        self.argdict = argdict
+        if logger is None:
+            # By default will only output to terminal
+            self.logger = get_logger('ParseArgs')
+        else:
+            # Use logger that was passed in
+            self.logger = logger
 
         # Before any further processing check that SAS_PATH is defined
         sas_path = os.environ.get('SAS_PATH')
         if not sas_path:
             raise Exception('SAS_PATH is undefined. SAS not initialised?')
 
-        saspath = sas_path.split(':')
-        sasdev = saspath[0]
-        pysasdevdir = os.path.join(sasdev, 'lib', 'python', 'pysas')
         pysaspkgs = []
 
-        # pysaspkgs will list all Python packages
-        for p in pkgutil.walk_packages([pysasdevdir]):
-            if p.ispkg:
-                pysaspkgs.append(p.name)
+        my_resources = importlib.resources.files("pysas")
+        for line in (my_resources / "pysaspkgs").read_text().splitlines():
+            pysaspkgs.append(line)
 
         # If taskname is not in pysaspkgs it is a non Python SAS task
         # then its version must be obtained differently.
@@ -88,9 +93,12 @@ class ParseArgs:
             self.version = subprocess.check_output(cmd, shell=True, text=True)
 
     # This is the task parser constructor
-    def taskparser(self):
+    def optparser(self):
+        """
+        This parses the 'options' from the input.
+        """
 
-        # Define the parser. Not need to make it class wide.
+        # Define the parser. No need to make it class wide.
         parser = argparse.ArgumentParser(
             prog = self.taskname,
             description = 'Parses command parameters and options',
@@ -119,11 +127,15 @@ class ParseArgs:
         #    -i/--ccf (SAS_CCF), -o/--odf (SAS_ODF), -f/--ccffiles,
         #    -w/--warning, -t/--trace.
 
+        # Get default verbosity
+        default_verbosity = sas_cfg.get("sas", "verbosity")
+
         parser.add_argument('-V',
                             '--verbosity',
                             dest='verbosity',
                             type=int,
-                            default=4,
+                            nargs=1,
+                            default=default_verbosity,
                             choices=range(11),
                             action='store')
 
@@ -171,40 +183,52 @@ class ParseArgs:
                             action='store_true',
                             default=False)
 
-        # To give access to real SAS style params in the form param=value,
-        # we add a positional string argument, which can be repeated any
-        # number of times, but always contiguously.
-        # Notice that this is already achieved due to the initial processing
-        # made in self.arglist, where these strings have been grouped together
-        # at the end of self.arglist. We call this argument pvpairs.
+        # Apply parse_args method to parser with the options being passed in. 
+        # Result is put into parsedargs. The parsedargs object is not a 
+        # dictionary but can be shown as such with function vars().
 
-        parser.add_argument('pvpairs', type=str, nargs='*')
-
-        # Apply parse_args method to parser. Result is put into parsedargs.
-        # The parsedargs object is not a dictionary but can be shown as such
-        # with function vars().
-
-        self.parsedargs = parser.parse_args(self.arglist)
+        self.parsedargs = parser.parse_args([self.argdict['options']])
 
         #print(self.parsedargs)
         #print(f'vars(self.parsedargs)          = \n{vars(self.parsedargs)}')
         #print(f'self.parsedargs.pvpairs        = {self.parsedargs.pvpairs}')
 
+    # If these options are present, will execute a command and return Exit
+    def exe_options(self):
+        """
+        Method to execute options or parameters that 
+        require immediate action.
 
-        # Put into list tparams only the real parameters entered in the command line
-        # as pairs param=value
-        self.tparams = []
-        pp = ''
-        for p in self.parsedargs.pvpairs:
-            a, b = p.split('=', 1)
-            self.tparams.append(a)
+        These include options that execute the command 
+        and exit. These are: 
 
-        #print(f'self.tparams                   = {self.tparams}')
+            version(--version, -v)
+            help(--help, -h)
+            param(--param, -p)
+            dialog(--dialog, -d)
+            manpage(--manpage, -m)
 
+        Returns 'Exit' which if True will send the exit 
+        command up the chain. If False, then pySAS will 
+        continue to execute.
 
+        # Process options entered in command line
+        #
+        # Options version(--version, -v), help(--help, -h), param(--param, -p)
+        # dialog(--dialog, -d) and manpage(--manpage, -m) are exclusive.  
+        # Only one can be present and will set Exit to True. 
+        # When exe_options is executed on the instance of ParseArgs (e.g. p), as
+        # p.exe_options() the return Exit determines wheter to return immediately or
+        # not. If Exit is set to True, the method will return immediately.
+        #
+        # Some options entered in self.argdict will launch special SAS tasks
+        # designed only to provide specific result. These are:
+        #
+        # -d/--dialog   => sasdialog to launch task GUI
+        # -m/--manpage  => sashelp to show HTML doc in the default web browser
+        #
 
-    # Depending on the options entered, performs actions
-    def procopt(self):
+        """
 
         # Exit is set to False
         Exit = False
@@ -234,24 +258,6 @@ class ParseArgs:
         ...
         """
 
-
-        # Process options entered in command line
-        #
-        # Options version(--version, -v), help(--help, -h), param(--param, -p)
-        # dialog(--dialog, -d) and manpage(--manpage, -m) are exclusive.  
-        # Only one can be present and will set Exit to True. 
-        # When procopt is executed on the instance of ParseArgs (e.g. p), as
-        # p.procopt() the return Exit determines wheter to return immediately or
-        # not. If Exit is set to True, the method will return immediately.
-        #
-        # Some options entered in self.arglist will launch special SAS tasks
-        # designed only to provide  specific result. These are:
-        #
-        # -d/--dialog   => sasdialog to launch task GUI
-        # -m/--manpage  => sashelp to show HTML doc in the default web browser
-        #
-
-
         # Version:
         if self.parsedargs.version:
             print(f'{self.version}')
@@ -259,12 +265,12 @@ class ParseArgs:
         # Help:
         if self.parsedargs.help:
             print(usage)
-            pf = paramXmlInfoReader(self.taskname)
+            pf = paramXmlInfoReader(self.taskname, logger = self.logger)
             pf.xmlParser()
             pf.printHelp()
             Exit  = True
         if self.parsedargs.param:
-            pf = paramXmlInfoReader(self.taskname)
+            pf = paramXmlInfoReader(self.taskname, logger = self.logger)
             pf.xmlParser()
             pf.printHelp()
             Exit = True
@@ -284,44 +290,85 @@ class ParseArgs:
         if Exit:
             return Exit
 
-        # 
-        # Excluding warning, which I do not know how to handle yet, 
-        # the next five options are accumulative, if they are present they change 
-        # environment variables. 
-        # They do not return control  to caller.
-        #
+    # If these options are present, they will be returned for handling
+    def env_options(self):
+        """
+        Method to collect options that set environment variables 
+        and then continue running the SAS task. These are:
+
+               -V/--verbosity (SAS_VERBOSITY)
+               -c/--noclobber (SAS_CLOBBER)
+               -a/--ccfpath (SAS_CCFPATH)
+               -i/--ccf (SAS_CCF)
+               -o/--odf (SAS_ODF)
+               -f/--ccffiles
+               -w/--warning
+               -t/--trace
+        """
+        # return_options is a dictionary to hold set options
+        return_options = {}
+        env_options_list = []
+
+        # The options are accumulative, if they are 
+        # present they are collected into a list and
+        # returned to MyTask. 
+
         # sas_ccfpath
         if self.parsedargs.sas_ccfpath:
-            print('SAS_CCFPATH = {}'.format(str(self.parsedargs.sas_ccfpath[0])))
-            os.environ['SAS_CCFPATH'] = str(self.parsedargs.sas_ccfpath[0])
+            envar_val = str(self.parsedargs.sas_ccfpath[0])
+            env_options_list.append(f'-a {envar_val}')
+            return_options['SAS_CCFPATH'] = envar_val
+            self.logger.info(f'SAS_CCFPATH = {envar_val}')
         # noclobber
         if self.parsedargs.noclobber:
-            os.environ['SAS_CLOBBER'] = '0'
-            print('SAS_CLOBBER = {}'.format(str(os.environ.get('SAS_CLOBBER'))))
+            envar_val = False
+            env_options_list.append('-c')
+            return_options['SAS_CLOBBER'] = envar_val
+            self.logger.info(f'SAS_CLOBBER = {envar_val}')
         # sas_ccf
         if self.parsedargs.sas_ccf:
-            print('SAS_CCF = {}'.format(str(self.parsedargs.sas_ccf[0])))
-            os.environ['SAS_CCF'] = str(self.parsedargs.sas_ccf[0])
+            envar_val = str(self.parsedargs.sas_ccf[0])
+            env_options_list.append(f'-i {envar_val}')
+            return_options['SAS_CCF'] = envar_val
+            self.logger.info(f'SAS_CCF = {envar_val}')
         # sas_odf
         if self.parsedargs.sas_odf:
-            print('SAS_ODF = {}'.format(str(self.parsedargs.sas_odf[0])))
-            os.environ['SAS_ODF'] = str(self.parsedargs.sas_odf[0])
+            envar_val = str(self.parsedargs.sas_odf[0])
+            env_options_list.append(f'-o {envar_val}')
+            return_options['SAS_ODF'] = envar_val
+            self.logger.info(f'SAS_ODF = {envar_val}')
         # ccffiles
         if self.parsedargs.ccffiles:
-            print('CCF files = {}'.format(str(self.parsedargs.ccffiles[0])))
+            envar_val = str(self.parsedargs.sas_odf[0])
+            env_options_list.append(f'-f {envar_val}')
+            return_options['CCF_files'] = envar_val
+            self.logger.info(f'CCF files = {envar_val}')
         # warning
         if self.parsedargs.warning:
-            warning = self.parsedargs.warning
+            envar_val = str(self.parsedargs.warning[0])
+            env_options_list.append(f'-w {envar_val}')
+            return_options['WARNING'] = envar_val
+            self.logger.info(f'WARNING = {envar_val}')
+        # trace
+        if self.parsedargs.trace:
+            envar_val = True
+            env_options_list.append('-t')
+            return_options['TRACE'] = envar_val
+            self.logger.info(f'Trace = {envar_val}')
         # verbosity
         if self.parsedargs.verbosity:
-            os.environ['SAS_VERBOSITY'] = str(self.parsedargs.verbosity)
-            if str(os.environ.get('SAS_VERBOSITY')) != '4':
-                print('SAS_VERBOSITY = {}'.format(str(os.environ.get('SAS_VERBOSITY'))))
+            envar_val = str(self.parsedargs.verbosity[0])
+            env_options_list.append(f'-V {envar_val}')
+            return_options['SAS_VERBOSITY'] = envar_val
+            self.logger.info(f'SAS_VERBOSITY = {envar_val}')
 
-        return Exit
+        # Add the list of all options to return_options
+        return_options['env_options'] = " ".join(env_options_list)
+
+        return return_options
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.taskname} - {self.arglist})'
+        return f'{self.__class__.__name__}({self.taskname} - {self.argdict})'
 
     def runext(self, runcmd):
         self.runcmd = runcmd

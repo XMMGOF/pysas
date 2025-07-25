@@ -21,7 +21,7 @@ import os
 import sys
 import time
 import pysas.pyutils.pyutils as pyutils
-from pysas.logger import TaskLogger as TL
+from logger import get_logger
 from astropy.io import fits
 from astropy.io import ascii
 from astropy.table import Table, unique, QTable
@@ -31,9 +31,10 @@ import re
 import glob
 
 
-logger = TL('pyeslewsearch')
+logger = get_logger('pyeslewsearch')
 
-from .version import VERSION, SAS_RELEASE, SAS_AKA
+from .version import VERSION
+from pysas import SAS_RELEASE, SAS_AKA
 
 __version__ = f'pyeslewsearch (pyeslewchain-{VERSION}) [{SAS_RELEASE}-{SAS_AKA}]'
 
@@ -55,7 +56,7 @@ def pyeslewsearch():
             expmaps.append(i)
 
     if len(expmaps) == 0:
-        print('Empty exposure map list.')
+        logger.error('Empty exposure map list.')
         sys.exit(0)
 
     expmaps = sorted(expmaps)
@@ -72,7 +73,7 @@ def pyeslewsearch():
             if n_events > 0:
                 eslewsearch_guts(imin, expin, srclst, ecf)
             else:
-                print('Empty image ({0}).'.format(imin))
+                logger.info('Empty image ({}).', imin)
     
     b6list = expmaps[0][0:17] + 'OMSRLI6000.FIT'
     b7list = expmaps[0][0:17] + 'OMSRLI7000.FIT'
@@ -81,29 +82,29 @@ def pyeslewsearch():
     srclst6_files = glob.glob('*SRCLST6*')
 
     if len(srclst6_files) != 0:
-        logger.log('info', 'Working on source list files for band 6.')
+        logger.info('Working on source list files for band 6.')
 
         status = pyutils.merge_fits(srclst6_files, [1], b6list, columns = None, new_ext = None)
         if status:
-            logger.log("error","Failed to merge band 6 lists")
+            logger.error("Failed to merge band 6 lists")
 
     srclst7_files = glob.glob('*SRCLST7*')
     
     if len(srclst7_files) != 0:
         status = pyutils.merge_fits(srclst7_files, [1], b7list, columns = None, new_ext = None)
         if status:
-            logger.log("error","Failed to merge band 7 lists")
+            logger.error("Failed to merge band 7 lists")
 
     srclst8_files = glob.glob('*SRCLST8*')
 
     if len(srclst8_files) != 0:
         status = pyutils.merge_fits(srclst8_files, [1], b8list, columns = None, new_ext = None)
         if status:
-            logger.log("error","Failed to merge band 8 lists")
+            logger.error("Failed to merge band 8 lists")
 
-    logger.log('info', 'Sizes of each band: B6: {}, B7: {} B8: {}.'.format(len(srclst6_files), len(srclst7_files), len(srclst8_files)))
+    logger.info('Sizes of each band: B6: {}, B7: {} B8: {}.', len(srclst6_files), len(srclst7_files), len(srclst8_files))
     # cleaning up...
-    logger.log('info', 'Cleaning up...')
+    logger.info('Cleaning up...')
     srclistrm = glob.glob('*SRCLST*')
 
     for file_rm in srclistrm:
@@ -123,7 +124,7 @@ def pyeslewsearch():
 
     t_stop = time.time()
 
-    logger.log('info', 'eslewsearch completed in {0} seconds.'.format(round(t_stop - t_start, 2)))
+    logger.info('eslewsearch completed in {} seconds.', round(t_stop - t_start, 2))
 
 
 def add_name_cols(mlist, image):
@@ -135,7 +136,7 @@ def add_name_cols(mlist, image):
         image: the image file.
     """
 
-    logger.log('debug', 'Running add_name_cols with source list {0} and image {1}.'.format(mlist, image))
+    logger.debug('Running add_name_cols with source list {} and image {}.', mlist, image)
     
     coord_string = make_coord_strings(mlist)
 
@@ -146,7 +147,7 @@ def add_name_cols(mlist, image):
 
     # Convert name strings into FITS format
 
-    logger.log('debug', 'Running create_fits_from_data.')
+    logger.debug('Running create_fits_from_data.')
     coldesc = ['DSSNAME', 'SRCNAME', 'XIMNAME']
     
     coldata = fstrings
@@ -154,12 +155,12 @@ def add_name_cols(mlist, image):
     status = pyutils.create_fits_from_data(coldata, coldesc, temp_col_fits)
     
     if status:
-        logger.log('error', 'Error while running create_fits_from_data')
+        logger.error('Error while running create_fits_from_data')
     
     status = pyutils.add_column_to_fits(mlist, 1, coldesc, coldata)
     
     if status:
-        logger.log('error', 'Error while running add_column.')
+        logger.error('Error while running add_column.')
         sys.exit(0)
    
 
@@ -175,7 +176,7 @@ def make_file_string(image, coords):
         fstring: the formatted string.
     """
 
-    logger.log('debug', 'Running make_file_string with image {0}.'.format(image))
+    logger.debug('Running make_file_string with image {}.', image)
 
     obsid = image[1:11]
     rev = image[2:6]
@@ -217,7 +218,7 @@ def create_single_list(b6list, b7list, b8list):
         b8list: the list of the sources in the 8 band.
     """
 
-    logger.log('debug', 'Running create_single_list...')
+    logger.debug('Running create_single_list...')
 
     b6temp = 'temp_b6.dat'
     b7temp = 'temp_b7.dat'
@@ -235,7 +236,7 @@ def create_single_list(b6list, b7list, b8list):
             'XIMNAME', 'ID_INST']
             t.write(b6temp, format = 'ascii')
 
-        logger.log('info', 'Working with B6...')
+        logger.info('Working with B6...')
 
         with open(b6temp) as b6_tf:
             rows_b6 = []
@@ -264,9 +265,9 @@ def create_single_list(b6list, b7list, b8list):
                         rows_b6.append(row)
 
     else:
-        logger.log('error', 'Could not open the B6 list.')
+        logger.error('Could not open the B6 list.')
 
-    logger.log('info', 'Working with B7...')
+    logger.info('Working with B7...')
     
     if os.path.isfile(b7list):
         with fits.open(b7list) as ff:
@@ -300,9 +301,9 @@ def create_single_list(b6list, b7list, b8list):
 
 
     else:
-        logger.log('error', 'Could not open the B7 list.')
+        logger.error('Could not open the B7 list.')
 
-    logger.log('info', 'Working with B8...')
+    logger.info('Working with B8...')
 
     if os.path.isfile(b8list):
         with fits.open(b8list) as ff:
@@ -334,18 +335,18 @@ def create_single_list(b6list, b7list, b8list):
                         rows_b8.append(row)
 
     else:
-        logger.log('error', 'Could not open the B8 list.')
+        logger.error('Could not open the B8 list.')
 
-    logger.log('info', 'Write the merged text file into a FITS file.')
+    logger.info('Write the merged text file into a FITS file.')
     
     labels = make_final_cols()
 
-    logger.log('info', 'Joining band files...')
+    logger.info('Joining band files...')
 
     start_b6_data = np.array(rows_b6).T.tolist()
     status = pyutils.create_fits_from_data(start_b6_data, labels, 'b6band.temp', 'SRCLIST')
     
-    logger.log('debug', 'Creating temp 6')
+    logger.debug('Creating temp 6')
     start_b7_data = np.array(rows_b7).T.tolist()
     status = pyutils.create_fits_from_data(start_b7_data, labels, 'b7band.temp', 'SRCLIST')
     start_b8_data = np.array(rows_b8).T.tolist()
@@ -382,7 +383,7 @@ def create_single_list(b6list, b7list, b8list):
     try:
         qt.write(mergedlist, format = 'fits', overwrite = True)
     except:
-        logger.log('error', 'Could not save the file.')
+        logger.error('Could not save the file.')
         sys.exit(0)
 
     # Change the extension
@@ -471,7 +472,7 @@ def add_units_band(blist):
         1 when finished.
     """
 
-    logger.log('debug', 'Running add_units_band with {}.'.format(blist))
+    logger.debug('Running add_units_band with {}.', blist)
 
     with fits.open(blist) as bl:
         qt = QTable(bl[1].data)
@@ -504,7 +505,7 @@ def add_units_band(blist):
         qt['CUTRAD'].unit = u.pix
         qt['DIST_NN'].unit = u.arcsec
     except:
-        logger.log('warning', 'Could not fit all the data in {}.'.format(blist))
+        logger.warning('Could not fit all the data in {}.', blist)
     
 
     qt.write(blist, format = 'fits', overwrite = True)
@@ -523,7 +524,7 @@ def add_custom_format_band(t):
         t (corrected)
     """
 
-    logger.log('debug', 'Running add_custom_format...')
+    logger.debug('Running add_custom_format...')
     
     t['ML_ID_SRC'] = np.array(t['ML_ID_SRC'], dtype = 'int32')
     t['BOX_ID_SRC'] = np.array(t['BOX_ID_SRC'], dtype = 'int32')
@@ -628,7 +629,7 @@ def add_units_table(qt):
         qt['FLUX_B8'].unit = u.erg / u.s / (u.cm * u.cm)
         qt['FLUX_B8_ERR'].unit = u.erg / u.s / (u.cm * u.cm)
     except:
-        logger.log('warning', 'An error ocurred while adding the units to the final source list. It may be incomplete.')
+        logger.warning('An error ocurred while adding the units to the final source list. It may be incomplete.')
 
     return qt
 
@@ -728,7 +729,7 @@ def eslewsearch_guts(image, expmap, mlist, ecf):
         ecf: the energy correction factor.
     """
 
-    logger.log('debug', 'Running eslewsearch_guts with {0}, {1}, {2}.'.format(image, expmap, mlist))
+    logger.debug('Running eslewsearch_guts with {}, {}, {}.', image, expmap, mlist)
 
     # Set constants and thresholds
     pimin = 1499 # USe 1.5 keV for the PSF in all energy-band images!!
@@ -745,34 +746,34 @@ def eslewsearch_guts(image, expmap, mlist, ecf):
     status_code = os.system("emask expimageset={0} detmaskset={1} threshold1=1e-5 threshold2=0.5".format(expmap, mask))
     
     if status_code:
-        logger.log('error', 'Could not run emask.')
+        logger.error('Could not run emask.')
         sys.exit(0)
 
     # Run eboxdetect (local mode)
     status_code = os.system("eboxdetect boxlistset={0} boxsize=5 expimagesets={1} imagesets={2} likemin={3} nruns=3 pimax={4} pimin={5} usemap=no usematchedfilter=no withdetmask=yes detmasksets={6} withexpimage=yes withoffsets=no obsmode='slew'".format(boxlist_l, expmap, image, eboxlthr, pimax, pimin, mask))
     
     if status_code:
-        logger.log("error","Failure in eboxdetect (local) on {0}".format(image))
+        logger.error("Failure in eboxdetect (local) on {}", image)
         sys.exit(0)
 
     # Create background map
     status_code = os.system("esplinemap bkgimageset={0} boxlistset={1} withcheese=no withdetmask=yes detmaskset={2} excesssigma=3 idband=1 imageset={3} mlmin=1 nfitrun=3 nsplinenodes=10 scut=0.005 withexpimage=no".format(bckgnd, boxlist_l, mask, image))
     if status_code:
-        logger.log("error","Failure in esplinemap on {0}.".format(image))
+        logger.error("Failure in esplinemap on {}.", image)
         sys.exit(0)
 
     # Run eboxdetect (map mode)
     status_code = os.system("eboxdetect bkgimagesets={0} boxlistset={1} boxsize=5 withexpimage=yes expimagesets={2} imagesets={3} likemin={4} nruns=3 pimax={5} pimin={6} usemap=yes usematchedfilter=no withdetmask=yes detmasksets={7} withoffsets=no obsmode='slew'".format(bckgnd, boxlist_m, expmap, image, eboxmthr, pimax, pimin, mask))
     
     if status_code:
-        logger.log("error","Failure in eboxdetect (map) on {0}".format(image));
+        logger.error("Failure in eboxdetect (map) on {}", image)
         sys.exit(0)
 
     # Run emldetect
     status_code = os.system("emldetect bkgimagesets={0} boxlistset={1} determineerrors=yes dmlextmin=2 ecf={2} ecut=36 withexpimage=yes expimagesets={3} fitcounts=yes fitextent=yes fitposition=yes imagesets={4} mllistset={5} mlmin={6} pimax={7} pimin={8} scut=0.9 usecalpsf=yes useevents=no withhotpixelfilter=no withoffsets=no withxidband=no nmaxfit=1 nmulsou=1 psfmodel='slew'".format(bckgnd, boxlist_m, ecf, expmap, image, mlist, emlthr, pimax, pimin))
     
     if status_code:
-        logging.log("error","Failure in emldetect on {0}".format(image))
+        logger.error("Failure in emldetect on {}", image)
         sys.exit(0)
 
     if os.path.isfile(mlist):
@@ -848,7 +849,7 @@ def convert_DEC(dec):
 
     degstring = '{0}{1}:{2}:{3}'.format(sign, str(round(abs(deg), 2)).zfill(2), str(round(amins, 2)).zfill(2), str(round(secs, 2)).zfill(2))
 
-    return degstring;
+    return degstring
 
 
 def get_ECF(band):
@@ -871,7 +872,7 @@ def get_ECF(band):
     elif band == 8:
         ecf = 3.159 # total energy band (0.2 - 12 keV)
     else:
-        logger.log('error', 'The input energy band is not supported ({0})'.format(band))
+        logger.error('The input energy band is not supported ({})', band)
         sys.exit(0)
 
     ecf = 10 / ecf # for EMLDETECT

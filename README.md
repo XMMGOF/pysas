@@ -1,6 +1,6 @@
 ### Installing pySAS
 
-This development version of pySAS can be used with versions 20 and up of XMM-Newton SAS. After installing SAS [following the installation instructions](https://www.cosmos.esa.int/web/xmm-newton/sas-installation) you can then install the development version of pySAS using
+This version of pySAS can be used with versions 20 and up of XMM-Newton SAS. After installing SAS [following the installation instructions](https://www.cosmos.esa.int/web/xmm-newton/sas-installation) you can then install the development version of pySAS using
 ```
 pip install xmmpysas
 ```
@@ -21,24 +21,15 @@ You can update pySAS using
 ```
 pip install xmmpysas --upgrade
 ```
+### Example Scripts
 
-### Cloning This Repository
+There are example scripts and Jupyter notebooks available on [GitHub demonstrating how to use pySAS](https://github.com/XMMGOF/pysas_docs). We are expanding the number of example scripts and Jupyter notebooks. You can clone the repository with the example notebooks by running the following command in a directory of your choosing:
 
-*Alternatively*, pySAS can be cloned from GitHub by going into the directory where pySAS is installed to remove the current version of pySAS using 
 ```
-cd /path/to/sas/install/xmmsas_202XXXXXX_YYYY/lib/python/
-rm -rf ./pysas
+git clone https://github.com/XMMGOF/pysas_docs.git
 ```
-and then clone this version of pySAS by executing the command,
-```
-git clone https://github.com/XMMGOF/pysas.git
-```
-You can then use pySAS like normal.
 
-To incorporate new changes to pySAS from GitHub, from the pysas directory use the following command,
-```
-git pull https://github.com/XMMGOF/pysas.git
-```
+With the documentation on GitHub there are notebooks explaining the [basics of pySAS](https://github.com/XMMGOF/pysas_docs/blob/master/Basics_of_pySAS.ipynb), and using [pySAS v2.0](https://github.com/XMMGOF/pysas_docs/blob/master/Using_pySASv2.ipynb).
 
 ### Running pySAS for the First Time
 
@@ -60,19 +51,33 @@ export PYTHONPATH=/path/to/sas/install/xmmsas_202XXXXXX_YYYY/lib/python:$PYTHONP
 It is recommended that you add this line to your .bash_profile file (or equivelent shell file).
 **This is not necessary if pySAS was installed using `pip install xmmpysas`.**
 
-### Example Scripts
+### Cloning This Repository
 
-There are example scripts and Jupyter notebooks available on [GitHub demonstrating how to use pySAS](https://github.com/XMMGOF/pysas/tree/main/documentation). We are expanding the number of example scripts and Jupyter notebooks.
+*Alternatively*, pySAS can be cloned from GitHub by going into the directory where pySAS is installed to remove the current version of pySAS using 
+```
+cd /path/to/sas/install/xmmsas_202XXXXXX_YYYY/lib/python/
+rm -rf ./pysas
+```
+and then clone this version of pySAS by executing the command,
+```
+git clone https://github.com/XMMGOF/pysas.git
+```
+You can then use pySAS like normal.
+
+To incorporate new changes to pySAS from GitHub, from the pysas directory use the following command,
+```
+git pull https://github.com/XMMGOF/pysas.git
+```
 
 ### FAQ
 
 Q: Will this break my SAS inatallation?
 
-A: No. All changes have been made to keep this developmental version of pySAS working with SAS.
+A: No. All changes have been made to keep this version of pySAS working with SAS.
 
 Q: I have already been working with pySAS and I have several Python scripts already written. Will this make them break?
 
-A: No. This developmental version of pySAS is fully backwards compatible with the standard pySAS distributed with SAS. The develomental version only adds capabilites. The features included here will eventually work their way into the standard version of pySAS.
+A: No. This version of pySAS is fully backwards compatible with the standard pySAS distributed with SAS. This version only adds capabilites. The features included here will eventually work their way into the standard version of pySAS.
 
 Q: Can I contribute changes to pySAS?
 
@@ -102,16 +107,7 @@ This will download new calibration files.
 
 Q: What version of pySAS is installed on SciServer?
 
-A: The version 1.4.1a. Some changes to pySAS have been made since the HEASARC image was created for SciServer. The next time a new HEASARC image is created for SciServer all new changes to pySAS will be incorporated.
-
-To install the latest version of pySAS on SciServer from the launcher open a terminal and run the following commands:
-
-```bash
-conda activate xmmsas
-cd /home/idies/miniconda3/envs/xmmsas/lib/python3.10/
-rm -rf ./pysas
-pip install xmmpysas --target=/home/idies/miniconda3/envs/xmmsas/lib/python3.10/
-```
+A: Version 2.0.
 
 Q: Why have this version of pySAS separate from the standard version you can download from ESA when you download SAS?
 

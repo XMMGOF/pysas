@@ -18,13 +18,161 @@
 
 
 # Standard library imports
+import copy
 import logging
 import os
+import sys
+from pathlib import Path
 
 # Third party imports
+from loguru import logger
+# This cleans up any loguru loggers that
+# might be hanging around.
+logger.remove()
 
 # Local application imports
+from .configutils import sas_cfg
 
+# Functions
+
+def get_logger(taskname: str, 
+               toterminal  = True, 
+               tofile      = False, 
+               logfilename = None, 
+               tasklogdir  = None,
+               pylogger    = True):
+    """
+    Function to get a loguru logger object.
+
+    Inputs:
+    (required)
+        - taskname   : Name of the task to be run. By default will
+                       name log file "{taskname}.log"
+    (optional)
+        - toterminal : (default: True) Output will be written to 
+                        the terminal.
+        - tofile     : (default: False) Output will be written to 
+                        a log file.
+        - logfilename: Designated log file name. Will be used instead
+                       of "{taskname}.log". Useful for putting all 
+                       output from multiple tasks into the same file.
+        - tasklogdir : (default: cwd) Directory where to write the log 
+                       file.
+                       Priority of defaults for task_logdir
+                         1. tasklogdir (passed in to function)
+                         2. SAS_TASKLOGDIR (envirnment variable)
+                         3. cwd (final default)
+        - pylogger   : True: Use logger settings for Python logging
+                       False: Use logger settings for subprocess logging
+                       Only set to 'False' in sastask.py -> MyTask.run()
+                       when running a non Python SAS task using 
+                       subprocess.
+    """
+    task_logger = copy.deepcopy(logger)
+    
+    # SAS_TASKLOGDIR allows to set the directory for the logging file
+    # Priority of defaults for task_logdir
+    #   1. tasklogdir (passed in to function)
+    #   2. SAS_TASKLOGDIR (envirnment variable)
+    #   3. cwd (final default)
+    sas_tasklogdir = os.getenv('SAS_TASKLOGDIR')
+
+    if (tasklogdir and os.path.isdir(tasklogdir)):
+        task_logdir = Path(tasklogdir)
+    else:
+        if(sas_tasklogdir and os.path.isdir(sas_tasklogdir)):
+            task_logdir = Path(sas_tasklogdir)
+        else:
+            task_logdir = Path.cwd()
+
+    if logfilename:
+        task_logfile = task_logdir / logfilename
+    else:
+        task_logfile = task_logdir / f"{taskname}.log"
+
+    # SAS_TASKLOGFMODE allows to set the write mode for the logging file
+    # Allowed modes are : w (new file each invocation of logger),
+    # a (append to any existing file)A That is the default mode.
+    sastasklogfmode = os.getenv("SAS_TASKLOGFMODE", "a")
+    if sastasklogfmode != 'a' and sastasklogfmode != 'w':
+        sastasklogfmode = 'a'
+
+    if pylogger:
+        # For Python based logging
+        # Set verbosity
+        verbosity = int(os.getenv('SAS_VERBOSITY'))
+        match(verbosity):
+            case 1:
+                level = "CRITICAL"
+            case 2 | 3:
+                level = "ERROR"
+            case 4 | 5:
+                level = "WARNING"
+            case 6 | 7:
+                level = "INFO"
+            case 8 | 9 | 10:
+                level = "DEBUG"
+            case _:
+                level = "INFO"
+        
+        # 98% of the time pysas_verbosity == SAS_VERBOSITY.
+        # But for debugging purposes it is convienent to have
+        # a separate verbosity for pySAS.
+        # This does not affect the verbosity for non-Python
+        # based SAS tasks.
+        pysas_verbosity = sas_cfg.get('sas','pysas_verbosity')
+
+        # Take the lower of sas_level or pysas_level
+        sas_level   = logger.level(level).no
+        pysas_level = logger.level(pysas_verbosity).no
+        if sas_level < pysas_level: pysas_verbosity = level
+
+        level = pysas_verbosity
+        
+        # Add file sink
+        if tofile:
+            task_logger.add(
+                sink=task_logfile,
+                level=level,
+                mode=sastasklogfmode,
+                enqueue=True,
+                format="{time:DD-MM-YYYY HH:mm:ss.SSS Z} - {name} - {level: <8} - {message}"
+            )
+
+        # Add console sink
+        if toterminal:
+            task_logger.add(
+                sink=sys.stdout,
+                level=level,
+                enqueue=True,
+                format="<g>{name}</g> - <level>{level: <8}</level> - <level>{message}</level>"
+            )
+    else:
+        # For non-Python based logging (i.e. subprocess)
+        # Set verbosity
+        # For non-Python SAS tasks the verbosity is set separately
+        level = "INFO"
+        
+        # Add file sink
+        if tofile:
+            task_logger.add(
+                sink=task_logfile,
+                level=level,
+                mode=sastasklogfmode,
+                enqueue=True,
+                format="<green>{time:DD-MM-YYYY HH:mm:ss.SSS Z}</green> - {message}"
+            )
+
+        # Add console sink
+        if toterminal:
+            task_logger.add(
+                sink=sys.stdout,
+                level=level,
+                enqueue=True,
+                format="{message}",
+            )
+
+    return task_logger
 
 class TaskLogger:
     """
