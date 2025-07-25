@@ -1,7 +1,7 @@
 ChangeLog for pysas
 =================
 
-Version 2.0 - 2025-??-?? (RT)
+Version 2.0 - 2025-07-25 (RT)
 ---------------
 + pysaspkgs : List of callable pysas packages. Previously pkgutil.walk_packages was used,
               but there were bugs with this and the list of packages returned didn't match 
