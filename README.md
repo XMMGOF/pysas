@@ -23,7 +23,13 @@ pip install xmmpysas --upgrade
 ```
 ### Example Scripts
 
-There are example scripts and Jupyter notebooks available on [GitHub demonstrating how to use pySAS](https://github.com/XMMGOF/pysas_docs). We are expanding the number of example scripts and Jupyter notebooks. With the documentation on GitHub there are notebooks explaining the [basics of pySAS](https://github.com/XMMGOF/pysas_docs/blob/master/Basics_of_pySAS.ipynb), and using [pySAS v2.0](https://github.com/XMMGOF/pysas_docs/blob/master/Using_pySASv2.ipynb).
+There are example scripts and Jupyter notebooks available on [GitHub demonstrating how to use pySAS](https://github.com/XMMGOF/pysas_docs). We are expanding the number of example scripts and Jupyter notebooks. You can clone the repository with the example notebooks by running the following command in a directory of your choosing:
+
+```
+git clone https://github.com/XMMGOF/pysas_docs.git
+```
+
+With the documentation on GitHub there are notebooks explaining the [basics of pySAS](https://github.com/XMMGOF/pysas_docs/blob/master/Basics_of_pySAS.ipynb), and using [pySAS v2.0](https://github.com/XMMGOF/pysas_docs/blob/master/Using_pySASv2.ipynb).
 
 ### Running pySAS for the First Time
 
