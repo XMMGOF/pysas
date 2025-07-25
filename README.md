@@ -21,24 +21,9 @@ You can update pySAS using
 ```
 pip install xmmpysas --upgrade
 ```
+### Example Scripts
 
-### Cloning This Repository
-
-*Alternatively*, pySAS can be cloned from GitHub by going into the directory where pySAS is installed to remove the current version of pySAS using 
-```
-cd /path/to/sas/install/xmmsas_202XXXXXX_YYYY/lib/python/
-rm -rf ./pysas
-```
-and then clone this version of pySAS by executing the command,
-```
-git clone https://github.com/XMMGOF/pysas.git
-```
-You can then use pySAS like normal.
-
-To incorporate new changes to pySAS from GitHub, from the pysas directory use the following command,
-```
-git pull https://github.com/XMMGOF/pysas.git
-```
+There are example scripts and Jupyter notebooks available on [GitHub demonstrating how to use pySAS](https://github.com/XMMGOF/pysas_docs). We are expanding the number of example scripts and Jupyter notebooks. With the documentation on GitHub there are notebooks explaining the [basics of pySAS](https://github.com/XMMGOF/pysas_docs/blob/master/Basics_of_pySAS.ipynb), and using [pySAS v2.0](https://github.com/XMMGOF/pysas_docs/blob/master/Using_pySASv2.ipynb).
 
 ### Running pySAS for the First Time
 
@@ -60,9 +45,23 @@ export PYTHONPATH=/path/to/sas/install/xmmsas_202XXXXXX_YYYY/lib/python:$PYTHONP
 It is recommended that you add this line to your .bash_profile file (or equivelent shell file).
 **This is not necessary if pySAS was installed using `pip install xmmpysas`.**
 
-### Example Scripts
+### Cloning This Repository
 
-There are example scripts and Jupyter notebooks available on [GitHub demonstrating how to use pySAS](https://github.com/XMMGOF/pysas/tree/main/documentation). We are expanding the number of example scripts and Jupyter notebooks. With the documentation on GitHub there are notebooks explaining the [basics of pySAS](https://github.com/XMMGOF/pysas/blob/main/documentation/Basics_of_pySAS.ipynb), and using [pySAS v2.0](https://github.com/XMMGOF/pysas/blob/main/documentation/Using_pySASv2.ipynb).
+*Alternatively*, pySAS can be cloned from GitHub by going into the directory where pySAS is installed to remove the current version of pySAS using 
+```
+cd /path/to/sas/install/xmmsas_202XXXXXX_YYYY/lib/python/
+rm -rf ./pysas
+```
+and then clone this version of pySAS by executing the command,
+```
+git clone https://github.com/XMMGOF/pysas.git
+```
+You can then use pySAS like normal.
+
+To incorporate new changes to pySAS from GitHub, from the pysas directory use the following command,
+```
+git pull https://github.com/XMMGOF/pysas.git
+```
 
 ### FAQ
 
