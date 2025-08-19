@@ -908,15 +908,15 @@ class ObsID:
         """
         Before running this function an ObsID object must be created first. e.g.
 
-            obs = pysas.obsid.ObsID(obsid)
+            my_obs = pysas.obsid.ObsID(obsid)
 
         *Then* the data must be downloaded using:
 
-            obs.ODF.download_data()
+            my_obs.download_ODF_data()
 
         This function can then be used as, 
         
-            obs.ODF.calibrate_odf()
+            my_obs.calibrate_odf()
         
         If it exists it will search data_dir/obsid and any subdirectories for the ccf.cif
         and *SUM.SAS files. Will not rerun calibration if the ccf.cif and *SUM.SAS files
