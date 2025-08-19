@@ -498,7 +498,9 @@ class ObsID:
         
         return
     
-    def run_MyTask(self, taskname, inargs, **kwargs):
+    def run_MyTask(self, taskname, 
+                   inargs = None, 
+                   **kwargs):
         """
         This acts as a wrapper around 'MyTask'. This provides a way of calling
         SAS tasks, while using the values set when the 'ObsID' object was 
@@ -518,9 +520,12 @@ class ObsID:
                     know exactly what you are doing!!)
         """
 
+        if inargs is None:
+            inargs = {}
+
         MT = MyTask(taskname, inargs, 
                     logfilename = kwargs.get('logfilename', self.logfilename), 
-                    tasklogdir  = kwargs.get('tasklogdir', self.tasklogdir),
+                    tasklogdir  = kwargs.get('tasklogdir', self.work_dir),
                     output_to_terminal = kwargs.get('output_to_terminal', self.output_to_terminal), 
                     output_to_file     = kwargs.get('output_to_file', self.output_to_file),
                     logger = kwargs.get('logger', None)).run()
