@@ -1347,8 +1347,27 @@ class ObsID:
                     vmax = 10.0,
                     **kwargs):
         """
-        Quick plot function for EPIC images. As input takes an 
+        Quick plot function for EPIC event lists. As input takes an 
         event list and uses 'evselect' to create a FITS image file.
+
+        Inputs
+
+        (Required)
+            fits_event_list_file: Filename of event list.
+
+        (Optional)
+            image_file: Output filename of the image file.
+            xcolumn: FITS file header name for X column data.
+            ycolumn: FITS file header name for Y column data.
+            ximagesize: Output image X resolution in pixels.
+            yimagesize: Output image Y resolution in pixels.
+            expression: Filtering expression to be used for 'evselect'.
+            vmin: Min value for color map.
+            vmax: Max value for color map.
+            xlabel: X axis plot label.
+            ylabel: Y axis plot label.
+            save_file: If set to True, then a .png image of the plot will be saved.
+            out_fname: Output filename of the .png plot image.
 
         All standard inputs to 'MyTask' can be passed in as optional
         arguments.
@@ -1386,6 +1405,44 @@ class ObsID:
                  vmax = vmax,
                  save_file = kwargs.get('save_file', False),
                  out_fname = kwargs.get('out_fname', 'image.png'))
+
+        return ax
+    
+    def quick_implot(self,image_file,
+                     xlabel = 'RA',
+                     ylabel = 'Dec',
+                     vmin = 1.0,
+                     vmax = 10.0,
+                     save_file = False,
+                     out_fname = 'image.png'):
+        """
+        Quick plot function for a FITS image file. As input takes an 
+        FITS image file.
+
+        Note: This takes a FITS image file, NOT an event list. 
+
+        Inputs
+
+        (Required)
+            image_file: Filename of FITS image file.
+
+        (Optional)
+            vmin: Min value for color map.
+            vmax: Max value for color map.
+            xlabel: X axis plot label.
+            ylabel: Y axis plot label.
+            save_file: If set to True, then a .png image of the plot will be saved.
+            out_fname: Output filename of the .png plot image.
+        
+        """
+
+        ax = qip(image_file,
+                 xlabel = xlabel,
+                 ylabel = ylabel,
+                 vmin = vmin,
+                 vmax = vmax,
+                 save_file = save_file,
+                 out_fname = out_fname)
 
         return ax
     
@@ -1792,12 +1849,14 @@ class ObsID:
 
         MANIFEST = glob.glob(self.obs_dir+'/**/*MANIFEST*', recursive=True)
         if len(MANIFEST) > 0:
-            if os.path.exists(MANIFEST[0]): exists = True
+            if os.path.exists(MANIFEST[0]): 
+                exists = True
+                MANIFEST = MANIFEST[0]
         
         if return_file_name:
-            return exists
+            return exists, MANIFEST
         else:
-            return exists, MANIFEST[0]
+            return exists
     
     def __get_list_of_ODF_files(self):
         """
