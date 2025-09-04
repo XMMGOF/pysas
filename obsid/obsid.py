@@ -913,15 +913,15 @@ class ObsID:
         """
         Before running this function an ObsID object must be created first. e.g.
 
-            obs = pysas.obsid.ObsID(obsid)
+            my_obs = pysas.obsid.ObsID(obsid)
 
         *Then* the data must be downloaded using:
 
-            obs.ODF.download_data()
+            my_obs.download_ODF_data()
 
         This function can then be used as, 
         
-            obs.ODF.calibrate_odf()
+            my_obs.calibrate_odf()
         
         If it exists it will search data_dir/obsid and any subdirectories for the ccf.cif
         and *SUM.SAS files. Will not rerun calibration if the ccf.cif and *SUM.SAS files
@@ -1347,8 +1347,27 @@ class ObsID:
                     vmax = 10.0,
                     **kwargs):
         """
-        Quick plot function for EPIC images. As input takes an 
+        Quick plot function for EPIC event lists. As input takes an 
         event list and uses 'evselect' to create a FITS image file.
+
+        Inputs
+
+        (Required)
+            fits_event_list_file: Filename of event list.
+
+        (Optional)
+            image_file: Output filename of the image file.
+            xcolumn: FITS file header name for X column data.
+            ycolumn: FITS file header name for Y column data.
+            ximagesize: Output image X resolution in pixels.
+            yimagesize: Output image Y resolution in pixels.
+            expression: Filtering expression to be used for 'evselect'.
+            vmin: Min value for color map.
+            vmax: Max value for color map.
+            xlabel: X axis plot label.
+            ylabel: Y axis plot label.
+            save_file: If set to True, then a .png image of the plot will be saved.
+            out_fname: Output filename of the .png plot image.
 
         All standard inputs to 'MyTask' can be passed in as optional
         arguments.
@@ -1386,6 +1405,44 @@ class ObsID:
                  vmax = vmax,
                  save_file = kwargs.get('save_file', False),
                  out_fname = kwargs.get('out_fname', 'image.png'))
+
+        return ax
+    
+    def quick_implot(self,image_file,
+                     xlabel = 'RA',
+                     ylabel = 'Dec',
+                     vmin = 1.0,
+                     vmax = 10.0,
+                     save_file = False,
+                     out_fname = 'image.png'):
+        """
+        Quick plot function for a FITS image file. As input takes an 
+        FITS image file.
+
+        Note: This takes a FITS image file, NOT an event list. 
+
+        Inputs
+
+        (Required)
+            image_file: Filename of FITS image file.
+
+        (Optional)
+            vmin: Min value for color map.
+            vmax: Max value for color map.
+            xlabel: X axis plot label.
+            ylabel: Y axis plot label.
+            save_file: If set to True, then a .png image of the plot will be saved.
+            out_fname: Output filename of the .png plot image.
+        
+        """
+
+        ax = qip(image_file,
+                 xlabel = xlabel,
+                 ylabel = ylabel,
+                 vmin = vmin,
+                 vmax = vmax,
+                 save_file = save_file,
+                 out_fname = out_fname)
 
         return ax
     
@@ -1548,16 +1605,14 @@ class ObsID:
         self.logger.info(f'Changed directory to {self.odf_dir}')
 
         # Checks that the MANIFEST file is there
-        MANIFEST = glob.glob('MANIFEST*')
-        try:
-            os.path.exists(MANIFEST[0])
-            self.logger.info(f'File {MANIFEST[0]} exists')
-        except FileExistsError:
-            self.logger.error(f'File {MANIFEST[0]} not present. Please check ODF!')
-            print(f'File {MANIFEST[0]} not present. Please check ODF!')
+        exists, MANIFEST = self.__check_for_manifest(return_file_name=True)
+        if exists:
+            self.logger.info(f'File {MANIFEST} exists')
+        else:
+            self.logger.error(f'MANIFEST File not present. Please check ODF!')
+            print(f'MANIFEST File not present. Please check ODF!')
             sys.exit(1)
 
-        # Here the ODF is fully untarred below obsid subdirectory
         # Now we start preparing the SAS_ODF and SAS_CCF
         self.logger.info(f'Setting SAS_ODF = {self.odf_dir}')
         print(f'\nSetting SAS_ODF = {self.odf_dir}')
@@ -1753,7 +1808,7 @@ class ObsID:
         self.logger.info(f'Data directory = {self.data_dir}')
         self.logger.debug('Exiting __set_data_dir')
     
-    def __check_for_ccf_cif(self):
+    def __check_for_ccf_cif(self,):
         """
         --Not intended to be used by the end user. Internal use only.--
 
@@ -1785,7 +1840,7 @@ class ObsID:
                         exists = True
         return exists
     
-    def __check_for_manifest(self):
+    def __check_for_manifest(self,return_file_name=False):
         """
         Checks if manifest file exists.
         """
@@ -1794,9 +1849,14 @@ class ObsID:
 
         MANIFEST = glob.glob(self.obs_dir+'/**/*MANIFEST*', recursive=True)
         if len(MANIFEST) > 0:
-            if os.path.exists(MANIFEST[0]): exists = True
+            if os.path.exists(MANIFEST[0]): 
+                exists = True
+                MANIFEST = MANIFEST[0]
         
-        return exists
+        if return_file_name:
+            return exists, MANIFEST
+        else:
+            return exists
     
     def __get_list_of_ODF_files(self):
         """
