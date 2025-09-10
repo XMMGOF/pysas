@@ -1,6 +1,14 @@
 ChangeLog for pysas
 =================
 
+Version 2.1.0 - 2025-09-10 (RT)
+---------------
+
+- xmmextractorGUI : Made xmmextractorGUI uncallable. It requires pyds9 to run, and pyds9
+                    is no longer being actively maintained. In the next few months users
+                    will no longer be able to install pyds9 using pip with the latest 
+                    versions of Python and setuptools (standard).
+
 Version 2.0 - 2025-07-25 (RT)
 ---------------
 + pysaspkgs : List of callable pysas packages. Previously pkgutil.walk_packages was used,
