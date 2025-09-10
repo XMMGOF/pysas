@@ -149,7 +149,8 @@ class MyTask:
     they can be used in the 'run' instance method.
     """
 
-    def __init__(self, taskname, inargs, 
+    def __init__(self, taskname, 
+                 inargs = {}, 
                  logfilename = None, 
                  tasklogdir  = None,
                  output_to_terminal = True, 
