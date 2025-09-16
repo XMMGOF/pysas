@@ -275,44 +275,44 @@ def download_data(obsid,
         case _:
             logger.error(f'Repo {repo} not recognized!')
 
-        if PPS_subset:
-            # Only if PPS_subset = True or a single file name is passed in.
-            match repo:
-                case 'heasarc':
-                    wgetf = ''
-                    if filename != None:
-                        wgetf = filename
-                        PPS_subset_note = f', file {wgetf}'
-                        wgetA = ''
-                    else:
-                        PPS_subset_note = f' using file pattern {PPSfile}'
-                        wgetA = f"-A '{PPSfile}'"
+    if PPS_subset:
+        # Only if PPS_subset = True or a single file name is passed in.
+        match repo:
+            case 'heasarc':
+                wgetf = ''
+                if filename != None:
+                    wgetf = filename
+                    PPS_subset_note = f', file {wgetf}'
+                    wgetA = ''
+                else:
+                    PPS_subset_note = f' using file pattern {PPSfile}'
+                    wgetA = f"-A '{PPSfile}'"
 
-                    logger.info(f'Downloading {obsid}, level {level}{PPS_subset_note}')
+                logger.info(f'Downloading {obsid}, level {level}{PPS_subset_note}')
 
-                    cmd = f'wget -m -nH -e robots=off --cut-dirs=4 -l 2 -np {wgetA} https://heasarc.gsfc.nasa.gov/FTP/xmm/data/rev0/{obsid}/{level}/{wgetf}'
-                    logger.info(f'Using the command:\n{cmd}')
-                    result = subprocess.run(cmd, shell=True)
+                cmd = f'wget -m -nH -e robots=off --cut-dirs=4 -l 2 -np {wgetA} https://heasarc.gsfc.nasa.gov/FTP/xmm/data/rev0/{obsid}/{level}/{wgetf}'
+                logger.info(f'Using the command:\n{cmd}')
+                result = subprocess.run(cmd, shell=True)
 
-                    if result.returncode != 0:
-                        print(f'Problem downloading data!')
-                        print('Tried using the command:')
-                        print(cmd)
-                        logger.error(f'File download failed!')
-                        raise Exception('File download failed!')
-                case 'sciserver':
-                    if not os.path.exists(pps_dir): os.mkdir(pps_dir)
-                    archive_data = f'/home/idies/workspace/headata/FTP/xmm/data/rev0//{obsid}/PPS'
-                    file_pattern = archive_data + f'/**/{PPSfile}'
-                    files = glob.glob(file_pattern, recursive=True)
-                    if len(files) == 0:
-                        logger.warning(f'No files of the pattern {file_pattern} found!')
-                    for file in files:
-                        file_name = os.path.basename(file)
-                        logger.info(f'Copying file {file_name} from {archive_data} ...')
-                        shutil.copy(file, os.path.join(pps_dir,file_name))
-                case 'fornax' | 'aws':
-                    logger.error(f'Downloading individual PPS files not supported yet {on_host}. You must download all PPS files.')
+                if result.returncode != 0:
+                    print(f'Problem downloading data!')
+                    print('Tried using the command:')
+                    print(cmd)
+                    logger.error(f'File download failed!')
+                    raise Exception('File download failed!')
+            case 'sciserver':
+                if not os.path.exists(pps_dir): os.mkdir(pps_dir)
+                archive_data = f'/home/idies/workspace/headata/FTP/xmm/data/rev0//{obsid}/PPS'
+                file_pattern = archive_data + f'/**/{PPSfile}'
+                files = glob.glob(file_pattern, recursive=True)
+                if len(files) == 0:
+                    logger.warning(f'No files of the pattern {file_pattern} found!')
+                for file in files:
+                    file_name = os.path.basename(file)
+                    logger.info(f'Copying file {file_name} from {archive_data} ...')
+                    shutil.copy(file, os.path.join(pps_dir,file_name))
+            case 'fornax' | 'aws':
+                logger.error(f'Downloading individual PPS files not supported yet {on_host}. You must download all PPS files.')
 
         
         # else:
