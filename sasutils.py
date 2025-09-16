@@ -156,7 +156,7 @@ def download_data(obsid,
 
     match repo:
         case 'esa':
-            logger.info(f'Requesting Obs ID = {obsid} from ESA XMM-Newton Science Archive\n'
+            logger.info(f'Requesting Obs ID = {obsid} from ESA XMM-Newton Science Archive\n')
             logger.info(f'Changed directory to {obs_dir}')
             os.chdir(obs_dir)
             if level == 'ALL':
