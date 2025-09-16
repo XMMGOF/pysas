@@ -45,12 +45,9 @@ if sas_dir and sas_ccfpath and sas_path:
             sas_suppress_warning = value
         else:
             os.environ['SAS_SUPPRESS_WARNING'] = f'{sas_suppress_warning}'
-        
-        if sas_ccfpath == '/home/idies/workspace/headata/FTP/caldb/data/xmm/ccf':
-            sas_cfg['DEFAULT']['on_sci_server'] = 'True'
 
 # Checks if defaults from config file work. Initializes SAS if needed.
-if sas_cfg['DEFAULT']['on_sci_server'] == 'False' and sas_initialize:
+if sas_initialize:
     if os.path.exists(sas_dir_config) and os.path.exists(sas_ccfpath_config):
         sas_init_info = initializesas(sas_dir_config,
                                       sas_ccfpath_config,
