@@ -39,7 +39,7 @@ from .logger import TaskLogger as TL
 
 # Local application imports
 
-def download_data(odfid,
+def download_data(obsid,
                   data_dir,
                   level     = 'ODF',
                   repo      = 'esa',
@@ -72,11 +72,11 @@ def download_data(odfid,
 
     Inputs:
 
-        --odfid:          (string): ID of ODF in string format.
+        --obsid:          (string): ID of ODF in string format.
 
         --data_dir:  (string/path): Path to directory where the data will be 
                                     downloaded. Automatically creates directory
-                                    data_dir/odfid.
+                                    data_dir/obsid.
                                     Default: --REQUIRED-- MUST EXIST!.
 
         --level:          (string): Level of data products to download.
@@ -105,8 +105,8 @@ def download_data(odfid,
                                        for username and password if filename
                                        not given.)
 
-        --overwrite:     (boolean): If True will force overwrite of data if odfid 
-                                        data already exists in data_dir/odfid.
+        --overwrite:     (boolean): If True will force overwrite of data if obsid 
+                                        data already exists in data_dir/obsid.
 
         The remaining inputs are used for downloading groups of PPS files using a 
         particular file pattern. Using these requires an understanding of PPS 
@@ -126,10 +126,10 @@ def download_data(odfid,
     """
 
     if not logger:
-        logger = get_logger(f'download_{odfid}')
+        logger = get_logger(f'download_{obsid}')
 
     # Set directories for the observation, odf, and working
-    obs_dir = os.path.join(data_dir,odfid)
+    obs_dir = os.path.join(data_dir,obsid)
     odf_dir = os.path.join(obs_dir,'ODF')
     pps_dir = os.path.join(obs_dir,'PPS')
     # work_dir = os.path.join(obs_dir,'work')
@@ -139,185 +139,181 @@ def download_data(odfid,
         logger.info(f'Removing existing directory {obs_dir} ...')
         shutil.rmtree(obs_dir)
     
-    # Creates subdirectory odfid to move or unpack observation files
+    # Creates subdirectory obsid to move or unpack observation files
     # and makes subdirectories.
     if not os.path.exists(obs_dir):
         logger.info(f'Creating observation directory {obs_dir} ...')
         os.mkdir(obs_dir)
 
     if level == 'PPS' and PPS_subset and not filename:
-        PPSfile = generate_PPS_filename(obsid=odfid,instname=instname,
+        PPSfile = generate_PPS_filename(obsid=obsid,instname=instname,
                                         expflag=expflag,expno=expno,
                                         product_type=product_type,
                                         datasubsetno=datasubsetno,
                                         sourceno=sourceno,extension=extension)
-        
-    if repo == 'esa':
-        logger.info('Requesting odfid = {} from ESA XMM-Newton Science Archive\n'.format(odfid))
-        logger.info(f'Changed directory to {obs_dir}')
-        os.chdir(obs_dir)
-        if level == 'ALL':
-            level = ['ODF','PPS']
-        else:
-            level = [level]
-        for levl in level:
-            # Download the odfid from ESA, using astroquery
-            logger.info(f'Downloading {odfid}, level {levl} into {obs_dir}')
-            if levl == 'PPS':
-                # If a filename was provided then convert it into inputs for astroquery.
-                if filename:
-                    PPS_subset   = True
-                    instname     = filename[11:13]
-                    expflag      = filename[13]
-                    expno        = filename[14:17]
-                    product_type = filename[17:23]
-                    datasubsetno = filename[23]
-                    sourceno     = filename[24:27]
-                    extension    = filename[-3:]
-                # Take care of the optional inputs.
-                if instname:     kwargs['instname']     = instname
-                if expflag:      kwargs['expflag']      = expflag
-                if expno:        kwargs['expno']        = expno
-                if product_type: kwargs['name']         = product_type
-                if datasubsetno: kwargs['datasubsetno'] = datasubsetno
-                if sourceno:     kwargs['sourceno']     = sourceno
-                if extension:    kwargs['extension']    = extension
-            XMMNewton.download_data(odfid, level=levl,
-                                    prop=proprietary,
-                                    credentials_file=credentials_file,
-                                    **kwargs)
-            
-            if levl == 'ODF':    
-                os.mkdir(odf_dir)
 
-            if PPS_subset:
-                if not os.path.exists(pps_dir): os.mkdir(pps_dir)
-                files = glob.glob(obs_dir+'/*.*')
-                for file in files:
-                    file_name = os.path.basename(file)
-                    shutil.copy(file, os.path.join(pps_dir,file_name))
+    repo = repo.lower()
+
+    match repo:
+        case 'esa':
+            logger.info(f'Requesting Obs ID = {obsid} from ESA XMM-Newton Science Archive\n'
+            logger.info(f'Changed directory to {obs_dir}')
+            os.chdir(obs_dir)
+            if level == 'ALL':
+                level = ['ODF','PPS']
             else:
-                # Check that the tar.gz file has been downloaded
-                odftar = glob.glob(obs_dir+f'/{odfid}'+'*')[0]
-                try:
-                    os.path.exists(odftar)
-                    logger.info(f'{odftar} found.') 
-                except FileExistsError:
-                    logger.error(f'File {odftar} is not present. Not downloaded?')
-                    sys.exit(1)
+                level = [level]
+            for levl in level:
+                # Download the obsid from ESA, using astroquery
+                logger.info(f'Downloading {obsid}, level {levl} into {obs_dir}')
+                if levl == 'PPS':
+                    # If a filename was provided then convert it into inputs for astroquery.
+                    if filename:
+                        PPS_subset   = True
+                        instname     = filename[11:13]
+                        expflag      = filename[13]
+                        expno        = filename[14:17]
+                        product_type = filename[17:23]
+                        datasubsetno = filename[23]
+                        sourceno     = filename[24:27]
+                        extension    = filename[-3:]
+                    # Take care of the optional inputs.
+                    if instname:     kwargs['instname']     = instname
+                    if expflag:      kwargs['expflag']      = expflag
+                    if expno:        kwargs['expno']        = expno
+                    if product_type: kwargs['name']         = product_type
+                    if datasubsetno: kwargs['datasubsetno'] = datasubsetno
+                    if sourceno:     kwargs['sourceno']     = sourceno
+                    if extension:    kwargs['extension']    = extension
+                XMMNewton.download_data(obsid, level=levl,
+                                        prop=proprietary,
+                                        credentials_file=credentials_file,
+                                        **kwargs)
+                
+                if levl == 'ODF':    
+                    os.mkdir(odf_dir)
 
-                tarextension = os.path.splitext(odftar)[1]
-                if tarextension == '.gz': tar_mode = 'r:gz'
-                elif tarextension == '.tar': tar_mode = 'r'
+                if PPS_subset:
+                    if not os.path.exists(pps_dir): os.mkdir(pps_dir)
+                    files = glob.glob(obs_dir+'/*.*')
+                    for file in files:
+                        file_name = os.path.basename(file)
+                        shutil.copy(file, os.path.join(pps_dir,file_name))
                 else:
-                    logger.error(f'File {odftar} extension not recognized.')
-                    raise Exception(f'File {odftar} extension not recognized.')
+                    # Check that the tar.gz file has been downloaded
+                    odftar = glob.glob(obs_dir+f'/{obsid}'+'*')[0]
+                    try:
+                        os.path.exists(odftar)
+                        logger.info(f'{odftar} found.') 
+                    except FileExistsError:
+                        logger.error(f'File {odftar} is not present. Not downloaded?')
+                        sys.exit(1)
 
-                # Untars the odfid.tar.gz file
-                logger.info(f'Unpacking {odftar} ...')
+                    tarextension = os.path.splitext(odftar)[1]
+                    if tarextension == '.gz': tar_mode = 'r:gz'
+                    elif tarextension == '.tar': tar_mode = 'r'
+                    else:
+                        logger.error(f'File {odftar} extension not recognized.')
+                        raise Exception(f'File {odftar} extension not recognized.')
 
-                try:
-                    with tarfile.open(odftar,tar_mode) as tar:
-                        if levl == 'ODF':
-                            tar.extractall(path=odf_dir)
-                        elif levl == 'PPS':
-                            tar.extractall(path=data_dir)
-                            if os.path.exists(pps_dir):
-                                copytree('pps','PPS')
-                                shutil.rmtree('pps')
-                            else:
-                                os.rename('pps','PPS')
-                    os.remove(odftar)
-                    logger.info(f'{odftar} extracted successfully!')
-                    logger.info(f'{odftar} removed')
-                except tarfile.ExtractError:
-                    logger.error('tar file extraction failed')
-                    raise Exception('tar file extraction failed')
+                    # Untars the obsid.tar.gz file
+                    logger.info(f'Unpacking {odftar} ...')
 
-    elif repo == 'heasarc':
-        #Download the odfid from HEASARC, using Astroquery
-        logger.info('Requesting XMM-Newton odfid = {} from the HEASARC\n'.format(odfid))
+                    try:
+                        with tarfile.open(odftar,tar_mode) as tar:
+                            if levl == 'ODF':
+                                tar.extractall(path=odf_dir)
+                            elif levl == 'PPS':
+                                tar.extractall(path=data_dir)
+                                if os.path.exists(pps_dir):
+                                    copytree('pps','PPS')
+                                    shutil.rmtree('pps')
+                                else:
+                                    os.rename('pps','PPS')
+                        os.remove(odftar)
+                        logger.info(f'{odftar} extracted successfully!')
+                        logger.info(f'{odftar} removed')
+                    except tarfile.ExtractError:
+                        logger.error('tar file extraction failed')
+                        raise Exception('tar file extraction failed')
+        case 'heasarc' | 'sciserver' | 'fornax' | 'aws':
+            on_host = '...'
+            data_source_key = 'access_url'
+            if repo == 'sciserver': 
+                on_host = 'on SciServer ...'
+                data_source_key = 'sciserver'
+            if repo == 'aws': 
+                on_host = 'on AWS ...'
+                data_source_key = 'aws'
+            if repo == 'fornax':
+                on_host = 'on Fornax ...'
+                repo = 'aws'
+                data_source_key = 'aws'
+            
+            # Copies data into personal storage space.
+            logger.info(f'Requesting XMM-Newton Obs ID = {obsid} from the HEASARC {on_host}\n')
+            logger.info(f'Changed directory to {data_dir}')
+            os.chdir(data_dir)
+            if filename:
+                PPS_subset = True
+                PPSfile = filename
 
-        logger.info(f'Changed directory to {data_dir}')
-        os.chdir(data_dir)
-
-        if filename: PPS_subset = True
         
-        if level in ['ALL','ODF','PPS','4XMM','om_mosaic'] and not PPS_subset:
-            logger.info(f'Downloading {odfid}, level {level}')
-            query = """SELECT * FROM xmmmaster WHERE obsid='{0}'""".format(odfid)
-            tab = Heasarc.query_tap(query).to_table()
-            if level == 'ALL':
-                for lvl in ['ODF','PPS']:
+            if level in ['ALL','ODF','PPS','4XMM','om_mosaic'] and not PPS_subset:
+                logger.info(f'Downloading {obsid}, level {level}')
+                query = """SELECT * FROM xmmmaster WHERE obsid='{0}'""".format(obsid)
+                tab = Heasarc.query_tap(query).to_table()
+                if level == 'ALL':
+                    for lvl in ['ODF','PPS']:
+                        data_source = Heasarc.locate_data(tab, catalog_name='xmmmaster')
+                        data_source[data_source_key] = data_source[data_source_key]+lvl
+                        Heasarc.download_data(data_source,host=repo,location=data_dir)
+                else:
                     data_source = Heasarc.locate_data(tab, catalog_name='xmmmaster')
-                    data_source['access_url'] = data_source['access_url']+lvl
+                    data_source[data_source_key] = data_source[data_source_key]+level
                     Heasarc.download_data(data_source,host=repo,location=data_dir)
-            else:
-                data_source = Heasarc.locate_data(tab, catalog_name='xmmmaster')
-                data_source['access_url'] = data_source['access_url']+level
-                Heasarc.download_data(data_source,host=repo,location=data_dir)
-        elif PPS_subset:
-            # Only if PPS_subset = True or a single file name is passed in.
-            wgetf = ''
-            if filename != None:
-                wgetf = filename
-                PPS_subset_note = f', file {wgetf}'
-                wgetA = ''
-            else:
-                PPS_subset_note = f' using file pattern {PPSfile}'
-                wgetA = f"-A '{PPSfile}'"
-
-            logger.info(f'Downloading {odfid}, level {level}{PPS_subset_note}')
-
-            cmd = f'wget -m -nH -e robots=off --cut-dirs=4 -l 2 -np {wgetA} https://heasarc.gsfc.nasa.gov/FTP/xmm/data/rev0/{odfid}/{level}/{wgetf}'
-            logger.info(f'Using the command:\n{cmd}')
-            result = subprocess.run(cmd, shell=True)
-
-            if result.returncode != 0:
-                print(f'Problem downloading data!')
-                print('Tried using the command:')
-                print(cmd)
-                logger.error(f'File download failed!')
-                raise Exception('File download failed!')
-
-    elif repo == 'sciserver' or repo == 'aws' or repo == 'fornax':
-        if repo == 'sciserver': host = 'SciServer'
-        if repo == 'aws': host = 'AWS'
-        if repo == 'fornax':
-            host = 'Fornax'
-            repo = 'aws'
-        # Copies data into personal storage space.
-        logger.info(f'Requesting XMM-Newton odfid = {odfid} from the HEASARC on {host}\n')
-
-        if filename: 
-            PPS_subset = True
-            PPSfile = filename
-
-        if level in ['ALL','ODF','PPS','4XMM','om_mosaic'] and not PPS_subset:
-            logger.info(f'Downloading {odfid}, level {level}')
-            query = """SELECT * FROM xmmmaster WHERE obsid='{0}'""".format(odfid)
-            tab = Heasarc.query_tap(query).to_table()
-            if level == 'ALL':
-                for lvl in ['ODF','PPS']:
-                    data_source = Heasarc.locate_data(tab, catalog_name='xmmmaster')
-                    data_source[repo] = data_source[repo]+lvl
-                    Heasarc.download_data(data_source,host=repo,location=obs_dir)
-            else:
-                data_source = Heasarc.locate_data(tab, catalog_name='xmmmaster')
-                data_source[repo] = data_source[repo]+level
-                Heasarc.download_data(data_source,host=repo,location=obs_dir)
+        case _:
+            logger.error(f'Repo {repo} not recognized!')
 
         if PPS_subset:
-            if not os.path.exists(pps_dir): os.mkdir(pps_dir)
-            archive_data = f'/home/idies/workspace/headata/FTP/xmm/data/rev0//{odfid}/PPS'
-            file_pattern = archive_data + f'/**/{PPSfile}'
-            files = glob.glob(file_pattern, recursive=True)
-            if len(files) == 0:
-                logger.warning(f'No files of the pattern {file_pattern} found!')
-            for file in files:
-                file_name = os.path.basename(file)
-                logger.info(f'Copying file {file_name} from {archive_data} ...')
-                shutil.copy(file, os.path.join(pps_dir,file_name))
+            # Only if PPS_subset = True or a single file name is passed in.
+            match repo:
+                case 'heasarc':
+                    wgetf = ''
+                    if filename != None:
+                        wgetf = filename
+                        PPS_subset_note = f', file {wgetf}'
+                        wgetA = ''
+                    else:
+                        PPS_subset_note = f' using file pattern {PPSfile}'
+                        wgetA = f"-A '{PPSfile}'"
+
+                    logger.info(f'Downloading {obsid}, level {level}{PPS_subset_note}')
+
+                    cmd = f'wget -m -nH -e robots=off --cut-dirs=4 -l 2 -np {wgetA} https://heasarc.gsfc.nasa.gov/FTP/xmm/data/rev0/{obsid}/{level}/{wgetf}'
+                    logger.info(f'Using the command:\n{cmd}')
+                    result = subprocess.run(cmd, shell=True)
+
+                    if result.returncode != 0:
+                        print(f'Problem downloading data!')
+                        print('Tried using the command:')
+                        print(cmd)
+                        logger.error(f'File download failed!')
+                        raise Exception('File download failed!')
+                case 'sciserver':
+                    if not os.path.exists(pps_dir): os.mkdir(pps_dir)
+                    archive_data = f'/home/idies/workspace/headata/FTP/xmm/data/rev0//{obsid}/PPS'
+                    file_pattern = archive_data + f'/**/{PPSfile}'
+                    files = glob.glob(file_pattern, recursive=True)
+                    if len(files) == 0:
+                        logger.warning(f'No files of the pattern {file_pattern} found!')
+                    for file in files:
+                        file_name = os.path.basename(file)
+                        logger.info(f'Copying file {file_name} from {archive_data} ...')
+                        shutil.copy(file, os.path.join(pps_dir,file_name))
+                case 'fornax' | 'aws':
+                    logger.error(f'Downloading individual PPS files not supported yet {on_host}. You must download all PPS files.')
+
         
         # else:
         #     logger.info(f'Copying data from {archive_data} ...')
@@ -361,7 +357,7 @@ def download_data(odfid,
         # If no encryption key is given then go looking for a file.
         encryption_file = None
         if encryption_key == None:
-            encryption_file = glob.glob(os.path.join(data_dir,f'*{odfid}*'))
+            encryption_file = glob.glob(os.path.join(data_dir,f'*{obsid}*'))
             if len(encryption_file) == 0:
                 encryption_file = glob.glob(os.path.join(data_dir,'*key*'))
             if len(encryption_file) > 1:
@@ -430,7 +426,7 @@ def download_data(odfid,
         os.remove(file)
         logger.info(f'{file} removed')
 
-    ppssumhtml = 'P' + odfid + 'OBX000SUMMAR0000.HTM'
+    ppssumhtml = 'P' + obsid + 'OBX000SUMMAR0000.HTM'
     ppssumhtmlfull = os.path.join(pps_dir, ppssumhtml)
 
     if os.path.exists(ppssumhtmlfull):
