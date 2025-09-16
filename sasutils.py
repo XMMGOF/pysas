@@ -280,9 +280,14 @@ def download_data(odfid,
                 logger.error(f'File download failed!')
                 raise Exception('File download failed!')
 
-    elif repo == 'sciserver':
+    elif repo == 'sciserver' or repo == 'aws' or repo == 'fornax':
+        if repo == 'sciserver': host = 'SciServer'
+        if repo == 'aws': host = 'AWS'
+        if repo == 'fornax':
+            host = 'Fornax'
+            repo = 'aws'
         # Copies data into personal storage space.
-        logger.info('Requesting XMM-Newton odfid = {} from the HEASARC on SciServer\n'.format(odfid))
+        logger.info(f'Requesting XMM-Newton odfid = {odfid} from the HEASARC on {host}\n')
 
         if filename: 
             PPS_subset = True
@@ -295,11 +300,11 @@ def download_data(odfid,
             if level == 'ALL':
                 for lvl in ['ODF','PPS']:
                     data_source = Heasarc.locate_data(tab, catalog_name='xmmmaster')
-                    data_source['sciserver'] = data_source['sciserver']+lvl
+                    data_source[repo] = data_source[repo]+lvl
                     Heasarc.download_data(data_source,host=repo,location=obs_dir)
             else:
                 data_source = Heasarc.locate_data(tab, catalog_name='xmmmaster')
-                data_source['sciserver'] = data_source['sciserver']+level
+                data_source[repo] = data_source[repo]+level
                 Heasarc.download_data(data_source,host=repo,location=obs_dir)
 
         if PPS_subset:
