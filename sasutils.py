@@ -258,7 +258,6 @@ def download_data(obsid,
                 PPS_subset = True
                 PPSfile = filename
 
-        
             if level in ['ALL','ODF','PPS','4XMM','om_mosaic'] and not PPS_subset:
                 logger.info(f'Downloading {obsid}, level {level}')
                 query = """SELECT * FROM xmmmaster WHERE obsid='{0}'""".format(obsid)
