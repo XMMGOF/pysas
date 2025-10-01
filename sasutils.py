@@ -257,8 +257,8 @@ def download_data(obsid,
             
             # Copies data into personal storage space.
             logger.info(f'Requesting XMM-Newton Obs ID = {obsid} from the HEASARC {on_host}\n')
-            logger.info(f'Changed directory to {data_dir}')
-            os.chdir(data_dir)
+            logger.info(f'Changed directory to {obs_dir}')
+            os.chdir(obs_dir)
         
             if level in ['ALL','ODF','PPS','4XMM','om_mosaic'] and not PPS_subset:
                 logger.info(f'Downloading {obsid}, level {level}')
