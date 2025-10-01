@@ -26,7 +26,7 @@ Utility functions specific to SAS or pySAS.
 # Standard library imports
 import os, sys, subprocess, shutil, glob, tarfile, gzip, time, platform, re
 from shutil import copytree
-from s3fs import S3FileSystem
+#from s3fs import S3FileSystem
 
 # Third party imports
 from astroquery.esa.xmm_newton import XMMNewton
@@ -264,6 +264,9 @@ def download_data(obsid,
                 logger.info(f'Downloading {obsid}, level {level}')
                 query = """SELECT * FROM xmmmaster WHERE obsid='{0}'""".format(obsid)
                 tab = Heasarc.query_tap(query).to_table()
+                if len(tab) == 0:
+                    logger.error(f'Obs ID {obsid} not found in the XMM archive!')
+                    raise Exception(f'Obs ID {obsid} not found in the XMM archive!')
                 if level == 'ALL':
                     for lvl in ['ODF','PPS']:
                         data_source = Heasarc.locate_data(tab, catalog_name='xmmmaster')

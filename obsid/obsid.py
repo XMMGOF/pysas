@@ -621,7 +621,7 @@ class ObsID:
         if call_download_data:
             self.logger.info(f'Will download ODF data for Obs ID {self.obsid}.')
             # Check chosen repository.
-            repo_opts = ['esa','heasarc','sciserver']
+            repo_opts = ['esa','heasarc','sciserver','fornax','aws']
             if repo.lower() not in repo_opts:
                 self.logger.error('Download repository not found!')
                 print(f'Options for repo are {repo_opts[0]}, {repo_opts[1]}, or {repo_opts[2]}')
@@ -767,7 +767,7 @@ class ObsID:
         if call_download_data:
             self.logger.info(f'Will download PPS data for Obs ID {self.obsid}.')
             # Check chosen repository.
-            repo_opts = ['esa','heasarc','sciserver']
+            repo_opts = ['esa','heasarc','sciserver','fornax','aws']
             if repo.lower() not in repo_opts:
                 self.logger.error('Download repository not found!')
                 print(f'Options for repo are {repo_opts[0]}, {repo_opts[1]}, or {repo_opts[2]}')
@@ -874,7 +874,7 @@ class ObsID:
 
         self.logger.info(f'Will download ALL data for Obs ID {self.obsid}.')
         # Check chosen repository.
-        repo_opts = ['esa','heasarc','sciserver']
+        repo_opts = ['esa','heasarc','sciserver','fornax','aws']
         if repo.lower() not in repo_opts:
             self.logger.error('Download repository not found!')
             print(f'Options for repo are {repo_opts[0]}, {repo_opts[1]}, or {repo_opts[2]}')
