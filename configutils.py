@@ -46,8 +46,7 @@ sas_cfg_defaults = {
     "data_dir": "/does/not/exist",
     "verbosity": 4,
     "pysas_verbosity": "WARNING",
-    "suppress_warning": 1,
-    "on_sci_server": False
+    "suppress_warning": 1
 }
 
 CURRENT_CONFIG_FILE = None
@@ -55,8 +54,6 @@ CURRENT_CONFIG_FILE = None
 if (os.path.expanduser("~") == '/home/idies') and \
     os.path.exists('/home/idies/workspace/Storage/'):
     # If on SciServer, get enviroment variables. Replace defaults.
-    sas_cfg_defaults['on_sci_server'] = True
-    sas_cfg_defaults['usr'] = os.listdir('/home/idies/workspace/Storage/')[0]
     sas_dir     = os.environ.get('SAS_DIR')
     sas_ccfpath = os.environ.get('SAS_CCFPATH')
     sas_cfg_defaults['sas_dir']     = sas_dir
