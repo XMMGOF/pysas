@@ -42,6 +42,8 @@ from pysas.sastask import MyTask
 from pysas.pysasplot_utils.pysasplot_utils import quick_image_plot as qip
 from pysas.pysasplot_utils.pysasplot_utils import quick_light_curve_plot as qlcp
 
+repo_opts = ['esa','heasarc','sciserver','fornax','aws']
+
 class ObsID:
     """
     Class for and Obs ID object.
@@ -621,10 +623,9 @@ class ObsID:
         if call_download_data:
             self.logger.info(f'Will download ODF data for Obs ID {self.obsid}.')
             # Check chosen repository.
-            repo_opts = ['esa','heasarc','sciserver','fornax','aws']
             if repo.lower() not in repo_opts:
                 self.logger.error('Download repository not found!')
-                print(f'Options for repo are {repo_opts[0]}, {repo_opts[1]}, or {repo_opts[2]}')
+                print(f'Options for repo are {repo_opts}.')
                 raise Exception('Download repository not found!')
             else:
                 self.logger.info(f'Will download data from {repo}.')
@@ -767,10 +768,9 @@ class ObsID:
         if call_download_data:
             self.logger.info(f'Will download PPS data for Obs ID {self.obsid}.')
             # Check chosen repository.
-            repo_opts = ['esa','heasarc','sciserver','fornax','aws']
             if repo.lower() not in repo_opts:
                 self.logger.error('Download repository not found!')
-                print(f'Options for repo are {repo_opts[0]}, {repo_opts[1]}, or {repo_opts[2]}')
+                print(f'Options for repo are {repo_opts}.')
                 raise Exception('Download repository not found!')
             else:
                 self.logger.info(f'Will download data from {repo}.')
@@ -874,10 +874,9 @@ class ObsID:
 
         self.logger.info(f'Will download ALL data for Obs ID {self.obsid}.')
         # Check chosen repository.
-        repo_opts = ['esa','heasarc','sciserver','fornax','aws']
         if repo.lower() not in repo_opts:
             self.logger.error('Download repository not found!')
-            print(f'Options for repo are {repo_opts[0]}, {repo_opts[1]}, or {repo_opts[2]}')
+            print(f'Options for repo are {repo_opts}.')
             raise Exception('Download repository not found!')
         else:
             self.logger.info(f'Will download data from {repo}.')
