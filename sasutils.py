@@ -271,16 +271,19 @@ def download_data(obsid,
                     for lvl in ['ODF','PPS']:
                         data_source = Heasarc.locate_data(tab, catalog_name='xmmmaster')
                         data_source[data_source_key] = data_source[data_source_key]+lvl
-                        Heasarc.download_data(data_source,host=repo,location=data_dir)
+                        Heasarc.download_data(data_source,host=repo,location=obs_dir)
                 else:
                     data_source = Heasarc.locate_data(tab, catalog_name='xmmmaster')
                     data_source[data_source_key] = data_source[data_source_key]+level
-                    Heasarc.download_data(data_source,host=repo,location=data_dir)
+                    Heasarc.download_data(data_source,host=repo,location=obs_dir)
 
             if PPS_subset:
                 # Only if PPS_subset = True or a single file name is passed in.
                 match repo:
-                    case 'heasarc':
+                # If downloading a subset of PPS files instead of *all* PPS files for now
+                # we have to download from the HEASARC. We are still working on how to request
+                # specific files from a AWS s3 bucket. RT - 10/10/25
+                    case 'heasarc' | 'fornax' | 'aws':
                         wgetf = ''
                         if filename != None:
                             wgetf = filename
@@ -313,7 +316,7 @@ def download_data(obsid,
                             file_name = os.path.basename(file)
                             logger.info(f'Copying file {file_name} from {archive_data} ...')
                             shutil.copy(file, os.path.join(pps_dir,file_name))
-                    case 'fornax' | 'aws':
+                    #case 'fornax' | 'aws':
                         # current_s3 = S3FileSystem(anon=True)
                         # s3_uri = f's3://nasa-heasarc/xmm/data/rev0/{obsid}/{level}'
                         # all_files = current_s3.ls(s3_uri)
@@ -321,7 +324,7 @@ def download_data(obsid,
                         # for file_path in all_files:
                         #     file_names.append(os.path.basename(file_path))
                         # filtered_list = fnmatch.filter(file_names, PPSfile)
-                        logger.error(f'Downloading individual PPS files not supported yet {on_host}. You must download all PPS files.')
+                        #logger.error(f'Downloading individual PPS files not supported yet {on_host}. You must download all PPS files.')
         case _:
             logger.error(f'Repo {repo} not recognized!')
 
