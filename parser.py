@@ -52,7 +52,7 @@ import importlib.resources
 # Local application imports
 from pysas.param import paramXmlInfoReader
 from pysas.logger import get_logger
-from .configutils import sas_cfg
+from pysas import sas_cfg
 
 class ParseArgs:
     """
@@ -128,7 +128,7 @@ class ParseArgs:
         #    -w/--warning, -t/--trace.
 
         # Get default verbosity
-        default_verbosity = sas_cfg.get("sas", "verbosity")
+        default_verbosity = sas_cfg.get_setting("sas", "verbosity")
 
         parser.add_argument('-V',
                             '--verbosity',

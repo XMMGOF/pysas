@@ -31,7 +31,7 @@ from loguru import logger
 logger.remove()
 
 # Local application imports
-from .configutils import sas_cfg
+from pysas import sas_cfg
 
 # Functions
 
@@ -120,7 +120,7 @@ def get_logger(taskname: str,
         # a separate verbosity for pySAS.
         # This does not affect the verbosity for non-Python
         # based SAS tasks.
-        pysas_verbosity = sas_cfg.get('sas','pysas_verbosity')
+        pysas_verbosity = sas_cfg.get_setting('sas','pysas_verbosity')
 
         # Take the lower of sas_level or pysas_level
         sas_level   = logger.level(level).no

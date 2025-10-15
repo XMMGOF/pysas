@@ -40,18 +40,18 @@
 
     For example:
 
-        from pysas.configutils import set_sas_config_option
+        from pysas import sas_cfg
         data_path = '/path/to/data/dir/'
-        set_sas_config_option('data_dir', data_path)
+        sas_cfg.set_setting_and_save('data_dir', data_path)
         
     The default values for the SAS directory (sas_dir), the path to the
     calibration files (sas_ccfpath), along with 'verbosity' and 
     'suppress_warning', can also be set in the same way.
 
-    At any time the user can clear all previous values with,
+    At any time the user can reset the config file to the defaults,
 
-        from pysas.configutils import clear_sas_defaults
-        clear_sas_defaults()
+        from pysas import sas_cfg
+        sas_cfg.reset_to_defaults()
 """
 
 # Standard library imports
@@ -60,14 +60,14 @@ import os, glob
 # Third party imports
 
 # Local application imports
-from pysas.configutils import sas_cfg, set_sas_config_option
+from pysas import sas_cfg
 from pysas.init_sas import initializesas
 from pysas.sasutils import update_calibration_files
 
-__version__ = 'config_pysas (config_pysas-1.0)'
+__version__ = 'config_pysas (config_pysas-1.1)'
 
-verbosity        = sas_cfg.get('sas','verbosity')
-suppress_warning = sas_cfg.get('sas','suppress_warning')
+verbosity        = sas_cfg.get_setting('verbosity')
+suppress_warning = sas_cfg.get_setting('suppress_warning')
 
 def run_config():
 
@@ -88,23 +88,23 @@ def run_config():
         where observation data files (odf) will be downloaded. A separate 
         subdirectory will be made for each observation ID (obsID).
         
-        The default data directory can be set or change later using the 
-        function set_sas_config_option().
+        The default data directory can be set or changed later using the 
+        function set_setting_and_save().
 
         For example:
 
-            from pysas.configutils import set_sas_config_option
+            from pysas import sas_cfg
             data_path = '/path/to/data/dir/'
-            set_sas_config_option('data_dir', data_path)
+            sas_cfg.set_setting_and_save('data_dir', data_path)
             
         The default values for the SAS directory (sas_dir), the path to the
         calibration files (sas_ccfpath), along with 'verbosity' and 
         'suppress_warning', can also be set in the same way.
 
-        At any time the user can clear all previous values with,
+        At any time the user can reset the config file to the defaults,
 
-            from pysas.configutils import clear_sas_defaults
-            clear_sas_defaults()
+            from pysas import sas_cfg
+            sas_cfg.reset_to_defaults()
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -118,25 +118,11 @@ def run_config():
     nasa = ['nasa','n','na','nas','ns','nsa','us','usa']
 
     ############## Getting sas_dir ##############
-    sas_dir_found = False
-    script_path = os.path.normpath(os.path.abspath(__file__))
-    split_path = script_path.split(os.sep)
-
-    
-
-    if split_path[-2] == 'pysas' and split_path[-3] == 'python' and split_path[-4] == 'lib' and split_path[-5][0:7] == 'xmmsas_':
-        psas_dir = os.sep
-        for folder in split_path[:-4]:
-            psas_dir = os.path.join(psas_dir,folder)
-        sas_dir_found = True
     
     # If sas_dir is already set
-    sasdir = os.environ.get('SAS_DIR')
-    if sasdir:
-        sas_dir_found = True
-        psas_dir = sasdir
+    psas_dir = os.environ.get('SAS_DIR')
 
-    if sas_dir_found:
+    if psas_dir:
         print('Is this the correct SAS directory?')
         print('\n    {0}\n'.format(psas_dir))
         response = input('y/n: ')
@@ -166,25 +152,13 @@ def run_config():
         print(f'SAS path {sas_dir} does not exist! Check path or SAS install!')
         raise Exception(f'SAS path {sas_dir} does not exist!')
 
-    # pysas_dir = glob.glob(sas_dir+'/lib/python')[0]
-    # bashfile = os.path.join(os.path.expanduser('~'),'.bash_profile')
-    # if os.path.exists(bashfile):
-    #     with open(bashfile, "a") as myfile:
-    #         myfile.write(f'export PYTHONPATH={pysas_dir}:$PYTHONPATH')
-    #     print(f'Adding {pysas_dir} to PYTHONPATH in {bashfile}')
-
     print('\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
     ############## Getting sas_ccfpath ##############
 
-    ccf_path_set = False
-
     psas_ccfpath = os.environ.get('SAS_CCFPATH')
 
     if psas_ccfpath:
-        ccf_path_set = True
-
-    if ccf_path_set:
         print('Is this the correct directory for the calibration files?')
         print('\n    {0}\n'.format(psas_ccfpath))
         response = input('y/n: ')
@@ -193,7 +167,7 @@ def run_config():
             sas_ccfpath = psas_ccfpath
             print(f'Setting SAS_CCFPATH = {sas_ccfpath}')
         elif response in negative:
-            # Ask for SAS_DIR path
+            # Ask for SAS_CCFPATH path
             scomment = '\nPlease provide the full path to the calibration files (SAS_CCFPATH).\n'
             print(scomment)
             sas_ccfpath = input('Full path to the calibration files: ')
@@ -214,7 +188,6 @@ def run_config():
         if not sas_ccfpath.startswith('/'): sas_ccfpath = os.path.abspath(sas_ccfpath)
         if sas_ccfpath.endswith('/'): sas_ccfpath = sas_ccfpath[:-1]
 
-    create_ccf = False
     if not os.path.exists(sas_ccfpath):
         print(f'The directory {sas_ccfpath} was not found!')
         response = input('Should I create it? (y/n): ')
@@ -255,7 +228,6 @@ def run_config():
         print(f'-or any of these: {negative}')
         raise Exception('Input not recognized!')
         
-
     print('\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
     ############## Getting data_dir ##############
@@ -280,26 +252,33 @@ def run_config():
         print(f'{data_dir} has been created!')
     else:
         print(f'\nData directory exists. Will use {data_dir} to download data.')
-    set_sas_config_option('data_dir',data_dir)
 
     # Check if paths for SAS_DIR and SAS_CCFPATH exist.
     if os.path.exists(sas_dir) and os.path.exists(sas_ccfpath):
-        print('SAS_DIR and SAS_CCFPATH exist. Will use SAS_DIR and SAS_CCFPATH to initialize SAS.')
-        set_sas_config_option('sas_dir',sas_dir)
-        set_sas_config_option('sas_ccfpath',sas_ccfpath)
+        print('SAS_DIR and SAS_CCFPATH exist. Will use the following to initialize SAS:')
+        print(f'     SAS_DIR = {sas_dir}')
+        print(f'     SAS_CCFPATH = {sas_ccfpath}')
         initializesas(sas_dir, sas_ccfpath, verbosity=verbosity,suppress_warning=suppress_warning)
-    else:
-        if not os.path.exists(sas_dir):
-            print(f'There is a problem with SAS_DIR {sas_dir}. Please check and try again.')
-            raise Exception(f'There is a problem with SAS_DIR {sas_dir}. Please check and try again.')
-        else:
-            print(f'Default SAS_DIR = {sas_dir}')
 
-        if not os.path.exists(sas_ccfpath):
-            print(f'There is a problem with SAS_CCFPATH {sas_ccfpath}. Please check and try again.')
-            raise Exception(f'There is a problem with SAS_CCFPATH {sas_ccfpath}. Please check and try again.')
-        else:
-            print(f'Default SAS_CCFPATH = {sas_ccfpath}')
+    if not os.path.exists(sas_dir):
+        print(f'There is a problem with SAS_DIR {sas_dir}. Please check and try again.')
+        raise Exception(f'There is a problem with SAS_DIR {sas_dir}. Please check and try again.')
+
+    if not os.path.exists(sas_ccfpath) and not download_calibration:
+        print(f'SAS_CCFPATH ({sas_ccfpath}) does not exist! Make sure you create it and download the calibration files!')
+        
+
+    # Set sas_dir in configuration settings
+    sas_cfg.set_setting('sas_dir', sas_dir)
+
+    # Set sas_ccfpath in configuration settings
+    sas_cfg.set_setting('sas_ccfpath', sas_ccfpath)
+
+    # Set data_dir in configuration settings
+    sas_cfg.set_setting('data_dir', data_dir)
+
+    # Save configuration settings to file
+    sas_cfg.save_config()
 
     # Putting calibration file download in its own function since it is used in multiple locations.
     if download_calibration:
@@ -317,13 +296,13 @@ def run_config():
 
         The defaults can be changed at any time using the commands:
 
-            from pysas.configutils import set_sas_config_option
-            set_sas_config_option('value_to_set',value)
+            from pysas import sas_cfg
+            sas_cfg.set_setting_and_save('value_to_set',value)
 
-        At any time the user can clear all previous values with,
+        At any time the user can reset the config file to the defaults,
 
-            from pysas.configutils import clear_sas_defaults
-            clear_sas_defaults()
+            from pysas import sas_cfg
+            sas_cfg.reset_to_defaults()
 
     """
     print(scomment)
