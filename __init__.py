@@ -144,19 +144,29 @@ class sas_config:
         if not self.config.has_section('sas'): self.config.add_section('sas')
         self.save_config()
 
-    def simple_config(self, sas_dir = None, sas_ccfpath = None, data_dir = None):
+    def simple_config(self, 
+                      sas_dir = None, 
+                      sas_ccfpath = None, 
+                      data_dir = None,
+                      repo = None):
         """
         For quick, simple configuration of pySAS.
         """
+        home_dir = Path.home()
         if sas_dir is None: sas_dir = os.environ.get('SAS_DIR')
         if sas_ccfpath is None: sas_ccfpath = os.environ.get('SAS_CCFPATH')
         if data_dir is None: 
-            home_dir = Path.home()
             data_dir = home_dir / 'xmm_data'
             data_dir = data_dir.resolve()
+        if repo is None:
+            if str(home_dir) == '/home/jovyan':
+                repo = 'fornax'
+            elif: str(home_dir) == '/home/idies':
+                repo = 'sciserver'
 
         if sas_dir: self.set_setting('sas_dir', sas_dir)
         if sas_ccfpath: self.set_setting('sas_ccfpath', sas_ccfpath)
+        if repo: self.set_setting('repo', repo)
         self.set_setting('data_dir', str(data_dir))
         self.save_config()
 

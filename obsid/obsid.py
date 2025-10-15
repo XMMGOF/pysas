@@ -159,17 +159,17 @@ class ObsID:
         
         # Check if data_dir is in the config file
         self.logger.debug('Checking for data_dir from config file')
-        if not data_dir_found:
-            data_dir = sas_cfg.get_setting("data_dir")
+        if not data_dir_found and sas_cfg.config.has_option('sas','data_dir'):
+            data_dir = sas_cfg.get_setting('data_dir')
             self.logger.debug(f'Trying default data_dir from config file: {data_dir}')
             if os.path.exists(data_dir):
                 self.data_dir = data_dir
                 self.logger.info(f'Data directory found: {self.data_dir}')
-            else:
-                self.logger.info(f'No data_dir found in config file. Not setting data_dir.')
-                self.logger.info(f'Leaving data_dir as "{self.data_dir}".')
-                self.logger.debug(f'Exiting __set_obsid, no data_dir found')
-                return
+        else:
+            self.logger.info(f'No data_dir found in config file. Not setting data_dir.')
+            self.logger.info(f'Leaving data_dir as "{self.data_dir}".')
+            self.logger.debug(f'Exiting __set_obsid, no data_dir found')
+            return
             
         # data_dir is set.
         # Setting other directory paths.
@@ -260,7 +260,7 @@ class ObsID:
 
     def basic_setup(self, 
                     data_dir    = None,
-                    repo        = 'esa',
+                    repo        = None,
                     overwrite   = False,
                     rerun       = False,
                     recalibrate = False,
@@ -287,7 +287,7 @@ class ObsID:
         Inputs:
 
             data_dir:    Data directory.
-            repo:        Download repository ('esa','heasarc','sciserver').
+            repo:        Download repository ('esa','heasarc','fornax','aws').
             overwrite:   Remove previous data files and download again.
             rerun:       Rerun the *procs or *chains.
             recalibrate: Rerun 'cifbuild' and 'odfingest'.
@@ -394,7 +394,11 @@ class ObsID:
         self.work_dir = os.path.join(self.obs_dir,'work')
 
         # Deal with the rest of the inputs.
-        self.repo = repo
+        # Set repo from config file (default 'esa')
+        if repo is None:
+            self.repo = sas_cfg.get_setting("sas_dir")
+        else:
+            self.repo = repo
 
         # Checking LHEASOFT, SAS_DIR and SAS_CCFPATH
         lheasoft = os.environ.get('LHEASOFT')
@@ -533,7 +537,7 @@ class ObsID:
                     logger = kwargs.get('logger', None)).run()
         
     def download_ODF_data(self,
-                          repo        = 'esa',
+                          repo        = None,
                           data_dir    = None,
                           overwrite   = False,
                           proprietary = False,
@@ -555,7 +559,8 @@ class ObsID:
                                         Can be either
                                         'esa' (data from Europe/ESA) or 
                                         'heasarc' (data from North America/NASA) or
-                                        'sciserver' (if user is on sciserver)
+                                        'aws' (data from AWS s3 bucket (NASA)) or
+                                        'fornax' (if user is on Fornax)
 
             --data_dir:  (string/path): Path to directory where the data will be 
                                         downloaded. Automatically creates directory
@@ -591,6 +596,12 @@ class ObsID:
         # Set odf_dir
         if not hasattr(self, 'odf_dir'):
             self.odf_dir = os.path.join(self.obs_dir,'ODF')
+
+        # Set repo from config file (default 'esa')
+        if repo is None:
+            self.repo = sas_cfg.get_setting("sas_dir")
+        else:
+            self.repo = repo
 
         # Checks if obs_dir exists. 
         # Removes it if overwrite = True. Default overwrite = False.
@@ -651,7 +662,7 @@ class ObsID:
         return
         
     def download_PPS_data(self,
-                          repo      = 'esa',
+                          repo      = None,
                           data_dir  = None,
                           overwrite = False,
                           proprietary      = False,
@@ -683,7 +694,8 @@ class ObsID:
                                         Can be either
                                         'esa' (data from Europe/ESA) or 
                                         'heasarc' (data from North America/NASA) or
-                                        'sciserver' (if user is on sciserver)
+                                        'aws' (data from AWS s3 bucket (NASA)) or
+                                        'fornax' (if user is on Fornax)
 
             --data_dir:  (string/path): Path to directory where the data will be 
                                         downloaded. Automatically creates directory
@@ -738,6 +750,12 @@ class ObsID:
         # Set odf_dir
         if not hasattr(self, 'pps_dir'):
             self.odf_dir = os.path.join(self.obs_dir,'PPS')
+
+        # Set repo from config file (default 'esa')
+        if repo is None:
+            self.repo = sas_cfg.get_setting("sas_dir")
+        else:
+            self.repo = repo
 
         # Checks if obs_dir exists. 
         # Removes it if overwrite = True. Default overwrite = False.
@@ -806,7 +824,7 @@ class ObsID:
         return
     
     def download_ALL_data(self,
-                          repo        = 'esa',
+                          repo        = None,
                           data_dir    = None,
                           overwrite   = True,
                           proprietary      = False,
@@ -831,7 +849,8 @@ class ObsID:
                                         Can be either
                                         'esa' (data from Europe/ESA) or 
                                         'heasarc' (data from North America/NASA) or
-                                        'sciserver' (if user is on sciserver)
+                                        'aws' (data from AWS s3 bucket (NASA)) or
+                                        'fornax' (if user is on Fornax)
 
             --data_dir:  (string/path): Path to directory where the data will be 
                                         downloaded. Automatically creates directory
@@ -863,6 +882,12 @@ class ObsID:
         # Set the obs_dir
         if not hasattr(self, 'obs_dir'):
             self.obs_dir = os.path.join(self.data_dir,self.obsid)
+
+        # Set repo from config file (default 'esa')
+        if repo is None:
+            self.repo = sas_cfg.get_setting("sas_dir")
+        else:
+            self.repo = repo
 
         # Checks if obs_dir exists and removes it.
 
@@ -1766,7 +1791,7 @@ class ObsID:
         """
         self.logger.debug('Inside __set_data_dir')
         # Where are we?
-        startdir = Path.cwd()
+        startdir = str(Path.cwd())
 
         # Brief check to see if data_dir was 
         # given on ObsID creation.
@@ -1777,8 +1802,11 @@ class ObsID:
         # Start checking data_dir
         self.logger.debug('Check if data_dir is "None"')
         if data_dir is None:
-            data_dir = sas_cfg.get_setting("data_dir")
             self.logger.debug('Check if data_dir is set in config file')
+            if sas_cfg.config.has_option('sas','data_dir'):
+                data_dir = sas_cfg.get_setting('data_dir')
+            else:
+                data_dir = '/does/not/exist'
             if os.path.exists(data_dir):
                 self.data_dir = data_dir
                 self.logger.info(f'Using data_dir from config file: {self.data_dir}')
