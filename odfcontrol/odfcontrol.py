@@ -32,7 +32,7 @@ from warnings import warn
 # Third party imports
 
 # Local application imports
-from ..configutils import sas_cfg
+from pysas import sas_cfg
 from ..init_sas import initializesas
 from ..wrapper import Wrapper as w
 from ..sasutils import generate_logger
@@ -241,7 +241,7 @@ class ODFobject(object):
 
         # Start checking data_dir
         if data_dir == None:
-            data_dir = sas_cfg.get("sas", "data_dir")
+            data_dir = sas_cfg.get_setting("sas", "data_dir")
             if os.path.exists(data_dir):
                 self.data_dir = data_dir
             else:
@@ -472,7 +472,7 @@ class ODFobject(object):
 
         # Start checking data_dir
         if data_dir == None:
-            data_dir = sas_cfg.get("sas", "data_dir")
+            data_dir = sas_cfg.get_setting("sas", "data_dir")
             if os.path.exists(data_dir):
                 self.data_dir = data_dir
             else:
@@ -639,7 +639,7 @@ class ODFobject(object):
 
         # Brief check to see if data_dir is already defined.
         if self.data_dir == None:
-            data_dir = sas_cfg.get("sas", "data_dir")
+            data_dir = sas_cfg.get_setting("sas", "data_dir")
             if os.path.exists(data_dir):
                 self.data_dir = data_dir
             else:
@@ -1074,7 +1074,7 @@ class ODFobject(object):
         if self.data_dir != None:
             data_dir = self.data_dir
         else:
-            data_dir = sas_cfg.get("sas", "data_dir")
+            data_dir = sas_cfg.get_setting("sas", "data_dir")
 
         # Start checking data_dir
         if os.path.exists(data_dir):

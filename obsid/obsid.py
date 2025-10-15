@@ -34,7 +34,7 @@ from pathlib import Path
 # Third party imports
 
 # Local application imports
-from ..configutils import sas_cfg
+from pysas import sas_cfg
 from ..init_sas import initializesas
 from ..sasutils import download_data as dl_data
 from pysas.logger import get_logger
@@ -160,7 +160,7 @@ class ObsID:
         # Check if data_dir is in the config file
         self.logger.debug('Checking for data_dir from config file')
         if not data_dir_found:
-            data_dir = sas_cfg.get("sas", "data_dir")
+            data_dir = sas_cfg.get_setting("sas", "data_dir")
             self.logger.debug(f'Trying default data_dir from config file: {data_dir}')
             if os.path.exists(data_dir):
                 self.data_dir = data_dir
@@ -1777,7 +1777,7 @@ class ObsID:
         # Start checking data_dir
         self.logger.debug('Check if data_dir is "None"')
         if data_dir is None:
-            data_dir = sas_cfg.get("sas", "data_dir")
+            data_dir = sas_cfg.get_setting("sas", "data_dir")
             self.logger.debug('Check if data_dir is set in config file')
             if os.path.exists(data_dir):
                 self.data_dir = data_dir
