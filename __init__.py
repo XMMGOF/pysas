@@ -191,8 +191,8 @@ from .init_sas import initializesas
 
 # Initializes SAS if needed.
 if sas_initialize:
-    sas_verbosity        = sas_cfg.get_setting("sas", "verbosity")
-    sas_suppress_warning = sas_cfg.get_setting("sas", "suppress_warning")
+    sas_verbosity        = sas_cfg.get_setting("verbosity")
+    sas_suppress_warning = sas_cfg.get_setting("suppress_warning")
     sas_init_info = initializesas(sas_dir_config,
                                   sas_ccfpath_config,
                                   verbosity = sas_verbosity,
