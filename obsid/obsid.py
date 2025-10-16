@@ -395,10 +395,13 @@ class ObsID:
 
         # Deal with the rest of the inputs.
         # Set repo from config file (default 'esa')
+        self.logger.debug(f'Checking repo: {repo}')
         if repo is None:
-            self.repo = sas_cfg.get_setting("sas_dir")
+            self.repo = sas_cfg.get_setting('repo')
+            self.logger.debug(f'repo from config: {self.repo}')
         else:
             self.repo = repo
+            self.logger.debug(f'repo passed in: {self.repo}')
 
         # Checking LHEASOFT, SAS_DIR and SAS_CCFPATH
         lheasoft = os.environ.get('LHEASOFT')
@@ -598,10 +601,13 @@ class ObsID:
             self.odf_dir = os.path.join(self.obs_dir,'ODF')
 
         # Set repo from config file (default 'esa')
+        self.logger.debug(f'Checking repo: {repo}')
         if repo is None:
-            self.repo = sas_cfg.get_setting("sas_dir")
+            self.repo = sas_cfg.get_setting('repo')
+            self.logger.debug(f'repo from config: {self.repo}')
         else:
             self.repo = repo
+            self.logger.debug(f'repo passed in: {self.repo}')
 
         # Checks if obs_dir exists. 
         # Removes it if overwrite = True. Default overwrite = False.
@@ -752,10 +758,13 @@ class ObsID:
             self.odf_dir = os.path.join(self.obs_dir,'PPS')
 
         # Set repo from config file (default 'esa')
+        self.logger.debug(f'Checking repo: {repo}')
         if repo is None:
-            self.repo = sas_cfg.get_setting("sas_dir")
+            self.repo = sas_cfg.get_setting('repo')
+            self.logger.debug(f'repo from config: {self.repo}')
         else:
             self.repo = repo
+            self.logger.debug(f'repo passed in: {self.repo}')
 
         # Checks if obs_dir exists. 
         # Removes it if overwrite = True. Default overwrite = False.
@@ -884,10 +893,13 @@ class ObsID:
             self.obs_dir = os.path.join(self.data_dir,self.obsid)
 
         # Set repo from config file (default 'esa')
+        self.logger.debug(f'Checking repo: {repo}')
         if repo is None:
-            self.repo = sas_cfg.get_setting("sas_dir")
+            self.repo = sas_cfg.get_setting('repo')
+            self.logger.debug(f'repo from config: {self.repo}')
         else:
             self.repo = repo
+            self.logger.debug(f'repo passed in: {self.repo}')
 
         # Checks if obs_dir exists and removes it.
 
