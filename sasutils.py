@@ -160,7 +160,7 @@ def download_data(obsid,
     repo = repo.lower()
 
     match repo:
-        case 'esa':
+        case 'esa' | 'xsa':
             logger.info(f'Requesting Obs ID = {obsid} from ESA XMM-Newton Science Archive\n')
             logger.info(f'Changed directory to {obs_dir}')
             os.chdir(obs_dir)
@@ -241,7 +241,7 @@ def download_data(obsid,
                     except tarfile.ExtractError:
                         logger.error('tar file extraction failed')
                         raise Exception('tar file extraction failed')
-        case 'heasarc' | 'sciserver' | 'fornax' | 'aws':
+        case 'heasarc' | 'nasa' | 'sciserver' | 'fornax' | 'aws':
             on_host = '...'
             data_source_key = 'access_url'
             if repo == 'sciserver': 
@@ -254,6 +254,8 @@ def download_data(obsid,
                 on_host = 'on Fornax ...'
                 repo = 'aws'
                 data_source_key = 'aws'
+            if repo == 'nasa':
+                repo = 'heasarc'
             
             # Copies data into personal storage space.
             logger.info(f'Requesting XMM-Newton Obs ID = {obsid} from the HEASARC {on_host}\n')
@@ -283,7 +285,7 @@ def download_data(obsid,
                 # If downloading a subset of PPS files instead of *all* PPS files for now
                 # we have to download from the HEASARC. We are still working on how to request
                 # specific files from a AWS s3 bucket. RT - 10/10/25
-                    case 'heasarc' | 'fornax' | 'aws':
+                    case 'heasarc' | 'nasa' | 'fornax' | 'aws':
                         wgetf = ''
                         if filename != None:
                             wgetf = filename

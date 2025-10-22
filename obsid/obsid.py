@@ -42,7 +42,7 @@ from pysas.sastask import MyTask
 from pysas.pysasplot_utils.pysasplot_utils import quick_image_plot as qip
 from pysas.pysasplot_utils.pysasplot_utils import quick_light_curve_plot as qlcp
 
-repo_opts = ['esa','heasarc','sciserver','fornax','aws']
+repo_opts = ['esa','xsa','heasarc','nasa','sciserver','fornax','aws']
 
 class ObsID:
     """
