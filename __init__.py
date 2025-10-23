@@ -227,9 +227,6 @@ from . import init_sas
 from . import sasutils
 from . import config_pysas
 from .version import VERSION, get_sas_version
-from .obsid.obsid import ObsID
-from .odfcontrol import odfcontrol
-from .sastask import MyTask
 
 # Get SAS version information
 if sas_ready:
@@ -247,7 +244,19 @@ SAS_COMMIT_ID        = return_list[6]
 
 __version__ = f'pysas - (pysas-{VERSION}) [SAS-{SAS_RELEASE}]'
 
+# Classes and functions needed at the top level
+from .obsid.obsid import ObsID
+from .sastask import MyTask
 from .print_version import print_sas_version
+from .config_pysas import run_config
+from .sasutils import download_data, generate_logger, update_calibration_files
+
+# Will be depricated at some point
+from .odfcontrol import odfcontrol
+
+# API
+__all__ = ['ObsID',
+           'MyTask']
 
 # Get rid of temporary variables to prevent possible conflicts.
 if sas_initialize:
