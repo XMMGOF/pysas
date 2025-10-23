@@ -133,6 +133,9 @@ def download_data(obsid,
     obs_dir = os.path.join(data_dir,obsid)
     odf_dir = os.path.join(obs_dir,'ODF')
     pps_dir = os.path.join(obs_dir,'PPS')
+    logger.debug(f'obs_dir: {obs_dir}')
+    logger.debug(f'odf_dir: {odf_dir}')
+    logger.debug(f'pps_dir: {pps_dir}')
     # work_dir = os.path.join(obs_dir,'work')
 
     # Checks if obs_dir exists. Removes it if overwrite=True.
@@ -147,17 +150,21 @@ def download_data(obsid,
         os.mkdir(obs_dir)
 
     if level == 'PPS' and PPS_subset and not filename:
+        logger.debug('Generating PPS file name.')
         PPSfile = generate_PPS_filename(obsid=obsid,instname=instname,
                                         expflag=expflag,expno=expno,
                                         product_type=product_type,
                                         datasubsetno=datasubsetno,
                                         sourceno=sourceno,extension=extension)
+        logger.debug(f'PPS file name: {PPSfile}')
 
     if filename:
         PPS_subset = True
         PPSfile = filename
 
     repo = repo.lower()
+
+    logger.debug(f'repo: {repo}')
 
     match repo:
         case 'esa' | 'xsa':
@@ -190,6 +197,9 @@ def download_data(obsid,
                     if datasubsetno: kwargs['datasubsetno'] = datasubsetno
                     if sourceno:     kwargs['sourceno']     = sourceno
                     if extension:    kwargs['extension']    = extension
+                
+                logger.debug(f'Requesting data: Obs ID={obsid}, level={levl}')
+                if proprietary: logger.debug('Requesting proprietary data.')
                 XMMNewton.download_data(obsid, level=levl,
                                         prop=proprietary,
                                         credentials_file=credentials_file,
@@ -199,6 +209,7 @@ def download_data(obsid,
                     os.mkdir(odf_dir)
 
                 if PPS_subset:
+                    logger.debug('PPS subset, moving files into PPS directory.')
                     if not os.path.exists(pps_dir): os.mkdir(pps_dir)
                     files = glob.glob(obs_dir+'/*.*')
                     for file in files:
@@ -242,6 +253,7 @@ def download_data(obsid,
                         logger.error('tar file extraction failed')
                         raise Exception('tar file extraction failed')
         case 'heasarc' | 'nasa' | 'sciserver' | 'fornax' | 'aws':
+            download_location = obs_dir
             on_host = '...'
             data_source_key = 'access_url'
             if repo == 'sciserver': 
@@ -253,9 +265,17 @@ def download_data(obsid,
             if repo == 'fornax':
                 on_host = 'on Fornax ...'
                 repo = 'aws'
+                logger.debug(f'repo changed to {repo}.')
                 data_source_key = 'aws'
             if repo == 'nasa':
                 repo = 'heasarc'
+                logger.debug(f'repo changed to {repo}.')
+
+            # This is to fix a bug between how astroquery requests data from 
+            # the HEASARC vs. AWS (Fornax)
+            if repo == 'heasarc':
+                logger.debug(f'Setting download location to: {data_dir}')
+                download_location = data_dir
             
             # Copies data into personal storage space.
             logger.info(f'Requesting XMM-Newton Obs ID = {obsid} from the HEASARC {on_host}\n')
@@ -273,11 +293,11 @@ def download_data(obsid,
                     for lvl in ['ODF','PPS']:
                         data_source = Heasarc.locate_data(tab, catalog_name='xmmmaster')
                         data_source[data_source_key] = data_source[data_source_key]+lvl
-                        Heasarc.download_data(data_source,host=repo,location=obs_dir)
+                        Heasarc.download_data(data_source,host=repo,location=download_location)
                 else:
                     data_source = Heasarc.locate_data(tab, catalog_name='xmmmaster')
                     data_source[data_source_key] = data_source[data_source_key]+level
-                    Heasarc.download_data(data_source,host=repo,location=obs_dir)
+                    Heasarc.download_data(data_source,host=repo,location=download_location)
 
             if PPS_subset:
                 # Only if PPS_subset = True or a single file name is passed in.
@@ -421,28 +441,37 @@ def download_data(obsid,
     else:
         logger.info('No encrypted files found.')
 
-    for file in glob.glob(odf_dir + f'/**/*.gz', recursive=True):
-        logger.info(f'Unpacking {file} ...')
-        with gzip.open(f'{file}', 'rb') as f_in:
-            out_file = file[:-3]
-            with open(out_file, 'wb') as f_out:
-                shutil.copyfileobj(f_in, f_out)
-        os.remove(file)
-        logger.info(f'{file} removed')
+    gzipfiles = glob.glob(odf_dir + f'/**/*.gz', recursive=True)
+    if len(gzipfiles) > 0:
+        logger.info('Unpacking .gz files.')
+        for file in gzipfiles:
+            logger.debug(f'Unpacking {file} ...')
+            with gzip.open(f'{file}', 'rb') as f_in:
+                out_file = file[:-3]
+                with open(out_file, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+            os.remove(file)
+            logger.debug(f'{file} removed')
 
-    for file in glob.glob(odf_dir + f'/**/*.tar', recursive=True):
-        logger.info(f'Unpacking {file} ...')
-        with tarfile.open(file,"r") as tar:
-            tar.extractall(path=odf_dir)
-        os.remove(file)
-        logger.info(f'{file} removed')
+    tarfiles = glob.glob(odf_dir + f'/**/*.tar', recursive=True)
+    if len(tarfiles):
+        logger.info('Unpacking .tar files.')
+        for file in glob.glob(odf_dir + f'/**/*.tar', recursive=True):
+            logger.debug(f'Unpacking {file} ...')
+            with tarfile.open(file,"r") as tar:
+                tar.extractall(path=odf_dir)
+            os.remove(file)
+            logger.debug(f'{file} removed')
 
-    for file in glob.glob(odf_dir + f'/**/*.TAR', recursive=True):
-        logger.info(f'Unpacking {file} ...')
-        with tarfile.open(file,"r") as tar:
-            tar.extractall(path=odf_dir)
-        os.remove(file)
-        logger.info(f'{file} removed')
+    tar2files = glob.glob(odf_dir + f'/**/*.TAR', recursive=True)
+    if len(tar2files):
+        logger.info('Unpacking .TAR files.')
+        for file in tar2files:
+            logger.debug(f'Unpacking {file} ...')
+            with tarfile.open(file,"r") as tar:
+                tar.extractall(path=odf_dir)
+            os.remove(file)
+            logger.debug(f'{file} removed')
 
     ppssumhtml = 'P' + obsid + 'OBX000SUMMAR0000.HTM'
     ppssumhtmlfull = os.path.join(pps_dir, ppssumhtml)
