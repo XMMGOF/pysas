@@ -1751,9 +1751,9 @@ class ObsID:
             for line in lines:
                 if 'PATH' in line:
                     key, path = line.split()
-                    if path != self.odf_dir:
-                        self.logger.error(f'SAS summary file PATH {path} mismatchs {self.odf_dir}')
-                        raise Exception(f'SAS summary file PATH {path} mismatchs {self.odf_dir}')
+                    if os.path.abspath(path) != os.path.abspath(self.odf_dir):
+                        self.logger.error(f'SAS summary file PATH {path} mismatches {self.odf_dir}')
+                        raise Exception(f'SAS summary file PATH {path} mismatches {self.odf_dir}')
                     else:
                         self.logger.info(f'Summary file PATH keyword matches {self.odf_dir}')
                         print(f'\nSummary file PATH keyword matches {self.odf_dir}')
