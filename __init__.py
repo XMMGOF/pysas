@@ -11,6 +11,8 @@ sas_dir        = os.environ.get('SAS_DIR')
 sas_path       = os.environ.get('SAS_PATH')
 sas_ccfpath    = os.environ.get('SAS_CCFPATH')
 
+value = None
+
 if sas_dir and \
    sas_ccfpath and \
    sas_path:
