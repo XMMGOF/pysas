@@ -233,7 +233,7 @@ class ObsID:
 
         # Set 'SAS_CCF' enviroment variable.
         os.environ['SAS_CCF'] = self.files['sas_ccf']
-        self.logger.info(f'SAS_CCF = {self.files['sas_ccf']}')
+        self.logger.info('SAS_CCF = {0}'.format(self.files['sas_ccf']))
 
         # Looking for *SUM.SAS file.
         exists = self.get_SUM_SAS()
@@ -244,7 +244,7 @@ class ObsID:
         
         # Set 'SAS_ODF' enviroment variable.
         os.environ['SAS_ODF'] = self.files['sas_odf']
-        self.logger.info(f'SAS_ODF = {self.files['sas_odf']}')
+        self.logger.info('SAS_ODF = {0}'.format(self.files['sas_odf']))
 
         # Check for previously generated event lists.
         self.find_event_list_files(print_output = self.output_to_terminal)
@@ -1706,7 +1706,7 @@ class ObsID:
         ccfcif = glob.glob('ccf.cif')
         try:
             os.path.exists(ccfcif[0])
-            self.logger.info(f'CIF file {ccfcif[0]} created')
+            self.logger.info('CIF file {0} created'.format(ccfcif[0]))
         except FileExistsError:
             self.logger.error('The ccf.cif was not produced')
             print('ccf.cif file is not produced')
@@ -1732,7 +1732,7 @@ class ObsID:
         sumsas = glob.glob('*SUM.SAS')
         try:
             os.path.exists(sumsas[0])
-            self.logger.info(f'SAS summary file {sumsas[0]} created')
+            self.logger.info('SAS summary file {0} created'.format(sumsas[0]))
         except FileExistsError:
             self.logger.error('SUM.SAS file was not produced') 
             print('SUM.SAS file was not produced')
