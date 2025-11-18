@@ -52,6 +52,11 @@ class sas_config:
         # Resolve the full path to the configuration file
         if config_file is None:
             home_dir = Path.home()
+            # For SciServer
+            if str(home_dir) == '/home/idies':
+                user = os.environ.get('SCISERVER_USER_NAME')
+                home_dir = home_dir / "workspace" / "Storage" / user / "persistent"
+                if not home_dir.exists(): home_dir = Path.home()
             CONFIG_ROOT = os.environ.get("XDG_CONFIG_HOME", home_dir / ".config")
             CONFIG_ROOT = Path(CONFIG_ROOT).resolve()
             CONFIG_ROOT  = CONFIG_ROOT / 'sas'
@@ -59,8 +64,8 @@ class sas_config:
                 try:
                     os.makedirs(CONFIG_ROOT)
                 except OSError:
-                    pass
                     #print(f'Unable to create config directory {CONFIG_ROOT}')
+                    pass    
             config_file = CONFIG_ROOT / 'sas.cfg'
         else:
             config_file = Path(config_file).resolve()
@@ -112,6 +117,7 @@ class sas_config:
                 self.config.write(file)
         except IOError:
             print(f'Unable to write config file to {absolute_config_path}')
+            pass
 
     def show_current_config(self):
         """
