@@ -241,7 +241,10 @@ class ODFobject(object):
 
         # Start checking data_dir
         if data_dir == None:
-            data_dir = sas_cfg.get_setting("sas", "data_dir")
+            if sas_cfg.config.has_option('sas','data_dir'):
+                data_dir = sas_cfg.get_setting('data_dir')
+            else:
+                data_dir = '/does/not/exist'
             if os.path.exists(data_dir):
                 self.data_dir = data_dir
             else:
@@ -472,7 +475,10 @@ class ODFobject(object):
 
         # Start checking data_dir
         if data_dir == None:
-            data_dir = sas_cfg.get_setting("sas", "data_dir")
+            if sas_cfg.config.has_option('sas','data_dir'):
+                data_dir = sas_cfg.get_setting('data_dir')
+            else:
+                data_dir = '/does/not/exist'
             if os.path.exists(data_dir):
                 self.data_dir = data_dir
             else:
@@ -639,7 +645,10 @@ class ODFobject(object):
 
         # Brief check to see if data_dir is already defined.
         if self.data_dir == None:
-            data_dir = sas_cfg.get_setting("sas", "data_dir")
+            if sas_cfg.config.has_option('sas','data_dir'):
+                data_dir = sas_cfg.get_setting('data_dir')
+            else:
+                data_dir = '/does/not/exist'
             if os.path.exists(data_dir):
                 self.data_dir = data_dir
             else:
@@ -1074,7 +1083,10 @@ class ODFobject(object):
         if self.data_dir != None:
             data_dir = self.data_dir
         else:
-            data_dir = sas_cfg.get_setting("sas", "data_dir")
+            if sas_cfg.config.has_option('sas','data_dir'):
+                data_dir = sas_cfg.get_setting('data_dir')
+            else:
+                data_dir = '/does/not/exist'
 
         # Start checking data_dir
         if os.path.exists(data_dir):

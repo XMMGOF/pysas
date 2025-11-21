@@ -1,6 +1,17 @@
 ChangeLog for pysas
 =================
 
+Version 2.2.0 - 2025-10-15 (RT)
+---------------
+
++ sas_config : Added sas_config class to __init__.py. Simplifies configuration 
+               settings, and how pySAS handles the config file. Allows it to 
+               work seamlessly on Fornax.
+
+- configutils.py : Depricated and replaced by sas_config.
+
++ config_pysas.py : Modified to use sas_config.
+
 Version 2.1.0 - 2025-09-10 (RT)
 ---------------
 

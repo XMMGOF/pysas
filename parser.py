@@ -128,7 +128,7 @@ class ParseArgs:
         #    -w/--warning, -t/--trace.
 
         # Get default verbosity
-        default_verbosity = sas_cfg.get_setting("sas", "verbosity")
+        default_verbosity = sas_cfg.get_setting("verbosity")
 
         parser.add_argument('-V',
                             '--verbosity',

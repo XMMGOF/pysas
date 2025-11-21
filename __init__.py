@@ -11,6 +11,8 @@ sas_dir        = os.environ.get('SAS_DIR')
 sas_path       = os.environ.get('SAS_PATH')
 sas_ccfpath    = os.environ.get('SAS_CCFPATH')
 
+value = None
+
 if sas_dir and \
    sas_ccfpath and \
    sas_path:
@@ -50,6 +52,11 @@ class sas_config:
         # Resolve the full path to the configuration file
         if config_file is None:
             home_dir = Path.home()
+            # For SciServer
+            if str(home_dir) == '/home/idies':
+                user = os.environ.get('SCISERVER_USER_NAME')
+                home_dir = home_dir / "workspace" / "Storage" / user / "persistent"
+                if not home_dir.exists(): home_dir = Path.home()
             CONFIG_ROOT = os.environ.get("XDG_CONFIG_HOME", home_dir / ".config")
             CONFIG_ROOT = Path(CONFIG_ROOT).resolve()
             CONFIG_ROOT  = CONFIG_ROOT / 'sas'
@@ -57,8 +64,8 @@ class sas_config:
                 try:
                     os.makedirs(CONFIG_ROOT)
                 except OSError:
-                    pass
                     #print(f'Unable to create config directory {CONFIG_ROOT}')
+                    pass    
             config_file = CONFIG_ROOT / 'sas.cfg'
         else:
             config_file = Path(config_file).resolve()
@@ -110,6 +117,7 @@ class sas_config:
                 self.config.write(file)
         except IOError:
             print(f'Unable to write config file to {absolute_config_path}')
+            pass
 
     def show_current_config(self):
         """
@@ -144,19 +152,35 @@ class sas_config:
         if not self.config.has_section('sas'): self.config.add_section('sas')
         self.save_config()
 
-    def simple_config(self, sas_dir = None, sas_ccfpath = None, data_dir = None):
+    def simple_config(self, 
+                      sas_dir = None, 
+                      sas_ccfpath = None, 
+                      data_dir = None,
+                      repo = None):
         """
         For quick, simple configuration of pySAS.
         """
+        home_dir = Path.home()
         if sas_dir is None: sas_dir = os.environ.get('SAS_DIR')
         if sas_ccfpath is None: sas_ccfpath = os.environ.get('SAS_CCFPATH')
-        if data_dir is None: 
-            home_dir = Path.home()
-            data_dir = home_dir / 'xmm_data'
-            data_dir = data_dir.resolve()
+        # For Fornax
+        if str(home_dir) == '/home/jovyan':
+            if data_dir is None: 
+                data_dir = home_dir / 'xmm_data'
+                data_dir = data_dir.resolve()
+            if repo is None:
+                repo = 'fornax'
+        # For SciServer
+        elif str(home_dir) == '/home/idies':
+            if data_dir is None:
+                user = os.environ.get('SCISERVER_USER_NAME')
+                data_dir = os.path.join('/home/idies/workspace/Temporary/',user,'scratch/xmm_data')
+            if repo is None:
+                repo = 'sciserver'
 
         if sas_dir: self.set_setting('sas_dir', sas_dir)
         if sas_ccfpath: self.set_setting('sas_ccfpath', sas_ccfpath)
+        if repo: self.set_setting('repo', repo)
         self.set_setting('data_dir', str(data_dir))
         self.save_config()
 
@@ -191,8 +215,8 @@ from .init_sas import initializesas
 
 # Initializes SAS if needed.
 if sas_initialize:
-    sas_verbosity        = sas_cfg.get_setting("sas", "verbosity")
-    sas_suppress_warning = sas_cfg.get_setting("sas", "suppress_warning")
+    sas_verbosity        = sas_cfg.get_setting("verbosity")
+    sas_suppress_warning = sas_cfg.get_setting("suppress_warning")
     sas_init_info = initializesas(sas_dir_config,
                                   sas_ccfpath_config,
                                   verbosity = sas_verbosity,
@@ -209,9 +233,6 @@ from . import init_sas
 from . import sasutils
 from . import config_pysas
 from .version import VERSION, get_sas_version
-from .obsid.obsid import ObsID
-from .odfcontrol import odfcontrol
-from .sastask import MyTask
 
 # Get SAS version information
 if sas_ready:
@@ -229,7 +250,19 @@ SAS_COMMIT_ID        = return_list[6]
 
 __version__ = f'pysas - (pysas-{VERSION}) [SAS-{SAS_RELEASE}]'
 
+# Classes and functions needed at the top level
+from .obsid.obsid import ObsID
+from .sastask import MyTask
 from .print_version import print_sas_version
+from .config_pysas import run_config
+from .sasutils import download_data, generate_logger, update_calibration_files
+
+# Will be depricated at some point
+from .odfcontrol import odfcontrol
+
+# API
+__all__ = ['ObsID',
+           'MyTask']
 
 # Get rid of temporary variables to prevent possible conflicts.
 if sas_initialize:
