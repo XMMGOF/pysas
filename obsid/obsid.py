@@ -28,7 +28,7 @@ obsid.py
 """
 
 # Standard library imports
-import os, sys, shutil, glob, numbers
+import os, sys, shutil, glob, numbers, re
 from pathlib import Path
 
 # Third party imports
@@ -215,6 +215,7 @@ class ObsID:
         
         if os.path.exists(self.work_dir):
             self.logger.info(f'work_dir found at {self.work_dir}.')
+            self.files['work'] = self.__get_list_of_work_files()
         else:
             self.logger.info(f'Default work_dir not found! User must create it!')
             self.logger.debug(f'Exiting __set_obsid, no work_dir found')
@@ -1187,7 +1188,8 @@ class ObsID:
     def find_event_list_files(self,print_output=True):
         """
         Checks the observation directory (obs_dir) for basic unfiltered 
-        event list files created by 'epproc', 'emproc', and 'rgsproc'. 
+        event list files created by 'epproc', 'emproc', 'epchain', 
+        'emchain', and 'rgsproc'. 
         Stores paths and file names in self.files.
 
         'self.files' is a dictionary with the following keys:
@@ -1208,52 +1210,67 @@ class ObsID:
         # differently. But if not included here then too many checks 
         # will be needed later on.
         inst_list = list(self.active_instruments.keys())
-        evt_list_list = {'PN': 'PNevt_list',
+        evt_list_keys = {'PN': 'PNevt_list',
                          'M1': 'M1evt_list',
                          'M2': 'M2evt_list',
                          'R1': 'R1evt_list',
                          'R2': 'R2evt_list',
                          'OM': 'OMimg_list'}
-        find_list =     {'PN': 'EPN',
+        proc_keys     = {'PN': 'EPN',
                          'M1': 'EMOS1',
                          'M2': 'EMOS2',
                          'R1': 'R1',
                          'R2': 'R2',
                          'OM': 'OM'}
-        inst_name =     {'PN': 'EPIC-pn',
+        inst_name     = {'PN': 'EPIC-pn',
                          'M1': 'EPIC-MOS1',
                          'M2': 'EPIC-MOS2',
                          'R1': 'RGS1',
                          'R2': 'RGS2',
                          'OM': 'OM'}
         
-        for item in inst_list: self.files[evt_list_list[item]] = []
+        for item in inst_list: self.files[evt_list_keys[item]] = []
 
         for inst in inst_list:
-            exists = False
-            # Checking for EPIC event lists.
-            self.logger.debug('Checking for EPIC event lists.')
-            files = glob.glob(self.obs_dir+'/**/*.ds', recursive=True)
-            for filename in files:
-                if (filename.find(find_list[inst]) != -1) and filename.endswith('Evts.ds'):
-                    self.files[evt_list_list[inst]].append(os.path.abspath(filename))
-                    exists = True
-                    self.logger.debug(f'Event list found: {os.path.abspath(filename)}')
-            # Checking for RGS event lists.
-            self.logger.debug('Checking for RGS event lists.')
-            files = glob.glob(self.obs_dir+'/**/*EVENLI*FIT', recursive=True)
-            for filename in files:
-                if (filename.find(find_list[inst]) != -1):
-                    self.files[evt_list_list[inst]].append(os.path.abspath(filename))
-                    exists = True
-                    self.logger.debug(f'Event list found: {os.path.abspath(filename)}')
-            # # Need to do something different for optical monitor images.
-            if exists:
-                self.files[evt_list_list[inst]].sort()
+            match inst:
+                # Checking for EPIC event lists.
+                case 'PN' | 'M1' | 'M2':
+                    self.logger.debug(f'Checking for {inst} EPIC event lists created by epproc or emproc.')
+                    files = glob.glob(self.obs_dir+'/**/*Evts.ds', recursive=True)
+                    for filename in files:
+                        if (filename.find(proc_keys[inst]) != -1):
+                            self.files[evt_list_keys[inst]].append(os.path.abspath(filename))
+                            self.logger.debug(f'{inst} EPIC event list from the procs found: {os.path.abspath(filename)}')
+                    
+                    self.logger.debug(f'Checking for {inst} EPIC event lists created by epchain or emchain.')
+                    files = glob.glob(self.obs_dir+'/**/*EVLI*.FIT', recursive=True)
+                    for filename in files:
+                        if (filename.find(inst) != -1):
+                            self.files[evt_list_keys[inst]].append(os.path.abspath(filename))
+                            self.logger.debug(f'{inst} EPIC event list from the chains found: {os.path.abspath(filename)}')
+                
+                # Checking for RGS event lists.
+                case 'R1' | 'R2':
+                    self.logger.debug(f'Checking for {inst} RGS event lists.')
+                    files = glob.glob(self.obs_dir+'/**/*EVENLI*FIT', recursive=True)
+                    for filename in files:
+                        if (filename.find(proc_keys[inst]) != -1):
+                            self.files[evt_list_keys[inst]].append(os.path.abspath(filename))
+                            self.logger.debug(f'{inst} RGS event list found: {os.path.abspath(filename)}')
+
+                case 'OM':
+                    # Need to do something different for optical monitor images.
+                    pass
+            
+            if len(self.files[evt_list_keys[inst]]) > 0:
+                self.files[evt_list_keys[inst]].sort()
                 if print_output:
-                    print(" > {0} {1} event list(s) found.\n".format(len(self.files[evt_list_list[inst]]),inst_name[inst]))
-                    for x in self.files[evt_list_list[inst]]:
+                    print(" > {0} {1} event list(s) found.\n".format(len(self.files[evt_list_keys[inst]]),inst_name[inst]))
+                    for x in self.files[evt_list_keys[inst]]:
                         print("    " + x + "\n")
+            else:
+                self.logger.debug(f'No event lists for {inst} found.')
+
         
         self.logger.debug('Exiting find_event_list_files')
         return
@@ -1290,19 +1307,21 @@ class ObsID:
         for inst in rgs_list:
             exists = False
             # Checking for RGS spectra.
-            self.logger.debug('Checking for RGS spectra.')
+            self.logger.debug(f'Checking for {inst} RGS spectra.')
             files = glob.glob(self.obs_dir+'/**/*RSPEC*FIT', recursive=True)
             for filename in files:
                 if (filename.find(file_key[inst]) != -1):
                     self.files[dict_key[inst]].append(os.path.abspath(filename))
                     exists = True
-                    self.logger.debug(f'Spectra found: {os.path.abspath(filename)}')
+                    self.logger.debug(f'{inst} Spectra found: {os.path.abspath(filename)}')
             if exists:
                 self.files[dict_key[inst]].sort()
                 if print_output:
                     print(" > {0} {1} spectra found.\n".format(len(self.files[dict_key[inst]]),inst_name[inst]))
                     for x in self.files[dict_key[inst]]:
                         print("    " + x + "\n")
+            else:
+                self.logger.debug(f'No RGS spectra for {inst} found.')
 
         self.logger.debug('Exiting find_rgs_spectra_files')
         return
@@ -1403,6 +1422,21 @@ class ObsID:
             self.logger.info(out_note)
             print(f'\n\n{out_note}')
             shutil.rmtree(self.work_dir)
+
+    def resolve_obs_dir(self):
+        """
+        Finds files in the obs_dir and stores paths and file names in self.files.
+        """
+
+        #what_exists = self.__parse_obs_dir()
+
+        self.files['ODF'] = self.__get_list_of_ODF_files()
+        self.files['PPS'] = self.__get_list_of_PPS_files()
+        self.files['work'] = self.__get_list_of_work_files()
+        _ = self.get_ccf_cif()
+        _ = self.get_SUM_SAS()
+        self.find_event_list_files(print_output = self.output_to_terminal)
+        self.find_rgs_spectra_files(print_output = self.output_to_terminal)
 
     def quick_eplot(self,fits_event_list_file,
                     image_file = 'image.fits',
@@ -1592,67 +1626,144 @@ class ObsID:
         self.logger.debug('Finding speactra files')
         self.find_rgs_spectra_files(print_output=False)
 
-        run_ep   = False
-        run_em   = False
-        run_rgs  = False
+        # Check if corresponding instrument was active
+        out_message = {}
+        self.logger.debug('Check if corresponding instrument was active.')
+        match task:
+            case 'epproc' | 'epchain':
+                active = self.active_instruments['PN']
+                inst = 'EPIC-pn'
+                out_message['PNevt_list'] = inst
+            case 'emproc' | 'emchain':
+                active = self.active_instruments['M1'] or self.active_instruments['M2']
+                inst = 'EPIC-MOS'
+                out_message['M1evt_list'] = inst+'1'
+                out_message['M2evt_list'] = inst+'2'
+            case 'rgsproc':
+                active = self.active_instruments['R1'] or self.active_instruments['R2']
+                inst  = 'RGS'
+                out_message['R1evt_list'] = inst+'1'
+                out_message['R2evt_list'] = inst+'2'
 
-        # Check if 'epproc' or 'epchain' have been run.
-        if (task == 'epproc' or task == 'epchain') and self.active_instruments['PN']:
-            num_evl1 = len(self.files['PNevt_list'])
-            num_evl2 = 0
-            inst1 = 'EPIC-pn'
-            inst2 = ''
-            list1 = 'PNevt_list'
-            list2 = ''
-            if num_evl1 == 0 or rerun:
-                run_ep = True
-        # Check if 'emproc' or 'emchain' have been run.
-        elif (task == 'emproc' or task == 'emchain') and (self.active_instruments['M1'] or self.active_instruments['M2']):
-            num_evl1 = len(self.files['M1evt_list'])
-            num_evl2 = len(self.files['M2evt_list'])
-            inst1 = 'EPIC-MOS1'
-            inst2 = 'EPIC-MOS1'
-            list1 = 'M1evt_list'
-            list2 = 'M2evt_list'
-            if (num_evl1 == 0 and num_evl2 == 0) or rerun:
-                run_em = True
-        # Check if 'rgsproc' has been run.
-        elif task == 'rgsproc' and (self.active_instruments['R1'] or self.active_instruments['R2']):
-            num_evl1 = len(self.files['R1evt_list'])
-            num_evl2 = len(self.files['R2evt_list'])
-            inst1 = 'RGS1'
-            inst2 = 'RGS2'
-            list1 = 'R1evt_list'
-            list2 = 'R2evt_list'
-            if (num_evl1 == 0 and num_evl2 == 0) or rerun:
-                run_rgs  = True
+        run_ep  = False
+        run_em  = False
+        run_rgs = False
+
+        if not active:
+            # Instrument not active, cannot run
+            self.logger.info(f'{inst} was not active for this ObsID. Not running {task}.')
+            if self.output_to_terminal:
+                print(f' > {inst} was not active for this ObsID. Not running {task}.')
+        elif rerun:
+            self.logger.debug(f'rerun set as True. Running {task}.')
+            # rerun, don't bother checking for event lists
+            match task:
+                case 'epproc' | 'epchain':
+                    if active: run_ep  = True
+                case 'emproc' | 'emchain':
+                    if active: run_em  = True
+                case 'rgsproc':
+                    if active: run_rgs = True
+        else:
+            # If not rerun, and active instrument, then check for event lists
+            match task:
+                case 'epproc':
+                    # Check if 'epproc' has been run.
+                    # Check for event lists
+                    found = False
+                    for filename in self.files['PNevt_list']:
+                        if re.search('.*EPN.*Evts.ds$',filename): found = True
+
+                    # If no event lists
+                    if not found: run_ep = True
+
+                case 'epchain':
+                    # Check if 'epchain' has been run.
+                    # Check for event lists
+                    found = False
+                    for filename in self.files['PNevt_list']:
+                        if re.search('.*PN.*EVLI.*FIT$',filename): found = True
+
+                    # If no event lists
+                    if not found: run_ep = True
+
+                case 'emproc':
+                    # Check if 'emproc' has been run.
+                    # Check for event lists
+                    found = False
+                    for filename in self.files['M1evt_list']:
+                        if re.search('.*EMOS1.*Evts.ds$',filename): found = True
+                        
+                    # If no event lists
+                    if not found: run_em = True
+                    
+                    # Check for event lists
+                    found = False
+                    for filename in self.files['M2evt_list']:
+                        if re.search('.*EMOS2.*Evts.ds$',filename): found = True
+                    
+                    # If no event lists
+                    if not found: run_em = True
+
+                case 'emchain':
+                    # Check if 'emchain' has been run.
+                    # Check for event lists
+                    found = False
+                    for filename in self.files['M1evt_list']:
+                        if re.search('.*M1.*EVLI.*FIT$',filename): found = True
+
+                    # If no event lists
+                    if not found: run_em = True
+
+                    # Check for event lists
+                    found = False
+                    for filename in self.files['M2evt_list']:
+                        if re.search('.*M2.*EVLI.*FIT$',filename): found = True
+
+                    # If no event lists
+                    if not found: run_em = True
+
+                case 'rgsproc':
+                    # Check if 'rgsproc' has been run.
+                    # Check for event lists
+                    found = False
+                    for filename in self.files['R1evt_list']:
+                        if re.search('.*R1.*EVENLI.*FIT$',filename): found = True
+
+                    # If no event lists
+                    if not found: run_rgs = True
+                    
+                    # Check for event lists
+                    found = False
+                    for filename in self.files['R2evt_list']:
+                        if re.search('.*R2.*EVENLI.*FIT$',filename): found = True
+
+                    # If no event lists
+                    if not found: run_rgs = True
         
         if run_ep or run_em or run_rgs:
             self.logger.info(f'SAS command to be executed: {task}, with arguments: {inargs}')
-            print(f"   SAS command to be executed: {task}, with arguments; {inargs}")
-            print(f"Running {task} ..... \n")
+            if self.output_to_terminal:
+                print(f"   SAS command to be executed: {task}, with arguments; {inargs}")
+                print(f"Running {task} ..... \n")
             MyTask(task,inargs,
                    logfilename = logFile, 
                    tasklogdir  = self.work_dir,
                    output_to_terminal = self.output_to_terminal, 
                    output_to_file     = self.output_to_file).run() # <<<<< Execute SAS task
         else:
-            if self.output_to_terminal:
-                print(f" > {num_evl1} {inst1} event list found. Not running {task} again.")
-                for x in self.files[list1]:
-                    print(f"  {x}")
-                if num_evl2 > 0:
-                    print(f" > {num_evl2} {inst2} event list found. Not running {task} again.")
-                    for x in self.files[list2]:
-                        print(f"  {x}")
-            if self.output_to_file:
-                self.logger.info(f" > {num_evl1} {inst1} event list found. Not running {task} again.")
-                for x in self.files[list1]:
-                    self.logger.info(f"  {x}")
-                if num_evl2 > 0:
-                    self.logger.info(f" > {num_evl2} {inst2} event list found. Not running {task} again.")
-                    for x in self.files[list2]:
-                        self.logger.info(f"  {x}")
+            self.logger.debug(f'Not running {task} again.')
+            for k,v in out_message.items():
+                num_evtli = len(self.files[k])
+                if num_evtli > 0:
+                    out_note = f" > {num_evtli} {v} event list(s) found."
+                    self.logger.info(out_note)
+                    for x in self.files[k]:
+                        self.logger.debug(f'{x}')
+                    if self.output_to_terminal:
+                        print(out_note)
+                        for x in self.files[k]:
+                            print(f"  {x}")
 
         # Check if run sucsessfully
         self.find_event_list_files(print_output=False)
@@ -1883,7 +1994,7 @@ class ObsID:
         self.logger.debug('Exiting __set_data_dir')
         return
     
-    def __check_for_ccf_cif(self,):
+    def __check_for_ccf_cif(self):
         """
         --Not intended to be used by the end user. Internal use only.--
 
@@ -1950,6 +2061,16 @@ class ObsID:
         file_list = []
         if os.path.exists(self.pps_dir):
             file_list = glob.glob(self.pps_dir+'/*')
+
+        return file_list
+    
+    def __get_list_of_work_files(self):
+        """
+        Returns list of all files in the the work directory.
+        """
+        file_list = []
+        if os.path.exists(self.work_dir):
+            file_list = glob.glob(self.work_dir+'/*')
 
         return file_list
     
