@@ -102,6 +102,7 @@ def plot_spectra_model(spectrum,plot_file_name='spectra_model_plot.png'):
 def quick_image_plot(image_file,
                      xlabel = None,
                      ylabel = None,
+                     title  = None,
                      vmin   = 1.0,
                      vmax   = 1e2,
                      save_file = False,
@@ -120,6 +121,11 @@ def quick_image_plot(image_file,
         plt.xlabel(xlabel)
     if not ylabel is None:
         plt.ylabel(ylabel)
+    if title is None:
+        plt.title(f'FITS Image')
+    else:
+        plt.title(title)
+    
     plt.colorbar()
     plt.show()
     if save_file:
@@ -128,6 +134,7 @@ def quick_image_plot(image_file,
     return ax
 
 def quick_light_curve_plot(light_curve_file,
+                           title = None,
                            save_file = False,
                            out_fname = 'light_curve.png'):
     """
@@ -137,6 +144,8 @@ def quick_light_curve_plot(light_curve_file,
     plt.plot(ts['TIME'],ts['RATE'])
     plt.xlabel('Time (s)')
     plt.ylabel('Count Rate (ct/s)')
+    if not title is None:
+        plt.title(title)
     plt.show()
     if save_file:
         plt.savefig(out_fname)

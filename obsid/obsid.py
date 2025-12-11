@@ -32,6 +32,7 @@ import os, sys, shutil, glob, numbers, re
 from pathlib import Path
 
 # Third party imports
+from astropy.io import fits
 
 # Local application imports
 from pysas import sas_cfg
@@ -1468,6 +1469,7 @@ class ObsID:
             vmax: Max value for color map.
             xlabel: X axis plot label.
             ylabel: Y axis plot label.
+            title : Plot title.
             save_file: If set to True, then a .png image of the plot will be saved.
             out_fname: Output filename of the .png plot image.
 
@@ -1499,10 +1501,14 @@ class ObsID:
                output_to_terminal = kwargs.get('output_to_terminal', False),
                output_to_file     = kwargs.get('output_to_file', False),
                logger = kwargs.get('logger', None)).run()
+
+        with fits.open(image_file) as hdu:
+            instrument = hdu[0].header['INSTRUME']
         
         ax = qip(image_file,
                  xlabel = kwargs.get('xlabel', 'RA'),
                  ylabel = kwargs.get('ylabel', 'Dec'),
+                 title  = kwargs.get('title', f'{instrument} Image'),
                  vmin = vmin,
                  vmax = vmax,
                  save_file = kwargs.get('save_file', False),
@@ -1513,6 +1519,7 @@ class ObsID:
     def quick_implot(self,image_file,
                      xlabel = 'RA',
                      ylabel = 'Dec',
+                     title  = None,
                      vmin = 1.0,
                      vmax = 10.0,
                      save_file = False,
@@ -1541,6 +1548,7 @@ class ObsID:
         ax = qip(image_file,
                  xlabel = xlabel,
                  ylabel = ylabel,
+                 title  = None,
                  vmin = vmin,
                  vmax = vmax,
                  save_file = save_file,
@@ -1579,8 +1587,12 @@ class ObsID:
                output_to_terminal = kwargs.get('output_to_terminal', False),
                output_to_file     = kwargs.get('output_to_file', False),
                logger = kwargs.get('logger', None)).run()
+
+        with fits.open(fits_event_list_file) as hdu:
+            instrument = hdu[0].header['INSTRUME']
         
         qlcp(light_curve_file,
+             title = kwargs.get('title', f'{instrument} Light Curve'),
              save_file = kwargs.get('save_file', False),
              out_fname = kwargs.get('out_fname', 'light_curve.png'))
 
