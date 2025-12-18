@@ -176,11 +176,16 @@ class ObsID:
         # Setting other directory paths.
 
         # Set directories for the observation, odf, pps, and work.
+        # This allows customization of the name of the work directory.
+        # The name of the work_dir can even be empty (''). This will
+        # place all output files directly in the obs_dir.
+        # Makes pySAS compatible with XGA. You're welcome David.
+        work_dir_name = sas_cfg.get_setting('work_dir_name')
         self.logger.debug(f'Setting obs_dir, odf_dir, pps_dir, and work_dir')
         self.obs_dir  = os.path.join(self.data_dir,self.obsid)
         self.odf_dir  = os.path.join(self.obs_dir,'ODF')
         self.pps_dir  = os.path.join(self.obs_dir,'PPS')
-        self.work_dir = os.path.join(self.obs_dir,'work')
+        self.work_dir = os.path.join(self.obs_dir,work_dir_name)
         self.logger.debug(f'obs_dir: {self.obs_dir}')
         self.logger.debug(f'odf_dir: {self.odf_dir}')
         self.logger.debug(f'pps_dir: {self.pps_dir}')
@@ -391,9 +396,14 @@ class ObsID:
         self.__set_data_dir(data_dir)
 
         # Set directories for the observation, odf, and work.
+        # This allows customization of the name of the work directory.
+        # The name of the work_dir can even be empty (''). This will
+        # place all output files directly in the obs_dir.
+        # Makes pySAS compatible with XGA. You're welcome David.
+        work_dir_name = sas_cfg.get_setting('work_dir_name')
         self.obs_dir  = os.path.join(self.data_dir,self.obsid)
         self.odf_dir  = os.path.join(self.obs_dir,'ODF')
-        self.work_dir = os.path.join(self.obs_dir,'work')
+        self.work_dir = os.path.join(self.obs_dir,work_dir_name)
         self.logger.debug(f'obs_dir: {self.obs_dir}')
         self.logger.debug(f'odf_dir: {self.odf_dir}')
         self.logger.debug(f'work_dir: {self.work_dir}')
@@ -458,7 +468,8 @@ class ObsID:
 
         # Set work directory
         if not hasattr(self, 'work_dir'):
-            self.work_dir = os.path.join(self.obs_dir,'work')
+            work_dir_name = sas_cfg.get_setting('work_dir_name')
+            self.work_dir = os.path.join(self.obs_dir,work_dir_name)
             self.logger.info(f'Setting work_dir: {self.work_dir}')
 
         if not os.path.exists(self.work_dir):
@@ -809,7 +820,8 @@ class ObsID:
                     print(f'Data found in {self.obs_dir} not downloading again.')
 
         # Set work directory.
-        self.work_dir = os.path.join(self.obs_dir,'work')
+        work_dir_name = sas_cfg.get_setting('work_dir_name')
+        self.work_dir = os.path.join(self.obs_dir,work_dir_name)
 
         if call_download_data:
             self.logger.info(f'Will download PPS data for Obs ID {self.obsid}.')
@@ -1041,7 +1053,8 @@ class ObsID:
             self.odf_dir = os.path.join(self.obs_dir,'ODF')
             self.logger.debug(f'Setting odf_dir: {self.odf_dir}')
         if not hasattr(self, 'work_dir'):
-            self.work_dir = os.path.join(self.obs_dir,'work')
+            work_dir_name = sas_cfg.get_setting('work_dir_name')
+            self.work_dir = os.path.join(self.obs_dir,work_dir_name)
             self.logger.debug(f'Setting work_dir: {self.work_dir}')
 
         # Check what exists in the obs_dir.
@@ -1924,10 +1937,11 @@ class ObsID:
         for item in items: exists[item] = False
 
         # Set directories for the observation, odf, pps, and work.
+        work_dir_name = sas_cfg.get_setting('work_dir_name')
         obs_dir  = os.path.join(self.data_dir,self.obsid)
         odf_dir  = os.path.join(obs_dir,'ODF')
         pps_dir  = os.path.join(obs_dir,'PPS')
-        work_dir = os.path.join(obs_dir,'work')
+        work_dir = os.path.join(obs_dir,work_dir_name)
 
         if os.path.exists(obs_dir): exists['obs_dir']  = True
         if os.path.exists(odf_dir): 

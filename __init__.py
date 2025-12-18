@@ -46,7 +46,8 @@ class sas_config:
             "suppress_warning" : 1,
             "verbosity"        : 4,
             "pysas_verbosity"  : "WARNING",
-            "repo"             : "ESA"
+            "repo"             : "ESA",
+            "work_dir_name"    : "work"
         }
         
         # Resolve the full path to the configuration file
