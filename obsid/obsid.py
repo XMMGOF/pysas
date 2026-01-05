@@ -1232,12 +1232,6 @@ class ObsID:
                          'R1': 'R1evt_list',
                          'R2': 'R2evt_list',
                          'OM': 'OMimg_list'}
-        proc_keys     = {'PN': 'EPN',
-                         'M1': 'EMOS1',
-                         'M2': 'EMOS2',
-                         'R1': 'R1',
-                         'R2': 'R2',
-                         'OM': 'OM'}
         inst_name     = {'PN': 'EPIC-pn',
                          'M1': 'EPIC-MOS1',
                          'M2': 'EPIC-MOS2',
@@ -1254,23 +1248,23 @@ class ObsID:
                     self.logger.debug(f'Checking for {inst} EPIC event lists created by epproc or emproc.')
                     files = glob.glob(self.obs_dir+'/**/*Evts.ds', recursive=True)
                     for filename in files:
-                        if (filename.find(proc_keys[inst]) != -1):
+                        if re.search('.*(EMOS1|EMOS2|EPN).*Evts.ds$',filename):
                             self.files[evt_list_keys[inst]].append(os.path.abspath(filename))
                             self.logger.debug(f'{inst} EPIC event list from the procs found: {os.path.abspath(filename)}')
                     
                     self.logger.debug(f'Checking for {inst} EPIC event lists created by epchain or emchain.')
-                    files = glob.glob(self.obs_dir+'/**/*EVLI*.FIT', recursive=True)
+                    files = glob.glob(self.obs_dir+'/**/*EVLI*', recursive=True)
                     for filename in files:
-                        if (filename.find(inst) != -1):
+                        if re.search('.*(M1|M2|PN).*EVLI.*.(FIT|FTZ)$',filename):
                             self.files[evt_list_keys[inst]].append(os.path.abspath(filename))
                             self.logger.debug(f'{inst} EPIC event list from the chains found: {os.path.abspath(filename)}')
                 
                 # Checking for RGS event lists.
                 case 'R1' | 'R2':
                     self.logger.debug(f'Checking for {inst} RGS event lists.')
-                    files = glob.glob(self.obs_dir+'/**/*EVENLI*FIT', recursive=True)
+                    files = glob.glob(self.obs_dir+'/**/*EVENLI*', recursive=True)
                     for filename in files:
-                        if (filename.find(proc_keys[inst]) != -1):
+                        if re.search('.*(R1|R2).*EVENLI.*.(FIT|FTZ)$',filename):
                             self.files[evt_list_keys[inst]].append(os.path.abspath(filename))
                             self.logger.debug(f'{inst} RGS event list found: {os.path.abspath(filename)}')
 
@@ -1313,8 +1307,6 @@ class ObsID:
 
         dict_key  = {'R1': 'R1spectra',
                      'R2': 'R2spectra'}
-        file_key  = {'R1': 'R1',
-                     'R2': 'R2'}
         inst_name = {'R1': 'RGS1',
                      'R2': 'RGS2'}
         
@@ -1324,9 +1316,9 @@ class ObsID:
             exists = False
             # Checking for RGS spectra.
             self.logger.debug(f'Checking for {inst} RGS spectra.')
-            files = glob.glob(self.obs_dir+'/**/*RSPEC*FIT', recursive=True)
+            files = glob.glob(self.obs_dir+'/**/*RSPEC*', recursive=True)
             for filename in files:
-                if (filename.find(file_key[inst]) != -1):
+                if re.search('.*(R1|R2).*RSPEC.*.(FIT|FTZ)$',filename):
                     self.files[dict_key[inst]].append(os.path.abspath(filename))
                     exists = True
                     self.logger.debug(f'{inst} Spectra found: {os.path.abspath(filename)}')
