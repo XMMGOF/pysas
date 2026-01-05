@@ -796,16 +796,18 @@ class ObsID:
             self.repo = repo
             self.logger.debug(f'repo set to: {self.repo}')
 
-        # Checks if obs_dir exists. 
+        # Checks if pps_dir exists. Will ONLY check for PPS directory.
         # Removes it if overwrite = True. Default overwrite = False.
         call_download_data = True
-        if os.path.exists(self.obs_dir):
-            self.logger.info(f'Existing directory for {self.obsid} found ...')
+        if os.path.exists(self.pps_dir):
+            self.logger.info(f'Existing directory for PPS files for Obs ID {self.obsid} found ...')
             if overwrite:
                 # If obs_dir exists and overwrite = True then remove obs_dir.
-                self.logger.info(f'Removing existing directory {self.obs_dir} ...')
-                print(f'\n\nRemoving existing directory {self.obs_dir} ...')
-                shutil.rmtree(self.obs_dir)
+                self.logger.info(f'Removing existing PPS directory {self.pps_dir} ...')
+                print(f'\nRemoving existing PPS directory {self.pps_dir} ...')
+                shutil.rmtree(self.pps_dir)
+                self.logger.debug('Resetting: overwrite = False')
+                overwrite = False
             else:
                 # Check for files
                 what_exists = self.__parse_obs_dir()
