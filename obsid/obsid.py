@@ -28,10 +28,11 @@ obsid.py
 """
 
 # Standard library imports
-import os, sys, shutil, glob, numbers
+import os, sys, shutil, glob, numbers, re
 from pathlib import Path
 
 # Third party imports
+from astropy.io import fits
 
 # Local application imports
 from pysas import sas_cfg
@@ -175,11 +176,16 @@ class ObsID:
         # Setting other directory paths.
 
         # Set directories for the observation, odf, pps, and work.
+        # This allows customization of the name of the work directory.
+        # The name of the work_dir can even be empty (''). This will
+        # place all output files directly in the obs_dir.
+        # Makes pySAS compatible with XGA. You're welcome David.
+        work_dir_name = sas_cfg.get_setting('work_dir_name')
         self.logger.debug(f'Setting obs_dir, odf_dir, pps_dir, and work_dir')
         self.obs_dir  = os.path.join(self.data_dir,self.obsid)
         self.odf_dir  = os.path.join(self.obs_dir,'ODF')
         self.pps_dir  = os.path.join(self.obs_dir,'PPS')
-        self.work_dir = os.path.join(self.obs_dir,'work')
+        self.work_dir = os.path.join(self.obs_dir,work_dir_name)
         self.logger.debug(f'obs_dir: {self.obs_dir}')
         self.logger.debug(f'odf_dir: {self.odf_dir}')
         self.logger.debug(f'pps_dir: {self.pps_dir}')
@@ -215,6 +221,7 @@ class ObsID:
         
         if os.path.exists(self.work_dir):
             self.logger.info(f'work_dir found at {self.work_dir}.')
+            self.files['work'] = self.__get_list_of_work_files()
         else:
             self.logger.info(f'Default work_dir not found! User must create it!')
             self.logger.debug(f'Exiting __set_obsid, no work_dir found')
@@ -389,9 +396,14 @@ class ObsID:
         self.__set_data_dir(data_dir)
 
         # Set directories for the observation, odf, and work.
+        # This allows customization of the name of the work directory.
+        # The name of the work_dir can even be empty (''). This will
+        # place all output files directly in the obs_dir.
+        # Makes pySAS compatible with XGA. You're welcome David.
+        work_dir_name = sas_cfg.get_setting('work_dir_name')
         self.obs_dir  = os.path.join(self.data_dir,self.obsid)
         self.odf_dir  = os.path.join(self.obs_dir,'ODF')
-        self.work_dir = os.path.join(self.obs_dir,'work')
+        self.work_dir = os.path.join(self.obs_dir,work_dir_name)
         self.logger.debug(f'obs_dir: {self.obs_dir}')
         self.logger.debug(f'odf_dir: {self.odf_dir}')
         self.logger.debug(f'work_dir: {self.work_dir}')
@@ -456,7 +468,8 @@ class ObsID:
 
         # Set work directory
         if not hasattr(self, 'work_dir'):
-            self.work_dir = os.path.join(self.obs_dir,'work')
+            work_dir_name = sas_cfg.get_setting('work_dir_name')
+            self.work_dir = os.path.join(self.obs_dir,work_dir_name)
             self.logger.info(f'Setting work_dir: {self.work_dir}')
 
         if not os.path.exists(self.work_dir):
@@ -783,16 +796,18 @@ class ObsID:
             self.repo = repo
             self.logger.debug(f'repo set to: {self.repo}')
 
-        # Checks if obs_dir exists. 
+        # Checks if pps_dir exists. Will ONLY check for PPS directory.
         # Removes it if overwrite = True. Default overwrite = False.
         call_download_data = True
-        if os.path.exists(self.obs_dir):
-            self.logger.info(f'Existing directory for {self.obsid} found ...')
+        if os.path.exists(self.pps_dir):
+            self.logger.info(f'Existing directory for PPS files for Obs ID {self.obsid} found ...')
             if overwrite:
                 # If obs_dir exists and overwrite = True then remove obs_dir.
-                self.logger.info(f'Removing existing directory {self.obs_dir} ...')
-                print(f'\n\nRemoving existing directory {self.obs_dir} ...')
-                shutil.rmtree(self.obs_dir)
+                self.logger.info(f'Removing existing PPS directory {self.pps_dir} ...')
+                print(f'\nRemoving existing PPS directory {self.pps_dir} ...')
+                shutil.rmtree(self.pps_dir)
+                self.logger.debug('Resetting: overwrite = False')
+                overwrite = False
             else:
                 # Check for files
                 what_exists = self.__parse_obs_dir()
@@ -807,7 +822,8 @@ class ObsID:
                     print(f'Data found in {self.obs_dir} not downloading again.')
 
         # Set work directory.
-        self.work_dir = os.path.join(self.obs_dir,'work')
+        work_dir_name = sas_cfg.get_setting('work_dir_name')
+        self.work_dir = os.path.join(self.obs_dir,work_dir_name)
 
         if call_download_data:
             self.logger.info(f'Will download PPS data for Obs ID {self.obsid}.')
@@ -1039,7 +1055,8 @@ class ObsID:
             self.odf_dir = os.path.join(self.obs_dir,'ODF')
             self.logger.debug(f'Setting odf_dir: {self.odf_dir}')
         if not hasattr(self, 'work_dir'):
-            self.work_dir = os.path.join(self.obs_dir,'work')
+            work_dir_name = sas_cfg.get_setting('work_dir_name')
+            self.work_dir = os.path.join(self.obs_dir,work_dir_name)
             self.logger.debug(f'Setting work_dir: {self.work_dir}')
 
         # Check what exists in the obs_dir.
@@ -1187,7 +1204,8 @@ class ObsID:
     def find_event_list_files(self,print_output=True):
         """
         Checks the observation directory (obs_dir) for basic unfiltered 
-        event list files created by 'epproc', 'emproc', and 'rgsproc'. 
+        event list files created by 'epproc', 'emproc', 'epchain', 
+        'emchain', and 'rgsproc'. 
         Stores paths and file names in self.files.
 
         'self.files' is a dictionary with the following keys:
@@ -1208,52 +1226,61 @@ class ObsID:
         # differently. But if not included here then too many checks 
         # will be needed later on.
         inst_list = list(self.active_instruments.keys())
-        evt_list_list = {'PN': 'PNevt_list',
+        evt_list_keys = {'PN': 'PNevt_list',
                          'M1': 'M1evt_list',
                          'M2': 'M2evt_list',
                          'R1': 'R1evt_list',
                          'R2': 'R2evt_list',
                          'OM': 'OMimg_list'}
-        find_list =     {'PN': 'EPN',
-                         'M1': 'EMOS1',
-                         'M2': 'EMOS2',
-                         'R1': 'R1',
-                         'R2': 'R2',
-                         'OM': 'OM'}
-        inst_name =     {'PN': 'EPIC-pn',
+        inst_name     = {'PN': 'EPIC-pn',
                          'M1': 'EPIC-MOS1',
                          'M2': 'EPIC-MOS2',
                          'R1': 'RGS1',
                          'R2': 'RGS2',
                          'OM': 'OM'}
         
-        for item in inst_list: self.files[evt_list_list[item]] = []
+        for item in inst_list: self.files[evt_list_keys[item]] = []
 
         for inst in inst_list:
-            exists = False
-            # Checking for EPIC event lists.
-            self.logger.debug('Checking for EPIC event lists.')
-            files = glob.glob(self.obs_dir+'/**/*.ds', recursive=True)
-            for filename in files:
-                if (filename.find(find_list[inst]) != -1) and filename.endswith('Evts.ds'):
-                    self.files[evt_list_list[inst]].append(os.path.abspath(filename))
-                    exists = True
-                    self.logger.debug(f'Event list found: {os.path.abspath(filename)}')
-            # Checking for RGS event lists.
-            self.logger.debug('Checking for RGS event lists.')
-            files = glob.glob(self.obs_dir+'/**/*EVENLI*FIT', recursive=True)
-            for filename in files:
-                if (filename.find(find_list[inst]) != -1):
-                    self.files[evt_list_list[inst]].append(os.path.abspath(filename))
-                    exists = True
-                    self.logger.debug(f'Event list found: {os.path.abspath(filename)}')
-            # # Need to do something different for optical monitor images.
-            if exists:
-                self.files[evt_list_list[inst]].sort()
+            match inst:
+                # Checking for EPIC event lists.
+                case 'PN' | 'M1' | 'M2':
+                    self.logger.debug(f'Checking for {inst} EPIC event lists created by epproc or emproc.')
+                    files = glob.glob(self.obs_dir+'/**/*Evts.ds', recursive=True)
+                    for filename in files:
+                        if re.search('.*(EMOS1|EMOS2|EPN).*Evts.ds$',filename):
+                            self.files[evt_list_keys[inst]].append(os.path.abspath(filename))
+                            self.logger.debug(f'{inst} EPIC event list from the procs found: {os.path.abspath(filename)}')
+                    
+                    self.logger.debug(f'Checking for {inst} EPIC event lists created by epchain or emchain.')
+                    files = glob.glob(self.obs_dir+'/**/*EVLI*', recursive=True)
+                    for filename in files:
+                        if re.search('.*(M1|M2|PN).*EVLI.*.(FIT|FTZ)$',filename):
+                            self.files[evt_list_keys[inst]].append(os.path.abspath(filename))
+                            self.logger.debug(f'{inst} EPIC event list from the chains found: {os.path.abspath(filename)}')
+                
+                # Checking for RGS event lists.
+                case 'R1' | 'R2':
+                    self.logger.debug(f'Checking for {inst} RGS event lists.')
+                    files = glob.glob(self.obs_dir+'/**/*EVENLI*', recursive=True)
+                    for filename in files:
+                        if re.search('.*(R1|R2).*EVENLI.*.(FIT|FTZ)$',filename):
+                            self.files[evt_list_keys[inst]].append(os.path.abspath(filename))
+                            self.logger.debug(f'{inst} RGS event list found: {os.path.abspath(filename)}')
+
+                case 'OM':
+                    # Need to do something different for optical monitor images.
+                    pass
+            
+            if len(self.files[evt_list_keys[inst]]) > 0:
+                self.files[evt_list_keys[inst]].sort()
                 if print_output:
-                    print(" > {0} {1} event list(s) found.\n".format(len(self.files[evt_list_list[inst]]),inst_name[inst]))
-                    for x in self.files[evt_list_list[inst]]:
+                    print(" > {0} {1} event list(s) found.\n".format(len(self.files[evt_list_keys[inst]]),inst_name[inst]))
+                    for x in self.files[evt_list_keys[inst]]:
                         print("    " + x + "\n")
+            else:
+                self.logger.debug(f'No event lists for {inst} found.')
+
         
         self.logger.debug('Exiting find_event_list_files')
         return
@@ -1280,8 +1307,6 @@ class ObsID:
 
         dict_key  = {'R1': 'R1spectra',
                      'R2': 'R2spectra'}
-        file_key  = {'R1': 'R1',
-                     'R2': 'R2'}
         inst_name = {'R1': 'RGS1',
                      'R2': 'RGS2'}
         
@@ -1290,19 +1315,21 @@ class ObsID:
         for inst in rgs_list:
             exists = False
             # Checking for RGS spectra.
-            self.logger.debug('Checking for RGS spectra.')
-            files = glob.glob(self.obs_dir+'/**/*RSPEC*FIT', recursive=True)
+            self.logger.debug(f'Checking for {inst} RGS spectra.')
+            files = glob.glob(self.obs_dir+'/**/*RSPEC*', recursive=True)
             for filename in files:
-                if (filename.find(file_key[inst]) != -1):
+                if re.search('.*(R1|R2).*RSPEC.*.(FIT|FTZ)$',filename):
                     self.files[dict_key[inst]].append(os.path.abspath(filename))
                     exists = True
-                    self.logger.debug(f'Spectra found: {os.path.abspath(filename)}')
+                    self.logger.debug(f'{inst} Spectra found: {os.path.abspath(filename)}')
             if exists:
                 self.files[dict_key[inst]].sort()
                 if print_output:
                     print(" > {0} {1} spectra found.\n".format(len(self.files[dict_key[inst]]),inst_name[inst]))
                     for x in self.files[dict_key[inst]]:
                         print("    " + x + "\n")
+            else:
+                self.logger.debug(f'No RGS spectra for {inst} found.')
 
         self.logger.debug('Exiting find_rgs_spectra_files')
         return
@@ -1404,6 +1431,21 @@ class ObsID:
             print(f'\n\n{out_note}')
             shutil.rmtree(self.work_dir)
 
+    def resolve_obs_dir(self):
+        """
+        Finds files in the obs_dir and stores paths and file names in self.files.
+        """
+
+        #what_exists = self.__parse_obs_dir()
+
+        self.files['ODF'] = self.__get_list_of_ODF_files()
+        self.files['PPS'] = self.__get_list_of_PPS_files()
+        self.files['work'] = self.__get_list_of_work_files()
+        _ = self.get_ccf_cif()
+        _ = self.get_SUM_SAS()
+        self.find_event_list_files(print_output = self.output_to_terminal)
+        self.find_rgs_spectra_files(print_output = self.output_to_terminal)
+
     def quick_eplot(self,fits_event_list_file,
                     image_file = 'image.fits',
                     xcolumn    = 'X',
@@ -1434,6 +1476,7 @@ class ObsID:
             vmax: Max value for color map.
             xlabel: X axis plot label.
             ylabel: Y axis plot label.
+            title : Plot title.
             save_file: If set to True, then a .png image of the plot will be saved.
             out_fname: Output filename of the .png plot image.
 
@@ -1465,10 +1508,14 @@ class ObsID:
                output_to_terminal = kwargs.get('output_to_terminal', False),
                output_to_file     = kwargs.get('output_to_file', False),
                logger = kwargs.get('logger', None)).run()
+
+        with fits.open(image_file) as hdu:
+            instrument = hdu[0].header['INSTRUME']
         
         ax = qip(image_file,
                  xlabel = kwargs.get('xlabel', 'RA'),
                  ylabel = kwargs.get('ylabel', 'Dec'),
+                 title  = kwargs.get('title', f'{instrument} Image'),
                  vmin = vmin,
                  vmax = vmax,
                  save_file = kwargs.get('save_file', False),
@@ -1479,6 +1526,7 @@ class ObsID:
     def quick_implot(self,image_file,
                      xlabel = 'RA',
                      ylabel = 'Dec',
+                     title  = None,
                      vmin = 1.0,
                      vmax = 10.0,
                      save_file = False,
@@ -1507,6 +1555,7 @@ class ObsID:
         ax = qip(image_file,
                  xlabel = xlabel,
                  ylabel = ylabel,
+                 title  = None,
                  vmin = vmin,
                  vmax = vmax,
                  save_file = save_file,
@@ -1545,8 +1594,12 @@ class ObsID:
                output_to_terminal = kwargs.get('output_to_terminal', False),
                output_to_file     = kwargs.get('output_to_file', False),
                logger = kwargs.get('logger', None)).run()
+
+        with fits.open(fits_event_list_file) as hdu:
+            instrument = hdu[0].header['INSTRUME']
         
         qlcp(light_curve_file,
+             title = kwargs.get('title', f'{instrument} Light Curve'),
              save_file = kwargs.get('save_file', False),
              out_fname = kwargs.get('out_fname', 'light_curve.png'))
 
@@ -1592,67 +1645,144 @@ class ObsID:
         self.logger.debug('Finding speactra files')
         self.find_rgs_spectra_files(print_output=False)
 
-        run_ep   = False
-        run_em   = False
-        run_rgs  = False
+        # Check if corresponding instrument was active
+        out_message = {}
+        self.logger.debug('Check if corresponding instrument was active.')
+        match task:
+            case 'epproc' | 'epchain':
+                active = self.active_instruments['PN']
+                inst = 'EPIC-pn'
+                out_message['PNevt_list'] = inst
+            case 'emproc' | 'emchain':
+                active = self.active_instruments['M1'] or self.active_instruments['M2']
+                inst = 'EPIC-MOS'
+                out_message['M1evt_list'] = inst+'1'
+                out_message['M2evt_list'] = inst+'2'
+            case 'rgsproc':
+                active = self.active_instruments['R1'] or self.active_instruments['R2']
+                inst  = 'RGS'
+                out_message['R1evt_list'] = inst+'1'
+                out_message['R2evt_list'] = inst+'2'
 
-        # Check if 'epproc' or 'epchain' have been run.
-        if (task == 'epproc' or task == 'epchain') and self.active_instruments['PN']:
-            num_evl1 = len(self.files['PNevt_list'])
-            num_evl2 = 0
-            inst1 = 'EPIC-pn'
-            inst2 = ''
-            list1 = 'PNevt_list'
-            list2 = ''
-            if num_evl1 == 0 or rerun:
-                run_ep = True
-        # Check if 'emproc' or 'emchain' have been run.
-        elif (task == 'emproc' or task == 'emchain') and (self.active_instruments['M1'] or self.active_instruments['M2']):
-            num_evl1 = len(self.files['M1evt_list'])
-            num_evl2 = len(self.files['M2evt_list'])
-            inst1 = 'EPIC-MOS1'
-            inst2 = 'EPIC-MOS1'
-            list1 = 'M1evt_list'
-            list2 = 'M2evt_list'
-            if (num_evl1 == 0 and num_evl2 == 0) or rerun:
-                run_em = True
-        # Check if 'rgsproc' has been run.
-        elif task == 'rgsproc' and (self.active_instruments['R1'] or self.active_instruments['R2']):
-            num_evl1 = len(self.files['R1evt_list'])
-            num_evl2 = len(self.files['R2evt_list'])
-            inst1 = 'RGS1'
-            inst2 = 'RGS2'
-            list1 = 'R1evt_list'
-            list2 = 'R2evt_list'
-            if (num_evl1 == 0 and num_evl2 == 0) or rerun:
-                run_rgs  = True
+        run_ep  = False
+        run_em  = False
+        run_rgs = False
+
+        if not active:
+            # Instrument not active, cannot run
+            self.logger.info(f'{inst} was not active for this ObsID. Not running {task}.')
+            if self.output_to_terminal:
+                print(f' > {inst} was not active for this ObsID. Not running {task}.')
+        elif rerun:
+            self.logger.debug(f'rerun set as True. Running {task}.')
+            # rerun, don't bother checking for event lists
+            match task:
+                case 'epproc' | 'epchain':
+                    if active: run_ep  = True
+                case 'emproc' | 'emchain':
+                    if active: run_em  = True
+                case 'rgsproc':
+                    if active: run_rgs = True
+        else:
+            # If not rerun, and active instrument, then check for event lists
+            match task:
+                case 'epproc':
+                    # Check if 'epproc' has been run.
+                    # Check for event lists
+                    found = False
+                    for filename in self.files['PNevt_list']:
+                        if re.search('.*EPN.*Evts.ds$',filename): found = True
+
+                    # If no event lists
+                    if not found: run_ep = True
+
+                case 'epchain':
+                    # Check if 'epchain' has been run.
+                    # Check for event lists
+                    found = False
+                    for filename in self.files['PNevt_list']:
+                        if re.search('.*PN.*EVLI.*FIT$',filename): found = True
+
+                    # If no event lists
+                    if not found: run_ep = True
+
+                case 'emproc':
+                    # Check if 'emproc' has been run.
+                    # Check for event lists
+                    found = False
+                    for filename in self.files['M1evt_list']:
+                        if re.search('.*EMOS1.*Evts.ds$',filename): found = True
+                        
+                    # If no event lists
+                    if not found: run_em = True
+                    
+                    # Check for event lists
+                    found = False
+                    for filename in self.files['M2evt_list']:
+                        if re.search('.*EMOS2.*Evts.ds$',filename): found = True
+                    
+                    # If no event lists
+                    if not found: run_em = True
+
+                case 'emchain':
+                    # Check if 'emchain' has been run.
+                    # Check for event lists
+                    found = False
+                    for filename in self.files['M1evt_list']:
+                        if re.search('.*M1.*EVLI.*FIT$',filename): found = True
+
+                    # If no event lists
+                    if not found: run_em = True
+
+                    # Check for event lists
+                    found = False
+                    for filename in self.files['M2evt_list']:
+                        if re.search('.*M2.*EVLI.*FIT$',filename): found = True
+
+                    # If no event lists
+                    if not found: run_em = True
+
+                case 'rgsproc':
+                    # Check if 'rgsproc' has been run.
+                    # Check for event lists
+                    found = False
+                    for filename in self.files['R1evt_list']:
+                        if re.search('.*R1.*EVENLI.*FIT$',filename): found = True
+
+                    # If no event lists
+                    if not found: run_rgs = True
+                    
+                    # Check for event lists
+                    found = False
+                    for filename in self.files['R2evt_list']:
+                        if re.search('.*R2.*EVENLI.*FIT$',filename): found = True
+
+                    # If no event lists
+                    if not found: run_rgs = True
         
         if run_ep or run_em or run_rgs:
             self.logger.info(f'SAS command to be executed: {task}, with arguments: {inargs}')
-            print(f"   SAS command to be executed: {task}, with arguments; {inargs}")
-            print(f"Running {task} ..... \n")
+            if self.output_to_terminal:
+                print(f"   SAS command to be executed: {task}, with arguments; {inargs}")
+                print(f"Running {task} ..... \n")
             MyTask(task,inargs,
                    logfilename = logFile, 
                    tasklogdir  = self.work_dir,
                    output_to_terminal = self.output_to_terminal, 
                    output_to_file     = self.output_to_file).run() # <<<<< Execute SAS task
         else:
-            if self.output_to_terminal:
-                print(f" > {num_evl1} {inst1} event list found. Not running {task} again.")
-                for x in self.files[list1]:
-                    print(f"  {x}")
-                if num_evl2 > 0:
-                    print(f" > {num_evl2} {inst2} event list found. Not running {task} again.")
-                    for x in self.files[list2]:
-                        print(f"  {x}")
-            if self.output_to_file:
-                self.logger.info(f" > {num_evl1} {inst1} event list found. Not running {task} again.")
-                for x in self.files[list1]:
-                    self.logger.info(f"  {x}")
-                if num_evl2 > 0:
-                    self.logger.info(f" > {num_evl2} {inst2} event list found. Not running {task} again.")
-                    for x in self.files[list2]:
-                        self.logger.info(f"  {x}")
+            self.logger.debug(f'Not running {task} again.')
+            for k,v in out_message.items():
+                num_evtli = len(self.files[k])
+                if num_evtli > 0:
+                    out_note = f" > {num_evtli} {v} event list(s) found."
+                    self.logger.info(out_note)
+                    for x in self.files[k]:
+                        self.logger.debug(f'{x}')
+                    if self.output_to_terminal:
+                        print(out_note)
+                        for x in self.files[k]:
+                            print(f"  {x}")
 
         # Check if run sucsessfully
         self.find_event_list_files(print_output=False)
@@ -1801,10 +1931,11 @@ class ObsID:
         for item in items: exists[item] = False
 
         # Set directories for the observation, odf, pps, and work.
+        work_dir_name = sas_cfg.get_setting('work_dir_name')
         obs_dir  = os.path.join(self.data_dir,self.obsid)
         odf_dir  = os.path.join(obs_dir,'ODF')
         pps_dir  = os.path.join(obs_dir,'PPS')
-        work_dir = os.path.join(obs_dir,'work')
+        work_dir = os.path.join(obs_dir,work_dir_name)
 
         if os.path.exists(obs_dir): exists['obs_dir']  = True
         if os.path.exists(odf_dir): 
@@ -1883,7 +2014,7 @@ class ObsID:
         self.logger.debug('Exiting __set_data_dir')
         return
     
-    def __check_for_ccf_cif(self,):
+    def __check_for_ccf_cif(self):
         """
         --Not intended to be used by the end user. Internal use only.--
 
@@ -1950,6 +2081,16 @@ class ObsID:
         file_list = []
         if os.path.exists(self.pps_dir):
             file_list = glob.glob(self.pps_dir+'/*')
+
+        return file_list
+    
+    def __get_list_of_work_files(self):
+        """
+        Returns list of all files in the the work directory.
+        """
+        file_list = []
+        if os.path.exists(self.work_dir):
+            file_list = glob.glob(self.work_dir+'/*')
 
         return file_list
     

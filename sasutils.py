@@ -35,6 +35,7 @@ from astroquery.heasarc import Heasarc
 # Local application imports
 from pysas.logger import get_logger
 from .logger import TaskLogger as TL
+from pysas import sas_cfg
 
 # Third party imports
 
@@ -136,7 +137,8 @@ def download_data(obsid,
     logger.debug(f'obs_dir: {obs_dir}')
     logger.debug(f'odf_dir: {odf_dir}')
     logger.debug(f'pps_dir: {pps_dir}')
-    # work_dir = os.path.join(obs_dir,'work')
+    # work_dir_name = sas_cfg.get_setting('work_dir_name')
+    # work_dir = os.path.join(obs_dir,work_dir_name)
 
     # Checks if obs_dir exists. Removes it if overwrite=True.
     if os.path.exists(obs_dir) and overwrite:
