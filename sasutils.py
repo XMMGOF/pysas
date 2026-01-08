@@ -62,7 +62,7 @@ def download_data(obsid,
                   **kwargs):
     """
     --Not intended to be used by the end user. Internal use only.--
-    --Use odf.download_data() or odf.basic_setup() instead.--
+    --Use obsid.download_ODF_data() or obsid.download_ALL_data() instead.--
 
     Downloads, or copies, data from chosen repository. 
 
@@ -70,7 +70,7 @@ def download_data(obsid,
     Will silently overwrite any preexisting data files and remove any existing
     pipeline products. Will create directory structure in 'data_dir' for odf.
 
-    Only the download_data function in ODFobject will check for preexisting files.
+    Only the download_data functions in ObsID will check for preexisting files.
 
     Inputs:
 
@@ -150,15 +150,6 @@ def download_data(obsid,
     if not os.path.exists(obs_dir):
         logger.info(f'Creating observation directory {obs_dir} ...')
         os.mkdir(obs_dir)
-
-    if level == 'PPS' and PPS_subset and not filename:
-        logger.debug('Generating PPS file name.')
-        PPSfile = generate_PPS_filename(obsid=obsid,instname=instname,
-                                        expflag=expflag,expno=expno,
-                                        product_type=product_type,
-                                        datasubsetno=datasubsetno,
-                                        sourceno=sourceno,extension=extension)
-        logger.debug(f'PPS file name: {PPSfile}')
 
     if filename:
         PPS_subset = True
@@ -301,38 +292,71 @@ def download_data(obsid,
                     data_source[data_source_key] = data_source[data_source_key]+level
                     Heasarc.download_data(data_source,host=repo,location=download_location)
 
-            if PPS_subset:
+            if PPS_subset or filename:
                 # Only if PPS_subset = True or a single file name is passed in.
+                if not os.path.exists(pps_dir):
+                    logger.debug('Creating PPS sub-directory.')
+                    os.mkdir(pps_dir)
+                logger.info(f'Changed directory to {pps_dir}')
+                os.chdir(pps_dir)
+                logger.debug('Generating PPS file name pattern.')
+                file_pattern = generate_PPS_pattern(obsid=obsid,instname=instname,
+                                                    expflag=expflag,expno=expno,
+                                                    product_type=product_type,
+                                                    datasubsetno=datasubsetno,
+                                                    sourceno=sourceno,extension=extension)
+                logger.debug(f'PPS file name pattern: {file_pattern}')
                 match repo:
                 # If downloading a subset of PPS files instead of *all* PPS files for now
                 # we have to download from the HEASARC. We are still working on how to request
                 # specific files from a AWS s3 bucket. RT - 10/10/25
                     case 'heasarc' | 'nasa' | 'fornax' | 'aws':
-                        wgetf = ''
+                        # wget options:
+                        # -nH: No host directories, removes 'heasarc.gsfc.nasa.gov' from destination directory name
+                        # -e robots=off: Executes the command 'robots=off' to allow searching
+                        # --cut-dirs=6: Removes six levels from the destination directory name, i.e. /FTP/xmm/data/rev0/{obsid}/{level}/
+                        # -np: No parent, prevents wget from going up levels to search
+                        # --accept-regex 'file pattern': Looks for files matching 'file pattern'
                         if filename != None:
-                            wgetf = filename
-                            PPS_subset_note = f', file {wgetf}'
-                            wgetA = ''
+                            # Single file, known name
+                            logger.info(f'Downloading {obsid}, level {level}, file {filename}')
+
+                            cmd = f'wget -nH -e robots=off --cut-dirs=6 -np https://heasarc.gsfc.nasa.gov/FTP/xmm/data/rev0/{obsid}/PPS/{filename}'
+
+                            logger.info(f'Using the command:\n{cmd}')
+
+                            result = subprocess.run(cmd, shell=True)
+
                         else:
-                            PPS_subset_note = f' using file pattern {PPSfile}'
-                            wgetA = f"-A '{PPSfile}'"
+                            # One or more files, unknown name(s)
+                            
+                            # Replace "*" with ".*"
+                            file_pattern = re.sub(r'\*', '.*', file_pattern)
 
-                        logger.info(f'Downloading {obsid}, level {level}{PPS_subset_note}')
+                            logger.info(f'Downloading {obsid}, level {level} using file pattern {file_pattern}')
 
-                        cmd = f'wget -m -nH -e robots=off --cut-dirs=4 -l 2 -np {wgetA} https://heasarc.gsfc.nasa.gov/FTP/xmm/data/rev0/{obsid}/{level}/{wgetf}'
-                        logger.info(f'Using the command:\n{cmd}')
-                        result = subprocess.run(cmd, shell=True)
+                            cmd = f'wget -nH -e robots=off --cut-dirs=6 -np -r --accept-regex "{file_pattern}" https://heasarc.gsfc.nasa.gov/FTP/xmm/data/rev0/{obsid}/PPS/'
+
+                            logger.info(f'Using the command:\n{cmd}')
+
+                            result = subprocess.run(cmd, shell=True)
 
                         if result.returncode != 0:
-                            print(f'Problem downloading data!')
-                            print('Tried using the command:')
-                            print(cmd)
-                            logger.error(f'File download failed!')
-                            raise Exception('File download failed!')
+                            error_message = """An error was encountered when downloading your data.
+                            There are some known instances where wget returns an error, but all files have actually been downloaded.
+                            Check to make sure all files have been downloaded."""
+                            logger.warning(error_message)
+
+                            #print(f'Problem downloading data!')
+                            #print('Tried using the command:')
+                            #print(cmd)
+                            #logger.error(f'File download failed!')
+                            #raise Exception('File download failed!')
                     case 'sciserver':
                         if not os.path.exists(pps_dir): os.mkdir(pps_dir)
                         archive_data = f'/home/idies/workspace/headata/FTP/xmm/data/rev0//{obsid}/PPS'
-                        file_pattern = archive_data + f'/**/{PPSfile}'
+                        file_pattern = archive_data + f'/**/{file_pattern}'
+                        logger.debug(f'NEW PPS file name pattern: {file_pattern}')
                         files = glob.glob(file_pattern, recursive=True)
                         if len(files) == 0:
                             logger.warning(f'No files of the pattern {file_pattern} found!')
@@ -588,7 +612,7 @@ def install_sas(repo='NASA',sas_version='21.0.0'):
         else:
             raise Exception(f"Linux distribution {distribution} not supported.")
 
-def generate_PPS_filename(obsid=None,instname=None,
+def generate_PPS_pattern(obsid=None,instname=None,
                           expflag=None,expno=None,
                           product_type=None,datasubsetno=None,
                           sourceno=None,extension=None):
@@ -639,7 +663,8 @@ def generate_PPS_filename(obsid=None,instname=None,
 
     filename = f'P{obsid}{instname}{expflag}{expno}{product_type}{datasubsetno}{sourceno}.{extension}'
 
-    re.sub(r'\*+', '*', filename)
+    # Remove multiple "*"
+    filename = re.sub(r'\*+', '*', filename)
 
     return filename
 

@@ -398,7 +398,7 @@ class FileMain:
 
         return
         
-    def download_PPS_data(self,
+    def _download_PPS_data(self,
                           repo      = None,
                           data_dir  = None,
                           overwrite = False,
@@ -516,6 +516,8 @@ class FileMain:
                 print(f'\nRemoving existing PPS directory {self.pps_dir} ...')
                 shutil.rmtree(self.pps_dir)
                 self.logger.debug('Resetting: overwrite = False')
+                # Because 'overwrite' is passed into 'dl_data', and 'overwrite' in
+                # 'dl_data' will remove the WHOLE obs_dir.
                 overwrite = False
             else:
                 # Check for files
@@ -529,6 +531,18 @@ class FileMain:
                 if not call_download_data:
                     self.logger.info(f'Data found in {self.obs_dir} not downloading again.')
                     print(f'Data found in {self.obs_dir} not downloading again.')
+        else:
+            # PPS directory does not exist
+            # First check if obs_dir exists, if not create it.
+            if not os.path.exists(self.obs_dir):
+                self.logger.debug(f'Creating obs_dir: {self.obs_dir}')
+                os.mkdir(self.obs_dir)
+            # Create pps_dir
+            os.mkdir(self.pps_dir)
+            self.logger.debug('Resetting: overwrite = False')
+            # Because 'overwrite' is passed into 'dl_data', and 'overwrite' in
+            # 'dl_data' will remove the WHOLE obs_dir.
+            overwrite = False
 
         # Set work directory.
         work_dir_name = sas_cfg.get_setting('work_dir_name')
@@ -1847,6 +1861,104 @@ class ObsID(FileMain):
 
         return
         
+    def download_PPS_data(self,
+                          repo      = None,
+                          data_dir  = None,
+                          overwrite = False,
+                          proprietary      = False,
+                          credentials_file = None,
+                          encryption_key   = None,
+                          PPS_subset   = False,
+                          instname     = None,
+                          expflag      = None,
+                          expno        = None,
+                          product_type = None,
+                          datasubsetno = None,
+                          sourceno     = None,
+                          extension    = None,
+                          filename     = None,
+                          **kwargs):
+        """
+        This handles preliminary setup for downloading data files, then 
+        calls download_data (as "dl_data") from sasutils.
+
+        Inputs:
+            --REQUIRED--
+
+                NONE
+
+            --OPTIONAL--
+
+            --repo:           (string): Which repository to use to download data. 
+                                        Default: 'esa'
+                                        Can be either
+                                        'esa' (data from Europe/ESA) or 
+                                        'heasarc' (data from North America/NASA) or
+                                        'aws' (data from AWS s3 bucket (NASA)) or
+                                        'fornax' (if user is on Fornax)
+
+            --data_dir:  (string/path): Path to directory where the data will be 
+                                        downloaded. Automatically creates directory
+                                        data_dir/odfid.
+                                        Default: Default from sas_config file, or
+                                        current working directory.
+
+            --overwrite:     (boolean): If True will force overwrite of data if odfid 
+                                        data already exists in data_dir/odfid.
+
+            --proprietary    (boolean): Flag for downloading proprietary data from
+                                        the XSA at ESA.
+
+            --credentials_file (filename): Path and filename of file containing XSA
+                                        username and password. For proprietary data
+                                        only. (Optinal, astroquery will ask user 
+                                        for username and password if filename
+                                        not given.)
+
+            --encryption_key: (string): Encryption key for proprietary data, a string 32 
+                                        characters long. -OR- path to file containing 
+                                        ONLY the encryption key.
+                                        Note: ONLY used for data from the HEASARC.
+
+            --PPS_subset:    (boolean): Set PPS_subset=True if downloading a subset of PPS
+                                        files form the XMM-Newton archive.
+
+            --filename:       (string): If the exact PPS file name is known, then this can
+                                        be used to download a single PPS file.
+
+            
+            The remaining inputs are used for downloading groups of PPS files using a 
+            particular file pattern. Using these requires an understanding of PPS 
+            filenames.
+            
+                instname    : instrument name
+                expflag     : Exposure flag
+                expno       : Exposure number
+                product_type: Product type
+                datasubsetno: data subset number/character
+                sourceno    : Source number or slew step number
+                extension   : File format
+        """
+
+        # This is a pass-thorugh function for _download_PPS_data.
+
+        self._download_PPS_data(repo      = repo,
+                                data_dir  = data_dir,
+                                overwrite = overwrite,
+                                proprietary      = proprietary,
+                                credentials_file = credentials_file,
+                                encryption_key   = encryption_key,
+                                PPS_subset   = PPS_subset,
+                                instname     = instname,
+                                expflag      = expflag,
+                                expno        = expno,
+                                product_type = product_type,
+                                datasubsetno = datasubsetno,
+                                sourceno     = sourceno,
+                                extension    = extension,
+                                filename     = filename,
+                                **kwargs)
+
     def _run_analysis(self, task, inargs, 
                        rerun   = False,
                        logFile = None):
@@ -2174,3 +2286,176 @@ class PPSFiles(FileMain):
                          tasklogdir  = tasklogdir,
                          output_to_terminal = output_to_terminal,
                          output_to_file     = output_to_file)
+
+        self._file_patterns = {'attitude'         : '.*ATTTSR.*.FTZ$',
+                               'main_summary'     : '.*OBX.*SUMMAR.*.HTM$',
+                               'RGS_event_lists'  : '.*(R1|R2).*EVENLI.*.FTZ$',
+                               'RGS_spectra'      : '.*(R1|R2).*RSPEC.*.FTZ$',
+                               'EPIC_event_lists' : '.*(M1|M2|PN).*EVLI.*.FTZ$',
+                               'EPIC_images'      : '.*(M1|M2|PN)[S].*IMAGE_.*.FTZ$'}
+
+    def get_main_summary_filename():
+        """
+        Returns the filename of the main summary (HTML) file.
+
+        Checks if it has been downloaded, and if not it will 
+        download the file.
+        """
+
+        summary_filename = self._return_file_list_on_pattern(self._file_patterns['main_summary'])
+
+        if len(summary_filename) < 1:
+            download_filename = f'P{self.obsid}OBX000SUMMAR0000.HTM'
+            self.download_PPS_data(filename=download_filename)
+
+        
+    
+    def parse_PPS_dir(self):
+        """
+
+        """
+
+
+    def get_active_instruments(self):
+        """
+        Checks PPS summary file for which instruments were active for that Obs ID.
+
+        Assumes that 'sas_odf' already exists and contains the correct path.
+
+        Also assumes file name and path are stored in self.files['sas_odf'].
+        """
+
+        # Get information about the instruments.
+        self.active_instruments = {}
+        with open(self.files['sas_odf']) as inf:
+            lines = inf.readlines()
+            for i,line in enumerate(lines):
+                if '// Instrument Record' in line:
+                    active = lines[i+4][0]
+                    if active == 'N': active = False
+                    if active == 'Y': active = True
+                    self.active_instruments[lines[i+3][0:2]] = active
+
+        # Basic sanity checks
+        bad_sum_file = False
+        inst_list = list(self.active_instruments.keys())
+        true_list = ['M1', 'M2', 'R1', 'R2', 'PN', 'OM']
+        diff = set(inst_list) ^ set(true_list)
+        if len(diff) > 0: bad_sum_file = True
+
+        if bad_sum_file:
+            print('Something is wrong with the odf summary file: {0}'.format(self.files['sas_odf']))
+
+        return
+    
+    def download_PPS_data(self,
+                          repo      = None,
+                          data_dir  = None,
+                          overwrite = False,
+                          proprietary      = False,
+                          credentials_file = None,
+                          encryption_key   = None,
+                          PPS_subset   = False,
+                          instname     = None,
+                          expflag      = None,
+                          expno        = None,
+                          product_type = None,
+                          datasubsetno = None,
+                          sourceno     = None,
+                          extension    = None,
+                          filename     = None,
+                          **kwargs):
+        """
+        This handles preliminary setup for downloading data files, then 
+        calls download_data (as "dl_data") from sasutils.
+
+        Inputs:
+            --REQUIRED--
+
+                NONE
+
+            --OPTIONAL--
+
+            --repo:           (string): Which repository to use to download data. 
+                                        Default: 'esa'
+                                        Can be either
+                                        'esa' (data from Europe/ESA) or 
+                                        'heasarc' (data from North America/NASA) or
+                                        'aws' (data from AWS s3 bucket (NASA)) or
+                                        'fornax' (if user is on Fornax)
+
+            --data_dir:  (string/path): Path to directory where the data will be 
+                                        downloaded. Automatically creates directory
+                                        data_dir/odfid.
+                                        Default: Default from sas_config file, or
+                                        current working directory.
+
+            --overwrite:     (boolean): If True will force overwrite of data if odfid 
+                                        data already exists in data_dir/odfid.
+
+            --proprietary    (boolean): Flag for downloading proprietary data from
+                                        the XSA at ESA.
+
+            --credentials_file (filename): Path and filename of file containing XSA
+                                        username and password. For proprietary data
+                                        only. (Optinal, astroquery will ask user 
+                                        for username and password if filename
+                                        not given.)
+
+            --encryption_key: (string): Encryption key for proprietary data, a string 32 
+                                        characters long. -OR- path to file containing 
+                                        ONLY the encryption key.
+                                        Note: ONLY used for data from the HEASARC.
+
+            --PPS_subset:    (boolean): Set PPS_subset=True if downloading a subset of PPS
+                                        files form the XMM-Newton archive.
+
+            --filename:       (string): If the exact PPS file name is known, then this can
+                                        be used to download a single PPS file.
+
+            
+            The remaining inputs are used for downloading groups of PPS files using a 
+            particular file pattern. Using these requires an understanding of PPS 
+            filenames.
+            
+                instname    : instrument name
+                expflag     : Exposure flag
+                expno       : Exposure number
+                product_type: Product type
+                datasubsetno: data subset number/character
+                sourceno    : Source number or slew step number
+                extension   : File format
+        """
+
+        # This is a pass-thorugh function for _download_PPS_data.
+
+        self._download_PPS_data(repo      = repo,
+                                data_dir  = data_dir,
+                                overwrite = overwrite,
+                                proprietary      = proprietary,
+                                credentials_file = credentials_file,
+                                encryption_key   = encryption_key,
+                                PPS_subset   = PPS_subset,
+                                instname     = instname,
+                                expflag      = expflag,
+                                expno        = expno,
+                                product_type = product_type,
+                                datasubsetno = datasubsetno,
+                                sourceno     = sourceno,
+                                extension    = extension,
+                                filename     = filename,
+                                **kwargs)
+
+        self.parse_PPS_dir()
+    
+    def _return_file_list_on_pattern(self, pattern):
+        """
+        Returns a list of PPS files based on given regular expression pattern.
+        """
+        files = []
+        for filename in self.files['PPS']:
+            if re.search(pattern,filename):
+                files.append(filename)
+        
+        return files
+        
