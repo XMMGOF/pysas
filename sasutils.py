@@ -26,6 +26,8 @@ Utility functions specific to SAS or pySAS.
 # Standard library imports
 import os, sys, subprocess, shutil, glob, tarfile, gzip, time, platform, re
 from shutil import copytree
+import json
+import importlib.resources as resources
 #from s3fs import S3FileSystem
 
 # Third party imports
@@ -37,9 +39,6 @@ from pysas.logger import get_logger
 from .logger import TaskLogger as TL
 from pysas import sas_cfg
 
-# Third party imports
-
-# Local application imports
 
 def download_data(obsid,
                   data_dir,
@@ -668,5 +667,31 @@ def generate_PPS_pattern(obsid=None,instname=None,
 
     return filename
 
-
+def load_json_from_package(filename: str):
+    """
+    Load a JSON file from a given package using importlib.resources.files().
+    
+    Args:
+        package (str): The package path (e.g., 'my_package.data').
+        filename (str): The JSON file name inside the package.
+    
+    Returns:
+        dict: Parsed JSON data.
+    """
+    try:
+        # Locate the file inside the package
+        file_path = resources.files("pysas") / filename
+        
+        # Open and read the JSON file
+        with file_path.open('r', encoding='utf-8') as f:
+            return json.load(f)
+    
+    except FileNotFoundError:
+        print(f"Error: '{filename}' not found in package '{package}'.")
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON: {e}")
+    except ModuleNotFoundError:
+        print(f"Error: Package '{package}' not found.")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
     

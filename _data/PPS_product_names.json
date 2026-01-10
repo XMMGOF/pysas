@@ -1,0 +1,554 @@
+{
+    "EPIC_products": {
+        "IMAGE_FIT": {
+            "Format": "FTZ",
+            "Product": "IMAGE_",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC FITS image"
+        },
+        "IMAGE_SLEW": {
+            "Format": "FTZ",
+            "Product": "IMAGE_",
+            "Source": "(PN)",
+            "Description": "SLEW step FITS image (slew only)"
+        },
+        "UNFDAT_SLEW": {
+            "Format": "FTZ",
+            "Product": "UNFDAT",
+            "Source": "(PN)",
+            "Description": "Unfiltered slew step FITS image (slew only)"
+        },
+        "IMAGE_PNG": {
+            "Format": "PNG",
+            "Product": "IMAGE_",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC PNG image"
+        },
+        "OIMAGE_FIT": {
+            "Format": "FTZ",
+            "Product": "OIMAGE",
+            "Source": "(EP)",
+            "Description": "EPIC FITS observation image"
+        },
+        "OIMAGE_PNG": {
+            "Format": "PNG",
+            "Product": "OIMAGE",
+            "Source": "(EP)",
+            "Description": "EPIC PNG observation image"
+        },
+        "3COLIM_FIT": {
+            "Format": "FTZ",
+            "Product": "3COLIM",
+            "Source": "(EP)",
+            "Description": "EPIC FITS three-colour image"
+        },
+        "3COLIM_PNG": {
+            "Format": "PNG",
+            "Product": "3COLIM",
+            "Source": "(EP)",
+            "Description": "EPIC PNG three-colour image"
+        },
+        "EXPMAP_FIT": {
+            "Format": "FTZ",
+            "Product": "EXPMAP",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC FITS exposure map"
+        },
+        "EXPMAP_SLEW": {
+            "Format": "FTZ",
+            "Product": "EXPMAP",
+            "Source": "(PN)",
+            "Description": "SLEW step FITS exposure map (slew only)"
+        },
+        "EXPMAP_PNG": {
+            "Format": "PNG",
+            "Product": "EXPMAP",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC PNG exposure map"
+        },
+        "MEXPMP_FIT": {
+            "Format": "FTZ",
+            "Product": "MEXPMP",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC FITS exposure-merged exposure map"
+        },
+        "OEXPMP_FIT": {
+            "Format": "FTZ",
+            "Product": "OEXPMP",
+            "Source": "(EP)",
+            "Description": "EPIC FITS observation exposure map"
+        },
+        "OEXPMP_PNG": {
+            "Format": "PNG",
+            "Product": "OEXPMP",
+            "Source": "(EP)",
+            "Description": "EPIC PNG observation exposure map"
+        },
+        "OFTPRT_ASC": {
+            "Format": "ASC",
+            "Product": "OFTPRT",
+            "Source": "(EP)",
+            "Description": "EPIC ASC footprint region"
+        },
+        "BKGMAP_FIT": {
+            "Format": "FTZ",
+            "Product": "BKGMAP",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC FITS merged background map"
+        },
+        "OBKGMP_FIT": {
+            "Format": "FTZ",
+            "Product": "OBKGMP",
+            "Source": "(EP)",
+            "Description": "EPIC FITS observation background map"
+        },
+        "OBKGMP_PNG": {
+            "Format": "PNG",
+            "Product": "OBKGMP",
+            "Source": "(EP)",
+            "Description": "EPIC PNG observation background map"
+        },
+        "DETMSK_FIT": {
+            "Format": "FTZ",
+            "Product": "DETMSK",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC FITS detection mask"
+        },
+        "OSNSMP_FIT": {
+            "Format": "FTZ",
+            "Product": "OSNSMP",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC FITS observation sensitivity map"
+        },
+        "SRCTSR_FIT": {
+            "Format": "FTZ",
+            "Product": "SRCTSR",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC FITs source timeseries"
+        },
+        "STSPLT_PDF": {
+            "Format": "PDF",
+            "Product": "STSPLT",
+            "Source": "(M1|M2|PN|EP)",
+            "Description": "EPIC PDF source timeseries plot"
+        },
+        "SFFTPL_PDF": {
+            "Format": "PDF",
+            "Product": "SFFTPL",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC PDF source FFT plot"
+        },
+        "FBKTSR_FIT": {
+            "Format": "FTZ",
+            "Product": "FBKTSR",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC FITS global background timeseries"
+        },
+        "FBKTSR_PDF": {
+            "Format": "PDF",
+            "Product": "FBKTSR",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC PDF global background timeseries"
+        },
+        "SRSPEC_FIT": {
+            "Format": "FTZ",
+            "Product": "SRSPEC",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC source spectrum"
+        },
+        "SRSPEC_PNG": {
+            "Format": "PNG",
+            "Product": "SRSPEC",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC source extraction region"
+        },
+        "BGSPEC_FIT": {
+            "Format": "FTZ",
+            "Product": "BGSPEC",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC source background spectrum"
+        },
+        "SPCPLT_PDF": {
+            "Format": "PDF",
+            "Product": "SPCPLT",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC source spectrum plot"
+        },
+        "SEDPLT_PNG": {
+            "Format": "PNG",
+            "Product": "SEDPLT",
+            "Source": "(EP)",
+            "Description": "EPIC-OM spectral energy distribution plot"
+        },
+        "SCOMSP_FIT": {
+            "Format": "FTZ",
+            "Product": "SCOMSP",
+            "Source": "(PN)",
+            "Description": "EPIC-pn source combined spectra"
+        },
+        "BCOMSP_FIT": {
+            "Format": "FTZ",
+            "Product": "BCOMSP",
+            "Source": "(PN)",
+            "Description": "EPIC-pn background combined spectra"
+        },
+        "BGP0SP_FIT": {
+            "Format": "FTZ",
+            "Product": "BGP0SP",
+            "Source": "(PN)",
+            "Description": "EPIC-pn background single spectra"
+        },
+        "BGP4SP_FIT": {
+            "Format": "FTZ",
+            "Product": "BGP4SP",
+            "Source": "(PN)",
+            "Description": "EPIC-pn background double spectra"
+        },
+        "BGPDSP_FIT": {
+            "Format": "FTZ",
+            "Product": "BGPDSP",
+            "Source": "(PN)",
+            "Description": "EPIC-pn single and double bkgd spectra"
+        },
+        "OBLSLI_FIT": {
+            "Format": "FTZ",
+            "Product": "OBLSLI",
+            "Source": "(EP)",
+            "Description": "EPIC observation box-local source list file"
+        },
+        "OBMSLI_FIT": {
+            "Format": "FTZ",
+            "Product": "OBMSLI",
+            "Source": "(EP)",
+            "Description": "EPIC observation box-map source list file"
+        },
+        "OMSRLI_FIT": {
+            "Format": "FTZ",
+            "Product": "OMSRLI",
+            "Source": "(EP)",
+            "Description": "EPIC observation ml source list file"
+        },
+        "OBSMLI_FIT": {
+            "Format": "FTZ",
+            "Product": "OBSMLI",
+            "Source": "(EP)",
+            "Description": "EPIC FITS summary source list file"
+        },
+        "OBSMLI_HTM": {
+            "Format": "HTM",
+            "Product": "OBSMLI",
+            "Source": "(EP)",
+            "Description": "EPIC HTML summary source list file"
+        },
+        "OMSSLI_FIT": {
+            "Format": "FTZ",
+            "Product": "OMSSLI",
+            "Source": "(PN)",
+            "Description": "EPIC FITS summary source list file for slew data"
+        },
+        "MIEVLI_FIT": {
+            "Format": "FTZ",
+            "Product": "MIEVLI",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC MOS IMAGING mode event list file"
+        },
+        "PIEVLI_FIT": {
+            "Format": "FTZ",
+            "Product": "PIEVLI",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC pn IMAGING mode event list file"
+        },
+        "PIEVLI_SLEW": {
+            "Format": "FTZ",
+            "Product": "PIEVLI",
+            "Source": "(PN)",
+            "Description": "SLEW single raw event list file (slew only)"
+        },
+        "SLEVLI_SLEW": {
+            "Format": "FTZ",
+            "Product": "SLEVLI",
+            "Source": "(PN)",
+            "Description": "SLEW step event list file (slew only)"
+        },
+        "TIEVLI_FIT": {
+            "Format": "FTZ",
+            "Product": "TIEVLI",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC TIMING mode event list file"
+        },
+        "REGION_ASC": {
+            "Format": "ASC",
+            "Product": "REGION",
+            "Source": "(EP)",
+            "Description": "EPIC ML source region file"
+        },
+        "SRCREG_ASC": {
+            "Format": "ASC",
+            "Product": "SRCREG",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC source region file"
+        },
+        "SRCARF_FIT": {
+            "Format": "FTZ",
+            "Product": "SRCARF",
+            "Source": "(M1|M2|PN)",
+            "Description": "EPIC ancillary response file"
+        },
+        "SP0RMF_FIT": {
+            "Format": "FTZ",
+            "Product": "SP0RMF",
+            "Source": "(PN)",
+            "Description": "EPIC-pn response matrix for singles spectra"
+        },
+        "SPDRMF_FIT": {
+            "Format": "FTZ",
+            "Product": "SPDRMF",
+            "Source": "(PN)",
+            "Description": "EPIC-pn response matrix for doubles spectra"
+        },
+        "SP4RMF_FIT": {
+            "Format": "FTZ",
+            "Product": "SP4RMF",
+            "Source": "(PN)",
+            "Description": "EPIC-pn response matrix for singles and doubles spectra"
+        },
+        "SCOARF_FIT": {
+            "Format": "FTZ",
+            "Product": "SCOARF",
+            "Source": "(PN)",
+            "Description": "EPIC-pn ancillary response combined functions"
+        },
+        "SUMMAR_HTM": {
+            "Format": "HTM",
+            "Product": "SUMMAR",
+            "Source": "(EP)",
+            "Description": "EPIC HTML summary page"
+        }
+    },
+    "RGS_products": {
+        "IMAGE_FIT": {
+            "Format": "FTZ",
+            "Product": "IMAGE_",
+            "Source": "(R1|R2)",
+            "Description": "RGS FITS image"
+        },
+        "IMAGE_PNG": {
+            "Format": "PNG",
+            "Product": "IMAGE_",
+            "Source": "(R1|R2)",
+            "Description": "RGS PNG image"
+        },
+        "ORDIMG_FIT": {
+            "Format": "FTZ",
+            "Product": "ORDIMG",
+            "Source": "(R1|R2)",
+            "Description": "RGS FITS energy-dispersion image"
+        },
+        "ORDIMG_PNG": {
+            "Format": "PNG",
+            "Product": "ORDIMG",
+            "Source": "(R1|R2)",
+            "Description": "RGS PNG energy-dipersion image"
+        },
+        "EXPMAP_FIT": {
+            "Format": "FTZ",
+            "Product": "EXPMAP",
+            "Source": "(R1|R2)",
+            "Description": "RGS FITS exposure map"
+        },
+        "SBSPEC_FIT": {
+            "Format": "FTZ",
+            "Product": "SBSPEC",
+            "Source": "(R1|R2)",
+            "Description": "RGS FITS source region spectrum"
+        },
+        "BGSPEC_FIT": {
+            "Format": "FTZ",
+            "Product": "BGSPEC",
+            "Source": "(R1|R2)",
+            "Description": "RGS FITS background spectrum"
+        },
+        "SRSPEC_FIT": {
+            "Format": "FTZ",
+            "Product": "SRSPEC",
+            "Source": "(R1|R2)",
+            "Description": "RGS FITS source spectrum"
+        },
+        "SRSPEC_PDF": {
+            "Format": "PDF",
+            "Product": "SRSPEC",
+            "Source": "(R1|R2)",
+            "Description": "RGS PDF source spectrum plot"
+        },
+        "BGMODL_FIT": {
+            "Format": "FTZ",
+            "Product": "BGMODL",
+            "Source": "(R1|R2)",
+            "Description": "RGS FITS background model spectrum"
+        },
+        "WFSPEC_FIT": {
+            "Format": "FTZ",
+            "Product": "WFSPEC",
+            "Source": "(R1|R2)",
+            "Description": "RGS FITS whole field spectrum"
+        },
+        "WFSPEC_PDF": {
+            "Format": "PDF",
+            "Product": "WFSPEC",
+            "Source": "(R1|R2)",
+            "Description": "RGS PDF whole field spectrum"
+        },
+        "FLUXED_FIT": {
+            "Format": "FTZ",
+            "Product": "FLUXED",
+            "Source": "(RG)",
+            "Description": "RGS FITS fluxed source spectrum"
+        },
+        "FLUXED_PDF": {
+            "Format": "PDF",
+            "Product": "FLUXED",
+            "Source": "(RG)",
+            "Description": "RGS PDF fluxed source spectrum"
+        },
+        "RSPMAT_FIT": {
+            "Format": "FTZ",
+            "Product": "RSPMAT",
+            "Source": "(R1|R2)",
+            "Description": "RGS FITS source response matrix"
+        },
+        "WREMAT_FIT": {
+            "Format": "FTZ",
+            "Product": "WREMAT",
+            "Source": "(R1|R2)",
+            "Description": "RGS FITS whole field response matrix"
+        },
+        "SRCTSR_FIT": {
+            "Format": "FTZ",
+            "Product": "SRCTSR",
+            "Source": "(R1|R2)",
+            "Description": "RGS FITS background-subtracted source timeseries"
+        },
+        "SRBTSR_FIT": {
+            "Format": "FTZ",
+            "Product": "SRBTSR",
+            "Source": "(R1|R2)",
+            "Description": "RGS FITS source background timeseries"
+        },
+        "EVENLI_FIT": {
+            "Format": "FTZ",
+            "Product": "EVENLI",
+            "Source": "(R1|R2)",
+            "Description": "RGS FITS event list file"
+        },
+        "SRCLI_FIT": {
+            "Format": "FTZ",
+            "Product": "SRCLI_",
+            "Source": "(R1|R2)",
+            "Description": "RGS FITS source list file"
+        },
+        "FBKTSR_FIT": {
+            "Format": "FTZ",
+            "Product": "FBKTSR",
+            "Source": "(R1|R2)",
+            "Description": "RGS FITS flare background timeseries"
+        },
+        "DSPHIS_FIT": {
+            "Format": "FTZ",
+            "Product": "DSPHIS",
+            "Source": "(R1|R2)",
+            "Description": "RGS FITS cross-dispersion histogram"
+        },
+        "SUMMAR_HTM": {
+            "Format": "HTM",
+            "Product": "SUMMAR",
+            "Source": "(RG)",
+            "Description": "RGS HTML summary page"
+        }
+    },
+    "Obs_products": {
+        "SUMMAR_HTM": {
+            "Format": "HTM",
+            "Product": "SUMMAR",
+            "Source": "OB",
+            "Description": "Observation summary"
+        },
+        "ATTTSR_FIT": {
+            "Format": "FTZ",
+            "Product": "ATTTSR",
+            "Source": "OB",
+            "Description": "Attitude time series"
+        },
+        "ORBTSR_FIT": {
+            "Format": "FTZ",
+            "Product": "ORBTSR",
+            "Source": "OB",
+            "Description": "Spacecraft Orbit"
+        },
+        "REFCAT_FIT": {
+            "Format": "FTZ",
+            "Product": "REFCAT",
+            "Source": "OB",
+            "Description": "Reference catalogue"
+        },
+        "SCRLOG_ASC": {
+            "Format": "ASC",
+            "Product": "SCRLOG",
+            "Source": "OB",
+            "Description": "PPS script log"
+        },
+        "PPSMSG_ASC": {
+            "Format": "ASC",
+            "Product": "PPSMSG",
+            "Source": "OB",
+            "Description": "PPS run message"
+        },
+        "PPSSUM_HTM": {
+            "Format": "HTM",
+            "Product": "PPSSUM",
+            "Source": "OB",
+            "Description": "PPS run summary"
+        },
+        "PINDEX_FIT": {
+            "Format": "FTZ",
+            "Product": "PINDEX",
+            "Source": "OB",
+            "Description": "PPS product index"
+        },
+        "CALIND_FIT": {
+            "Format": "FTZ",
+            "Product": "CALIND",
+            "Source": "OB",
+            "Description": "Calibration index file"
+        },
+        "SSCLG1_PNG": {
+            "Format": "PNG",
+            "Product": "SSCLG1",
+            "Source": "OB",
+            "Description": "SSC logo 1"
+        },
+        "SSCLG2_PNG": {
+            "Format": "PNG",
+            "Product": "SSCLG2",
+            "Source": "OB",
+            "Description": "SSC logo 2"
+        },
+        "CDSLG1_PNG": {
+            "Format": "PNG",
+            "Product": "CDSLG1",
+            "Source": "OB",
+            "Description": "CDS logo 1"
+        },
+        "CDSLG2_PNG": {
+            "Format": "PNG",
+            "Product": "CDSLG2",
+            "Source": "OB",
+            "Description": "CDS logo 2"
+        },
+        "CDSLG3_PNG": {
+            "Format": "PNG",
+            "Product": "CDSLG3",
+            "Source": "OB",
+            "Description": "CDS logo 3"
+        }
+    }
+}

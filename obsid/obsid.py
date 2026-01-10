@@ -40,6 +40,7 @@ from ..init_sas import initializesas
 from ..sasutils import download_data as dl_data
 from pysas.logger import get_logger
 from pysas.sastask import MyTask
+from pysas.sasutils import load_json_from_package
 from pysas.pysasplot_utils.pysasplot_utils import quick_image_plot as qip
 from pysas.pysasplot_utils.pysasplot_utils import quick_light_curve_plot as qlcp
 
@@ -126,7 +127,7 @@ class FileMain:
                                  logfilename = self.logfilename,
                                  tasklogdir  = self.tasklogdir)
         self.logger.debug('Logger generated')
-        self.logger.debug('Finished with ObsID.__init__')
+        self.logger.debug('Finished with FileMain.__init__')
 
     def _set_obsid(self):
         """
@@ -238,26 +239,18 @@ class FileMain:
         self.logger.info(f'Searching {self.data_dir}/{self.obsid} for ccf.cif and *SUM.SAS files ...')
 
         # Looking for ccf.cif file.
-        exists = self.get_ccf_cif()
-        if not exists:
-            self.logger.info('ccf.cif file not present! User must run calibrate_odf!')
-            self.logger.debug(f'Exiting _set_obsid, no ccf.cif found')
-            return
-
-        # Set 'SAS_CCF' enviroment variable.
-        os.environ['SAS_CCF'] = self.files['sas_ccf']
-        self.logger.info('SAS_CCF = {0}'.format(self.files['sas_ccf']))
+        _ = self.get_ccf_cif()
+        if self.files['sas_ccf'] is not None:
+            # Set 'SAS_CCF' enviroment variable.
+            os.environ['SAS_CCF'] = self.files['sas_ccf']
+            self.logger.info('SAS_CCF = {0}'.format(self.files['sas_ccf']))
 
         # Looking for *SUM.SAS file.
         exists = self.get_SUM_SAS()
-        if not exists:
-            self.logger.info('*SUM.SAS file not present! User must run calibrate_odf!')
-            self.logger.debug(f'Exiting _set_obsid, no *SUM.SAS found')
-            return
-        
-        # Set 'SAS_ODF' enviroment variable.
-        os.environ['SAS_ODF'] = self.files['sas_odf']
-        self.logger.info('SAS_ODF = {0}'.format(self.files['sas_odf']))
+        if exists:
+            # Set 'SAS_ODF' enviroment variable.
+            os.environ['SAS_ODF'] = self.files['sas_odf']
+            self.logger.info('SAS_ODF = {0}'.format(self.files['sas_odf']))
 
         # Check for previously generated event lists.
         self.find_event_list_files(print_output = self.output_to_terminal)
@@ -1016,26 +1009,24 @@ class FileMain:
         """
         self.logger.debug('Entering get_ccf_cif')
 
-        exists = False
-
-        # Looking for ccf.cif file.
-        self.files['sas_ccf'] = os.path.join('does','not','exist')
+        # Looking for calibration index file (ccf.cif or CALIND).
+        self.files['sas_ccf'] = None
         self.logger.info(f'Searching for ccf.cif.')
-        for path, directories, files in os.walk(self.obs_dir):
-            for file in files:
-                if 'ccf.cif' in file:
-                    self.logger.info(f'Found ccf.cif file in {path}.')
-                    self.files['sas_ccf'] = os.path.join(path,file)
-        
-        # Check if ccf.cif file exists.
-        if os.path.exists(self.files['sas_ccf']):
-            self.logger.info('{0} is present'.format(self.files['sas_ccf']))
-            exists = True
+        ccfcif_list = glob.glob(self.obs_dir+'/**/*ccf.cif', recursive=True)
+        if len(ccfcif_list) > 0:
+            self.logger.info(f'Found ccf.cif file in {ccfcif_list[0]}.')
+            self.files['sas_ccf'] = ccfcif_list[0]
         else:
-            self.logger.info('ccf.cif file not present! User must run calibrate_odf!')
+            self.logger.debug('No ccf.cif file found. Searching for CALIND file.')
+            calind_list = glob.glob(self.obs_dir+'/**/*OBX*CALIND*.FTZ', recursive=True)
+            if len(calind_list) > 0:
+                self.logger.info(f'Found CALIND file in {calind_list[0]}.')
+                self.files['sas_ccf'] = calind_list[0]
+            else:
+                self.logger.info('Neither ccf.cif nor CALIND files found!')
 
         self.logger.debug('Exiting get_ccf_cif')
-        return exists
+        return self.files['sas_ccf']
     
     def get_SUM_SAS(self,user_defined_file=None):
         """
@@ -1767,10 +1758,16 @@ class ObsID(FileMain):
                 raise Exception('ODF directory and files not found!')
             return
         else:
+            ccf_exists = False
+            SUM_exists = False
             self.logger.info(f'Searching {self.obs_dir} for ccf.cif and *SUM.SAS files ...')
+
             # Looking for ccf.cif file.
             if self.files['sas_ccf'] is None:
-                ccf_exists = self.get_ccf_cif()
+                # get_ccf_cif should set self.files['sas_ccf'] if file is found.
+                _ = self.get_ccf_cif()
+                # Will only accept locally generated calibration files. No PPS CALIND file accepted.
+                if self.files['sas_ccf'] is not None and 'ccf.cif' in self.files['sas_ccf']: ccf_exists = True
             else:
                 # Check if ccf.cif file path given by user exists.
                 try:
@@ -1809,7 +1806,7 @@ class ObsID(FileMain):
                 self.logger.info('SAS_ODF = {0}'.format(self.files['sas_odf']))
                 print('SAS_ODF = {0}'.format(self.files['sas_odf']))
             else:
-                # If the ccf.cif or *SUM.SAS files are not present, then run calibration.
+                # If either the ccf.cif or *SUM.SAS files are not present, then run calibration.
                 self._run_calibration(cifbuild_opts,odfingest_opts) 
             
             # Set 'SAS_ODF' enviroment variable.
@@ -2287,12 +2284,29 @@ class PPSFiles(FileMain):
                          output_to_terminal = output_to_terminal,
                          output_to_file     = output_to_file)
 
-        self._file_patterns = {'attitude'         : '.*ATTTSR.*.FTZ$',
-                               'main_summary'     : '.*OBX.*SUMMAR.*.HTM$',
+        # This simplifies discovery of several common files.
+        # Reasoning: While these files can be found using 
+        # '_return_list_of_filenames', the returned list(s) 
+        # would need additional filtering.
+        # For example, 'EPIC_images' would take two calls to 
+        # '_return_list_of_filenames' depending on whether the
+        # Obs is slew or not. This gets around that.
+        # Also, '_return_list_of_filenames' for SUMMAR files 
+        # would return a list of multiple files. This allows the 
+        # main file to be selected directly.
+        self._file_patterns = {'main_summary'     : '.*OBX.*SUMMAR.*.HTM$',
                                'RGS_event_lists'  : '.*(R1|R2).*EVENLI.*.FTZ$',
                                'RGS_spectra'      : '.*(R1|R2).*RSPEC.*.FTZ$',
                                'EPIC_event_lists' : '.*(M1|M2|PN).*EVLI.*.FTZ$',
-                               'EPIC_images'      : '.*(M1|M2|PN)[S].*IMAGE_.*.FTZ$'}
+                               'EPIC_images'      : '.*(M1|M2|PN).*IMAGE_.*.FTZ$'}
+
+        products = load_json_from_package(os.path.join('_data','PPS_product_names.json'))
+
+        self.EPIC_products = products['EPIC_products']
+        self.RGS_products  = products['RGS_products']
+        self.Obs_products  = products['Obs_products']
+
+        self.parse_PPS_dir()
 
     def get_main_summary_filename():
         """
@@ -2304,17 +2318,105 @@ class PPSFiles(FileMain):
 
         summary_filename = self._return_file_list_on_pattern(self._file_patterns['main_summary'])
 
-        if len(summary_filename) < 1:
+        if summary_filename is None:
             download_filename = f'P{self.obsid}OBX000SUMMAR0000.HTM'
             self.download_PPS_data(filename=download_filename)
 
-        
+        summary_filename = self._return_file_list_on_pattern(self._file_patterns['main_summary'])[0]
+
+        return summary_filename
     
     def parse_PPS_dir(self):
         """
-
+        Parses the PPS directory and sets standard filenames.
         """
 
+        self.summary_file     = None
+        self.attitude_file    = None
+        self.calind_file      = None
+        self.EPIC_event_lists = None
+        self.EPIC_images      = None
+        self.RGS_event_lists  = None
+        self.RGS_spectra      = None
+
+        self.files['PPS'] = self._get_list_of_PPS_files()
+
+        # If no files in pps_dir, skip the rest
+        if len(self.files['PPS']) == 0:
+            self.logger.info('No PPS files found in PPS directory.')
+            self.logger.debug(f'pps_dir: {self.pps_dir}')
+            return
+
+        # If the file is not present then the value is set to 'None'
+        # Main Summary File
+        summary_file = self._return_file_list_on_pattern(self._file_patterns['main_summary'])
+        if summary_file is None:
+            self.logger.info('No main summary file found in PPS directory.')
+        else:
+            self.summary_file = summary_file[0]
+            self.logger.info(f'Observation summary file found.')
+            self.logger.debug(f'summary_file: {self.summary_file}')
+
+        # Attitude File
+        attitude_file = self._return_list_of_filenames(self.Obs_products['ATTTSR_FIT'])
+        if attitude_file is None:
+            self.logger.info('No attitude file found in PPS directory.')
+        else:
+            self.attitude_file = attitude_file[0]
+            self.logger.info(f'Attitude file found.')
+            self.logger.debug(f'attitude_file: {self.attitude_file}')
+
+        # Calibration Index File (CALIND)
+        calind_file = self._return_list_of_filenames(self.Obs_products['CALIND_FIT'])
+        if calind_file is None:
+            self.logger.info('No calibration index (CALIND) file found in PPS directory.')
+        else:
+            self.calind_file = calind_file[0]
+            self.logger.info(f'Calibration index (CALIND) file found.')
+            self.logger.debug(f'calind_file: {self.calind_file}')
+            # Assume the user wants to use the CALIND file even if a ccf.cif file exists.
+            self.logger.debug('Setting calind_file to environment variable "SAS_CCF".')
+            self.files['sas_ccf'] = self.calind_file
+            os.environ['SAS_CCF'] = self.calind_file
+
+        # EPIC Event Lists
+        self.EPIC_event_lists = self._return_file_list_on_pattern(self._file_patterns['EPIC_event_lists'])
+        if self.EPIC_event_lists is None:
+            self.logger.info('No EPIC event lists found in PPS directory.')
+        else:
+            self.logger.info(f'EPIC event lists found.')
+            for file in self.EPIC_event_lists:
+                self.logger.debug(f' >{file}')
+
+        # EPIC Images
+        self.EPIC_images = self._return_file_list_on_pattern(self._file_patterns['EPIC_images'])
+        if self.EPIC_images is None:
+            self.logger.info('No EPIC images (FITS) found in PPS directory.')
+        else:
+            self.logger.info(f'EPIC FITS images found.')
+            for file in self.EPIC_images:
+                self.logger.debug(f' >{file}')
+
+        # RGS Event Lists
+        self.RGS_event_lists = self._return_file_list_on_pattern(self._file_patterns['RGS_event_lists'])
+        if self.RGS_event_lists is None:
+            self.logger.info('No RGS event lists found in PPS directory.')
+        else:
+            self.logger.info(f'RGS event lists found.')
+            for file in self.RGS_event_lists:
+                self.logger.debug(f' >{file}')
+
+        # RGS Spectra
+        self.RGS_spectra = self._return_file_list_on_pattern(self._file_patterns['RGS_spectra'])
+        if self.RGS_spectra is None:
+            self.logger.info('No RGS spectra (FITS) found in PPS directory.')
+        else:
+            self.logger.info(f'RGS spectra found.')
+            for file in self.RGS_spectra:
+                self.logger.debug(f' >{file}')
+
+        self.logger.debug('Exiting parse_PPS_dir.')
+        return
 
     def get_active_instruments(self):
         """
@@ -2446,16 +2548,48 @@ class PPSFiles(FileMain):
                                 filename     = filename,
                                 **kwargs)
 
+        # This is the only difference between the PPS download function (download_PPS_data)
+        # in the ObsID class. This parses the downloaded files and sets key filenames.
         self.parse_PPS_dir()
     
+    def _return_list_of_filenames(self,pattern_dict):
+        """
+        Returns a list of PPS filenames based on a filename pattern dictionary.
+
+        The dictionary passed in must have the keys:
+
+            'Source' : Data source identifier (DD)
+            'Product': Product filename field (TTTTTT)
+            'Format' : File format or extension (FFF)
+
+            POOOOOOOOOODDUEEETTTTTTSXXX.FFF
+        """
+
+        source  = pattern_dict['Source']
+        product = pattern_dict['Product']
+        format  = pattern_dict['Format']
+
+        pattern = f'.*{source}.*{product}.*{format}'
+
+        files = self._return_file_list_on_pattern(pattern)
+
+        return files
+
     def _return_file_list_on_pattern(self, pattern):
         """
-        Returns a list of PPS files based on given regular expression pattern.
+        Returns a list of PPS filenames based on given regular expression pattern.
         """
+
+        self.logger.debug(f'Searching PPS files for pattern: {pattern}')
+
         files = []
         for filename in self.files['PPS']:
             if re.search(pattern,filename):
                 files.append(filename)
+
+        # Return 'None' if no files of pattern were found.
+        self.logger.debug(f'Number of files found: {len(files)}')
+        if len(files) < 1: files = None
         
         return files
         

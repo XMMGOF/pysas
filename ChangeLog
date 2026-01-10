@@ -1,6 +1,39 @@
 ChangeLog for pysas
 =================
 
+Version 2.3.0 - 2026-??-?? (RT)
+---------------
+
++ FileMain : Added superclass for file handling. Subclasses are: ObsID and PPSFiles
+             ObsID class handles ODF files.
+             PPSFiles class handles PPS files.
+
++ PPSFiles : Added PPSFiles class. Contains special methods for interacting with PPS
+             files, along with stored paths and filenames to key PPS files.
+
++ _data    : Added directory named '_data' to contain pySAS data files. Currently
+             only contains the file 'PPS_product_names.json'.
+
++ PPS_product_names.json : File containing dictionaries with values needed to 
+                           reconstruct PPS filenames. Has dictionaries for:
+                           EPIC_products, RGS_products, and Obs_products (general).
+
++ _attic    : Directory created to hold unused code (but still needs to be preserved).
+
+- All unused SAS tasks moved to _attic. Delisted from 'pysaspkgs'.
+    - pyeslewchain
+    - pyeslewsearch
+    - pymakethumbs
+    - pyomdrifthist
+    - pyomgchain
+    - pyrgsspecplot
+    - rgsbkgsmoothing
+    - rgsdupframesfix
+    - XMMextractor_tools
+    - xmmextractorGUI
+
+- configutils.py : Moved to _attic.
+
 Version 2.2.0 - 2025-10-15 (RT)
 ---------------
 
