@@ -868,6 +868,7 @@ class FileMain:
         return
         
     def find_event_list_files(self,print_output=True):
+
         """
         Checks the observation directory (obs_dir) for basic unfiltered 
         event list files created by 'epproc', 'emproc', 'epchain', 
@@ -884,68 +885,45 @@ class FileMain:
         """
         self.logger.debug('Entering find_event_list_files')
 
-        self.logger.debug('Checking active instruments')
-        self.get_active_instruments()
+        file_keys = ['PNevt_list','M1evt_list','M2evt_list','R1evt_list','R2evt_list']
+        inst_list = ['EPN','EMOS1','EMOS2','RGS1','RGS2']
+        for key in file_keys: self.files[key] = []
 
-        # Check if events lists have already been made from the odf files.
-        # Have dummy value for the OM because it should be handled 
-        # differently. But if not included here then too many checks 
-        # will be needed later on.
-        inst_list = list(self.active_instruments.keys())
-        evt_list_keys = {'PN': 'PNevt_list',
-                         'M1': 'M1evt_list',
-                         'M2': 'M2evt_list',
-                         'R1': 'R1evt_list',
-                         'R2': 'R2evt_list',
-                         'OM': 'OMimg_list'}
-        inst_name     = {'PN': 'EPIC-pn',
-                         'M1': 'EPIC-MOS1',
-                         'M2': 'EPIC-MOS2',
-                         'R1': 'RGS1',
-                         'R2': 'RGS2',
-                         'OM': 'OM'}
-        
-        for item in inst_list: self.files[evt_list_keys[item]] = []
+        event_lists = glob.glob(self.obs_dir+'/**/*Evts.ds', recursive=True) + \
+                      glob.glob(self.obs_dir+'/**/*EVLI*', recursive=True)   + \
+                      glob.glob(self.obs_dir+'/**/*EVENLI*', recursive=True)
 
-        for inst in inst_list:
-            match inst:
-                # Checking for EPIC event lists.
-                case 'PN' | 'M1' | 'M2':
-                    self.logger.debug(f'Checking for {inst} EPIC event lists created by epproc or emproc.')
-                    files = glob.glob(self.obs_dir+'/**/*Evts.ds', recursive=True)
-                    for filename in files:
-                        if re.search('.*(EMOS1|EMOS2|EPN).*Evts.ds$',filename):
-                            self.files[evt_list_keys[inst]].append(os.path.abspath(filename))
-                            self.logger.debug(f'{inst} EPIC event list from the procs found: {os.path.abspath(filename)}')
-                    
-                    self.logger.debug(f'Checking for {inst} EPIC event lists created by epchain or emchain.')
-                    files = glob.glob(self.obs_dir+'/**/*EVLI*', recursive=True)
-                    for filename in files:
-                        if re.search('.*(M1|M2|PN).*EVLI.*.(FIT|FTZ)$',filename):
-                            self.files[evt_list_keys[inst]].append(os.path.abspath(filename))
-                            self.logger.debug(f'{inst} EPIC event list from the chains found: {os.path.abspath(filename)}')
-                
-                # Checking for RGS event lists.
-                case 'R1' | 'R2':
-                    self.logger.debug(f'Checking for {inst} RGS event lists.')
-                    files = glob.glob(self.obs_dir+'/**/*EVENLI*', recursive=True)
-                    for filename in files:
-                        if re.search('.*(R1|R2).*EVENLI.*.(FIT|FTZ)$',filename):
-                            self.files[evt_list_keys[inst]].append(os.path.abspath(filename))
-                            self.logger.debug(f'{inst} RGS event list found: {os.path.abspath(filename)}')
+        for filename in event_lists:
+            file = os.path.abspath(filename)
+            if re.search('(.*EPN.*Evts.ds$|.*PN.*EVLI.*.(FIT|FTZ)$)',file):
+                self.files['PNevt_list'].append(file)
+                self.logger.debug(f'EPN event list found: {file}')
 
-                case 'OM':
-                    # Need to do something different for optical monitor images.
-                    pass
-            
-            if len(self.files[evt_list_keys[inst]]) > 0:
-                self.files[evt_list_keys[inst]].sort()
+            if re.search('(.*EMOS1.*Evts.ds$|.*M1.*EVLI.*.(FIT|FTZ)$)',file):
+                self.files['M1evt_list'].append(file)
+                self.logger.debug(f'EMOS1 event list found: {file}')
+
+            if re.search('(.*EMOS2.*Evts.ds$|.*M2.*EVLI.*.(FIT|FTZ)$)',file):
+                self.files['M2evt_list'].append(file)
+                self.logger.debug(f'EMOS2 event list found: {file}')
+
+            if re.search('.*R1.*EVENLI.*.(FIT|FTZ)$',filename):
+                self.files['R1evt_list'].append(file)
+                self.logger.debug(f'RGS1 event list found: {file}')
+
+            if re.search('.*R2.*EVENLI.*.(FIT|FTZ)$',filename):
+                self.files['R2evt_list'].append(file)
+                self.logger.debug(f'RGS1 event list found: {file}')
+
+        for i, key in enumerate(file_keys):
+            if len(self.files[key]) > 0:
+                self.files[key].sort()
                 if print_output:
-                    print(" > {0} {1} event list(s) found.\n".format(len(self.files[evt_list_keys[inst]]),inst_name[inst]))
-                    for x in self.files[evt_list_keys[inst]]:
+                    print(" > {0} {1} event list(s) found.\n".format(len(self.files[key]),inst_list[i]))
+                    for x in self.files[key]:
                         print("    " + x + "\n")
             else:
-                self.logger.debug(f'No event lists for {inst} found.')
+                self.logger.debug(f'No event lists for {inst_list[i]} found.')
 
         
         self.logger.debug('Exiting find_event_list_files')
@@ -961,41 +939,31 @@ class FileMain:
         """
         self.logger.debug('Entering find_rgs_spectra_files')
 
-        self.logger.debug('Checking active instruments')
-        self.get_active_instruments()
+        file_keys = ['R1spectra','R2spectra']
+        inst_list = ['RGS1','RGS2']
+        for key in file_keys: self.files[key] = []
 
-        # Check if events lists have already been made from the odf files.
+        spectra = glob.glob(self.obs_dir+'/**/*RSPEC*', recursive=True)
 
-        inst_list = list(self.active_instruments.keys())
-        rgs_list = []
-        if 'R1' in inst_list: rgs_list.append('R1')
-        if 'R2' in inst_list: rgs_list.append('R2')
+        for filename in spectra:
+            file = os.path.abspath(filename)
+            if re.search('.*R1.*RSPEC.*.(FIT|FTZ)$',file):
+                self.files['R1spectra'].append(file)
+                self.logger.debug(f'RGS1 spectrum found: {file}')
 
-        dict_key  = {'R1': 'R1spectra',
-                     'R2': 'R2spectra'}
-        inst_name = {'R1': 'RGS1',
-                     'R2': 'RGS2'}
-        
-        for item in rgs_list: self.files[dict_key[item]] = []
+            if re.search('.*R2.*RSPEC.*.(FIT|FTZ)$',file):
+                self.files['R2spectra'].append(file)
+                self.logger.debug(f'RGS2 spectrum found: {file}')
 
-        for inst in rgs_list:
-            exists = False
-            # Checking for RGS spectra.
-            self.logger.debug(f'Checking for {inst} RGS spectra.')
-            files = glob.glob(self.obs_dir+'/**/*RSPEC*', recursive=True)
-            for filename in files:
-                if re.search('.*(R1|R2).*RSPEC.*.(FIT|FTZ)$',filename):
-                    self.files[dict_key[inst]].append(os.path.abspath(filename))
-                    exists = True
-                    self.logger.debug(f'{inst} Spectra found: {os.path.abspath(filename)}')
-            if exists:
-                self.files[dict_key[inst]].sort()
+        for i, key in enumerate(file_keys):
+            if len(self.files[key]) > 0:
+                self.files[key].sort()
                 if print_output:
-                    print(" > {0} {1} spectra found.\n".format(len(self.files[dict_key[inst]]),inst_name[inst]))
-                    for x in self.files[dict_key[inst]]:
+                    print(" > {0} {1} spectra found.\n".format(len(self.files[key]),inst_list[i]))
+                    for x in self.files[key]:
                         print("    " + x + "\n")
             else:
-                self.logger.debug(f'No RGS spectra for {inst} found.')
+                self.logger.debug(f'No RGS spectra for {inst_list[i]} found.')
 
         self.logger.debug('Exiting find_rgs_spectra_files')
         return
@@ -1110,6 +1078,65 @@ class FileMain:
         self.find_event_list_files(print_output = self.output_to_terminal)
         self.find_rgs_spectra_files(print_output = self.output_to_terminal)
 
+    def get_active_instruments(self):
+        """
+        Checks odf summary file for which instruments were active for that odf.
+
+        Assumes that 'sas_odf' already exists and contains the correct path.
+
+        Also assumes file name and path are stored in self.files['sas_odf'].
+        """
+
+        # Get information about the instruments.
+        self.active_instruments = {}
+        # If ODF summary file is present
+        if 'sas_odf' in self.files.keys():
+            if self.files['sas_odf'] is not None:
+                self.logger.debug('Searching *SUM.SAS file for active instruments.')
+                summary_file = self.files['sas_odf']
+                with open(self.files['sas_odf']) as inf:
+                    lines = inf.readlines()
+                    for i,line in enumerate(lines):
+                        if '// Instrument Record' in line:
+                            active = lines[i+4][0]
+                            if active == 'N': active = False
+                            if active == 'Y': active = True
+                            self.active_instruments[lines[i+3][0:2]] = active
+        else: # Check PPS Summary File
+            self.logger.debug('Searching PPS Summary file for active instruments.')
+            summary_file = None
+            for filename in self.files['PPS']:
+                if re.search('.*OBX.*SUMMAR.*.HTM$',filename):
+                    summary_file = filename
+            if summary_file is not None:
+                with open(summary_file, "r", encoding="utf-8") as file:
+                    html_content = file.readlines()
+                for line in html_content:
+                    if re.search('<th class="string">Instrument</th><th class="flag">Active</th>',line):
+                        inst_tuple = re.findall('>(EMOS1|EMOS2|EPN|RGS1|RGS2|OM)</a></td><td class="flag">(Y|N)</td>',line)
+                        break
+                for tup in inst_tuple:
+                    if tup[0] == 'EMOS1': inst = 'M1'
+                    if tup[0] == 'EMOS2': inst = 'M2'
+                    if tup[0] == 'EPN'  : inst = 'PN'
+                    if tup[0] == 'RGS1' : inst = 'R1'
+                    if tup[0] == 'RGS2' : inst = 'R2'
+                    if tup[0] == 'OM'   : inst = 'OM'
+                    if tup[1] == 'N': active = False
+                    if tup[1] == 'Y': active = True
+                    self.active_instruments[inst] = active
+
+        # Basic sanity checks
+        bad_sum_file = False
+        inst_list = list(self.active_instruments.keys())
+        true_list = ['M1', 'M2', 'R1', 'R2', 'PN', 'OM']
+        diff = set(inst_list) ^ set(true_list)
+        if len(diff) > 0: bad_sum_file = True
+        if bad_sum_file:
+            self.logger.error('Something is wrong with the summary file: {0}'.format(summary_file))
+
+        return
+    
     def _reset_logger(self,
                        logbasename = None,
                        logfilename = None,
@@ -1825,38 +1852,6 @@ class ObsID(FileMain):
 
         self.logger.debug('Exiting calibrate_odf')
         return
-    
-    def get_active_instruments(self):
-        """
-        Checks odf summary file for which instruments were active for that odf.
-
-        Assumes that 'sas_odf' already exists and contains the correct path.
-
-        Also assumes file name and path are stored in self.files['sas_odf'].
-        """
-
-        # Get information about the instruments.
-        self.active_instruments = {}
-        with open(self.files['sas_odf']) as inf:
-            lines = inf.readlines()
-            for i,line in enumerate(lines):
-                if '// Instrument Record' in line:
-                    active = lines[i+4][0]
-                    if active == 'N': active = False
-                    if active == 'Y': active = True
-                    self.active_instruments[lines[i+3][0:2]] = active
-
-        # Basic sanity checks
-        bad_sum_file = False
-        inst_list = list(self.active_instruments.keys())
-        true_list = ['M1', 'M2', 'R1', 'R2', 'PN', 'OM']
-        diff = set(inst_list) ^ set(true_list)
-        if len(diff) > 0: bad_sum_file = True
-
-        if bad_sum_file:
-            print('Something is wrong with the odf summary file: {0}'.format(self.files['sas_odf']))
-
-        return
         
     def download_PPS_data(self,
                           repo      = None,
@@ -2356,6 +2351,7 @@ class PPSFiles(FileMain):
             self.summary_file = summary_file[0]
             self.logger.info(f'Observation summary file found.')
             self.logger.debug(f'summary_file: {self.summary_file}')
+            self.get_active_instruments()
 
         # Attitude File
         attitude_file = self._return_list_of_filenames(self.Obs_products['ATTTSR_FIT'])
@@ -2418,38 +2414,6 @@ class PPSFiles(FileMain):
         self.logger.debug('Exiting parse_PPS_dir.')
         return
 
-    def get_active_instruments(self):
-        """
-        Checks PPS summary file for which instruments were active for that Obs ID.
-
-        Assumes that 'sas_odf' already exists and contains the correct path.
-
-        Also assumes file name and path are stored in self.files['sas_odf'].
-        """
-
-        # Get information about the instruments.
-        self.active_instruments = {}
-        with open(self.files['sas_odf']) as inf:
-            lines = inf.readlines()
-            for i,line in enumerate(lines):
-                if '// Instrument Record' in line:
-                    active = lines[i+4][0]
-                    if active == 'N': active = False
-                    if active == 'Y': active = True
-                    self.active_instruments[lines[i+3][0:2]] = active
-
-        # Basic sanity checks
-        bad_sum_file = False
-        inst_list = list(self.active_instruments.keys())
-        true_list = ['M1', 'M2', 'R1', 'R2', 'PN', 'OM']
-        diff = set(inst_list) ^ set(true_list)
-        if len(diff) > 0: bad_sum_file = True
-
-        if bad_sum_file:
-            print('Something is wrong with the odf summary file: {0}'.format(self.files['sas_odf']))
-
-        return
-    
     def download_PPS_data(self,
                           repo      = None,
                           data_dir  = None,
