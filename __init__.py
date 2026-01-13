@@ -164,20 +164,23 @@ class sas_config:
         home_dir = Path.home()
         if sas_dir is None: sas_dir = os.environ.get('SAS_DIR')
         if sas_ccfpath is None: sas_ccfpath = os.environ.get('SAS_CCFPATH')
+        
         # For Fornax
-        if str(home_dir) == '/home/jovyan':
-            if data_dir is None: 
-                data_dir = home_dir / 'xmm_data'
-                data_dir = data_dir.resolve()
+        if str(sas_ccfpath) == '/opt/support-data/xmm_ccf':
             if repo is None:
                 repo = 'fornax'
+        
         # For SciServer
-        elif str(home_dir) == '/home/idies':
+        if str(home_dir) == '/home/idies':
             if data_dir is None:
                 user = os.environ.get('SCISERVER_USER_NAME')
                 data_dir = os.path.join('/home/idies/workspace/Temporary/',user,'scratch/xmm_data')
             if repo is None:
                 repo = 'sciserver'
+        
+        if data_dir is None: 
+            data_dir = home_dir / 'xmm_data'
+            data_dir = data_dir.resolve()
 
         if sas_dir: self.set_setting('sas_dir', sas_dir)
         if sas_ccfpath: self.set_setting('sas_ccfpath', sas_ccfpath)
