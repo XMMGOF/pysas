@@ -814,10 +814,15 @@ class FileMain:
         
         """
 
+        if title is None:
+            with fits.open(image_file) as hdu:
+                instrument = hdu[0].header['INSTRUME']
+            title = f'{instrument} Image'
+
         ax = qip(image_file,
                  xlabel = xlabel,
                  ylabel = ylabel,
-                 title  = None,
+                 title  = title,
                  vmin = vmin,
                  vmax = vmax,
                  save_file = save_file,
