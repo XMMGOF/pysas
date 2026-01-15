@@ -239,7 +239,7 @@ class FileMain:
         self.logger.info(f'Searching {self.data_dir}/{self.obsid} for ccf.cif and *SUM.SAS files ...')
 
         # Looking for ccf.cif file.
-        _ = self.get_ccf_cif()
+        _ = self.get_cal_ind()
         if self.files['sas_ccf'] is not None:
             # Set 'SAS_CCF' enviroment variable.
             os.environ['SAS_CCF'] = self.files['sas_ccf']
@@ -409,6 +409,19 @@ class FileMain:
                           filename     = None,
                           **kwargs):
         """
+        >>>>> NOTE <<<<<
+        This function is semi-private since the subclasses to 'FileMain', 
+        'ObsID' and 'PPSFiles', both have the public versions. 
+        The public 'download_PPS_data' in 'ObsID' is just a passthrough 
+        function for '_download_PPS_data'.
+        BUT, the public 'download_PPS_data' in 'PPSFiles' has additional 
+        content to process the PPS files after calling 
+        '_download_PPS_data'.
+
+        ObsID -> download_PPS_data -> FileMain -> _download_PPS_data
+        PPSFiles -> download_PPS_data -> FileMain -> _download_PPS_data + parse_PPS_dir
+        >>>>>      <<<<< 
+
         This handles preliminary setup for downloading data files, then 
         calls download_data (as "dl_data") from sasutils.
 
@@ -973,14 +986,14 @@ class FileMain:
         self.logger.debug('Exiting find_rgs_spectra_files')
         return
     
-    def get_ccf_cif(self):
+    def get_cal_ind(self):
         """
         --Not intended to be used by the end user. Internal use only.--
 
-        Checks for the ccf.cif file. If it exists, inserts file name in 
-        'files' dict.
+        Checks for the calibration index file (ccf.cif). If it exists, 
+        inserts file name in 'files' dict.
         """
-        self.logger.debug('Entering get_ccf_cif')
+        self.logger.debug('Entering get_cal_ind')
 
         # Looking for calibration index file (ccf.cif or CALIND).
         self.files['sas_ccf'] = None
@@ -998,7 +1011,7 @@ class FileMain:
             else:
                 self.logger.info('Neither ccf.cif nor CALIND files found!')
 
-        self.logger.debug('Exiting get_ccf_cif')
+        self.logger.debug('Exiting get_cal_ind')
         return self.files['sas_ccf']
     
     def get_SUM_SAS(self,user_defined_file=None):
@@ -1078,7 +1091,7 @@ class FileMain:
         self.files['ODF'] = self._get_list_of_ODF_files()
         self.files['PPS'] = self._get_list_of_PPS_files()
         self.files['work'] = self._get_list_of_work_files()
-        _ = self.get_ccf_cif()
+        _ = self.get_cal_ind()
         _ = self.get_SUM_SAS()
         self.find_event_list_files(print_output = self.output_to_terminal)
         self.find_rgs_spectra_files(print_output = self.output_to_terminal)
@@ -1796,8 +1809,8 @@ class ObsID(FileMain):
 
             # Looking for ccf.cif file.
             if self.files['sas_ccf'] is None:
-                # get_ccf_cif should set self.files['sas_ccf'] if file is found.
-                _ = self.get_ccf_cif()
+                # get_cal_ind should set self.files['sas_ccf'] if file is found.
+                _ = self.get_cal_ind()
                 # Will only accept locally generated calibration files. No PPS CALIND file accepted.
                 if self.files['sas_ccf'] is not None and 'ccf.cif' in self.files['sas_ccf']: ccf_exists = True
             else:
