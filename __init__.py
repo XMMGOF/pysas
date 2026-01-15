@@ -229,7 +229,7 @@ if sas_initialize:
 from . import sastask
 from . import parser
 from . import param
-from . import error
+# from . import error
 from . import init_sas
 from . import sasutils
 from . import config_pysas
