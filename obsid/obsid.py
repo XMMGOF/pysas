@@ -28,7 +28,7 @@ obsid.py
 """
 
 # Standard library imports
-import os, sys, shutil, glob, numbers, re
+import os, sys, shutil, glob, numbers, re, subprocess
 from pathlib import Path
 
 # Third party imports
@@ -157,26 +157,36 @@ class FileMain:
         if not self.data_dir is None:
             self.logger.info(f'User input data_dir: {self.data_dir}.')
             if not os.path.exists(self.data_dir):
+                # If data_dir given by user does **not** exist
                 self.logger.error(f'Did not find: {self.data_dir}')
-                self.data_dir = None
-                self.logger.info(f'Resetting data_dir to "{self.data_dir}".')
+                self.data_dir = os.getcwd()
+                self.logger.info(f'Resetting data_dir to the current directory: "{self.data_dir}".')
                 self.logger.info(f'Will check config file for default.')
             else:
+                # If data_dir given by user **does** exist
                 data_dir_found = True
                 self.logger.debug(f'data_dir found: {self.data_dir}')
         
         # Check if data_dir is in the config file
         self.logger.debug('Checking for data_dir from config file')
         if not data_dir_found and sas_cfg.config.has_option('sas','data_dir'):
+            # If data_dir is in the config file
             data_dir = sas_cfg.get_setting('data_dir')
             self.logger.debug(f'Trying default data_dir from config file: {data_dir}')
             if os.path.exists(data_dir):
+                # data_dir from config file exists
                 self.data_dir = data_dir
                 self.logger.info(f'Data directory found: {self.data_dir}')
+            else:
+                # data_dir from config file does **not** exist!
+                self.logger.error(f'Did not find data_dir set in the config file: {self.data_dir}')
+                self.data_dir = os.getcwd()
+                self.logger.info(f'Resetting data_dir to the current directory: "{self.data_dir}".')
         else:
-            self.logger.info(f'No data_dir found in config file. Not setting data_dir.')
-            self.logger.info(f'Leaving data_dir as "{self.data_dir}".')
-            self.logger.debug(f'Exiting _set_obsid, no data_dir found')
+            self.logger.info(f'No data_dir found in config file.')
+            self.data_dir = os.getcwd()
+            self.logger.info(f'Resetting data_dir to the current directory: "{self.data_dir}".')
+            self.logger.debug(f'Exiting _set_obsid, no data_dir found.')
             return
             
         # data_dir is set.
@@ -386,7 +396,6 @@ class FileMain:
             
         self.logger.info(f'Data directory: {self.data_dir}')
         self.logger.info(f'ObsID directory: {self.obs_dir}')
-        print(f'Data directory: {self.data_dir}')
         self.files['ODF'] = self._get_list_of_ODF_files()
 
         return
@@ -579,7 +588,6 @@ class FileMain:
             
         self.logger.info(f'Data directory: {self.data_dir}')
         self.logger.info(f'ObsID directory: {self.obs_dir}')
-        print(f'Data directory: {self.data_dir}')
         self.files['PPS'] = self._get_list_of_PPS_files()
 
         return
@@ -665,7 +673,7 @@ class FileMain:
         if os.path.exists(self.obs_dir):
             self.logger.info(f'Existing directory for {self.obsid} found ...')
             self.logger.info(f'Removing existing directory {self.obs_dir} ...')
-            print(f'\n\nRemoving existing directory {self.obs_dir} ...')
+            print(f'\nRemoving existing directory {self.obs_dir} ...')
             shutil.rmtree(self.obs_dir)
 
         self.logger.info(f'Will download ALL data for Obs ID {self.obsid}.')
@@ -683,7 +691,6 @@ class FileMain:
             
         self.logger.info(f'Data directory: {self.data_dir}')
         self.logger.info(f'ObsID directory: {self.obs_dir}')
-        print(f'Data directory: {self.data_dir}')
         self.files['ODF'] = self._get_list_of_ODF_files()
         self.files['PPS'] = self._get_list_of_PPS_files()
 
@@ -1066,9 +1073,8 @@ class FileMain:
         Function to remove all files and subdirectories from the obs_dir.
         """
         if os.path.exists(self.obs_dir):
-            out_note = f'Removing existing directory {self.obs_dir} ...'
-            self.logger.info(out_note)
-            print(f'\n\n{out_note}')
+            self.logger.info(f'Removing existing directory {self.obs_dir} ...')
+            print(f'\nRemoving existing directory {self.obs_dir} ...')
             shutil.rmtree(self.obs_dir)
 
     def clear_work_dir(self):
@@ -1076,9 +1082,8 @@ class FileMain:
         Function to remove all files and subdirectories from the work_dir.
         """
         if os.path.exists(self.work_dir):
-            out_note = f'Removing existing directory {self.work_dir} ...'
-            self.logger.info(out_note)
-            print(f'\n\n{out_note}')
+            self.logger.info(f'Removing existing directory {self.work_dir} ...')
+            print(f'\nRemoving existing directory {self.work_dir} ...')
             shutil.rmtree(self.work_dir)
 
     def resolve_obs_dir(self):
@@ -1339,6 +1344,12 @@ class FileMain:
         file_list = []
         if os.path.exists(self.pps_dir):
             file_list = glob.glob(self.pps_dir+'/*')
+        
+        # Remove 'index.html' from the list if present.
+        try:
+            file_list.remove(os.path.join(self.pps_dir,'index.html'))
+        except ValueError:
+            pass
 
         return file_list
     
@@ -2329,13 +2340,13 @@ class PPSFiles(FileMain):
         download the file.
         """
 
-        summary_filename = self._return_file_list_on_pattern(self._file_patterns['main_summary'])
+        summary_filename = self.return_file_list_on_pattern(self._file_patterns['main_summary'])
 
         if summary_filename is None:
             download_filename = f'P{self.obsid}OBX000SUMMAR0000.HTM'
             self.download_PPS_data(filename=download_filename)
 
-        summary_filename = self._return_file_list_on_pattern(self._file_patterns['main_summary'])[0]
+        summary_filename = self.return_file_list_on_pattern(self._file_patterns['main_summary'])[0]
 
         return summary_filename
     
@@ -2362,7 +2373,7 @@ class PPSFiles(FileMain):
 
         # If the file is not present then the value is set to 'None'
         # Main Summary File
-        summary_file = self._return_file_list_on_pattern(self._file_patterns['main_summary'])
+        summary_file = self.return_file_list_on_pattern(self._file_patterns['main_summary'])
         if summary_file is None:
             self.logger.info('No main summary file found in PPS directory.')
         else:
@@ -2394,7 +2405,7 @@ class PPSFiles(FileMain):
             os.environ['SAS_CCF'] = self.calind_file
 
         # EPIC Event Lists
-        self.EPIC_event_lists = self._return_file_list_on_pattern(self._file_patterns['EPIC_event_lists'])
+        self.EPIC_event_lists = self.return_file_list_on_pattern(self._file_patterns['EPIC_event_lists'])
         if self.EPIC_event_lists is None:
             self.logger.info('No EPIC event lists found in PPS directory.')
         else:
@@ -2403,7 +2414,7 @@ class PPSFiles(FileMain):
                 self.logger.debug(f' >{file}')
 
         # EPIC Images
-        self.EPIC_images = self._return_file_list_on_pattern(self._file_patterns['EPIC_images'])
+        self.EPIC_images = self.return_file_list_on_pattern(self._file_patterns['EPIC_images'])
         if self.EPIC_images is None:
             self.logger.info('No EPIC images (FITS) found in PPS directory.')
         else:
@@ -2412,7 +2423,7 @@ class PPSFiles(FileMain):
                 self.logger.debug(f' >{file}')
 
         # RGS Event Lists
-        self.RGS_event_lists = self._return_file_list_on_pattern(self._file_patterns['RGS_event_lists'])
+        self.RGS_event_lists = self.return_file_list_on_pattern(self._file_patterns['RGS_event_lists'])
         if self.RGS_event_lists is None:
             self.logger.info('No RGS event lists found in PPS directory.')
         else:
@@ -2421,7 +2432,7 @@ class PPSFiles(FileMain):
                 self.logger.debug(f' >{file}')
 
         # RGS Spectra
-        self.RGS_spectra = self._return_file_list_on_pattern(self._file_patterns['RGS_spectra'])
+        self.RGS_spectra = self.return_file_list_on_pattern(self._file_patterns['RGS_spectra'])
         if self.RGS_spectra is None:
             self.logger.info('No RGS spectra (FITS) found in PPS directory.')
         else:
@@ -2534,6 +2545,34 @@ class PPSFiles(FileMain):
         # in the ObsID class. This parses the downloaded files and sets key filenames.
         self.parse_PPS_dir()
     
+    def return_file_list_on_pattern(self, pattern):
+        """
+        Returns a list of PPS filenames based on the 
+        regular expression pattern passed in.
+
+        Input (required):
+            - pattern (str): A string with a regular expression (re) pattern.
+                             The pattern must use proper 're' operators for the
+                             're' python package.
+
+                             See: https://docs.python.org/3/library/re.html
+        """
+
+        self.logger.debug(f'Searching PPS files for pattern: {pattern}')
+
+        self.files['PPS'] = self._get_list_of_PPS_files()
+
+        files = []
+        for filename in self.files['PPS']:
+            if re.search(pattern,filename):
+                files.append(filename)
+
+        # Return 'None' if no files of pattern were found.
+        self.logger.debug(f'Number of files found: {len(files)}')
+        if len(files) < 1: files = None
+        
+        return files
+    
     def _return_list_of_filenames(self,pattern_dict):
         """
         Returns a list of PPS filenames based on a filename pattern dictionary.
@@ -2553,25 +2592,63 @@ class PPSFiles(FileMain):
 
         pattern = f'.*{source}.*{product}.*{format}'
 
-        files = self._return_file_list_on_pattern(pattern)
+        files = self.return_file_list_on_pattern(pattern)
 
         return files
 
-    def _return_file_list_on_pattern(self, pattern):
+    def _get_list_of_all_filenames(self):
         """
-        Returns a list of PPS filenames based on given regular expression pattern.
+        This returns a list of all possible PPS filenames, regardless of
+        whether or not the PPS files have already been downloaded.
         """
 
-        self.logger.debug(f'Searching PPS files for pattern: {pattern}')
+        cwd = os.getcwd()
 
-        files = []
-        for filename in self.files['PPS']:
-            if re.search(pattern,filename):
-                files.append(filename)
+        self.logger.debug(f'CWD: {cwd}')
 
-        # Return 'None' if no files of pattern were found.
-        self.logger.debug(f'Number of files found: {len(files)}')
-        if len(files) < 1: files = None
+        if not hasattr(self, 'obs_dir'):
+            self.obs_dir = os.path.join(self.data_dir,self.obsid)
+
+        if not hasattr(self, 'pps_dir'):
+            self.pps_dir = os.path.join(self.obs_dir,'PPS')
+
+        if not os.path.exists(self.obs_dir):
+            self.logger.info('obs_dir does not exist!')
+            self.logger.info(f'Making obs_dir: {self.obs_dir}')
+            os.mkdir(self.obs_dir)
+
+        if not os.path.exists(self.pps_dir):
+            self.logger.info('pps_dir does not exist!')
+            self.logger.info(f'Making pps_dir: {self.pps_dir}')
+            os.mkdir(self.pps_dir)
+
+        self.logger.debug(f'Changing into the pps_dir: {self.pps_dir}')
+        os.chdir(self.pps_dir)
+
+        if not os.path.exists('index.html'):
+            cmd = f'wget -nH -e robots=off --cut-dirs=6 -np https://heasarc.gsfc.nasa.gov/FTP/xmm/data/rev0/{self.obsid}/PPS/'
+            self.logger.debug(f'Command: {cmd}')
+            result = subprocess.run(cmd, shell=True, capture_output=True)
+            if not os.path.exists(os.path.join(self.pps_dir,'index.html')):
+                self.logger.error('PPS index file not downloaded!')
+                self.logger.debug('Download failed. Exiting _get_list_of_all_filenames.')
+                return
+
+        with open('index.html') as file:
+            lines = file.readlines()
+
+        self.ALL_PPS_FILES = []
+
+        for line in lines:
+            match = re.findall(f'<a href="(P+{self.obsid}.*)">',line)
+            if len(match) == 1:
+                self.ALL_PPS_FILES.append(match[0])
+
+        self.logger.debug(f'Changing back to original dir: {cwd}')
+        os.chdir(cwd)
+
+        self.logger.debug(f'{len(self.ALL_PPS_FILES)} files found.')
+
+        return
         
-        return files
         

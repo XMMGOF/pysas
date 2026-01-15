@@ -152,7 +152,8 @@ def download_data(obsid,
 
     if filename:
         PPS_subset = True
-        PPSfile = filename
+        if isinstance(filename,str):
+            filename = [filename]
 
     repo = repo.lower()
 
@@ -163,87 +164,109 @@ def download_data(obsid,
             logger.info(f'Requesting Obs ID = {obsid} from ESA XMM-Newton Science Archive\n')
             logger.info(f'Changed directory to {obs_dir}')
             os.chdir(obs_dir)
-            if level == 'ALL':
-                level = ['ODF','PPS']
-            else:
-                level = [level]
-            for levl in level:
-                # Download the obsid from ESA, using astroquery
-                logger.info(f'Downloading {obsid}, level {levl} into {obs_dir}')
-                if levl == 'PPS':
-                    # If a filename was provided then convert it into inputs for astroquery.
-                    if filename:
-                        PPS_subset   = True
-                        instname     = filename[11:13]
-                        expflag      = filename[13]
-                        expno        = filename[14:17]
-                        product_type = filename[17:23]
-                        datasubsetno = filename[23]
-                        sourceno     = filename[24:27]
-                        extension    = filename[-3:]
-                    # Take care of the optional inputs.
-                    if instname:     kwargs['instname']     = instname
-                    if expflag:      kwargs['expflag']      = expflag
-                    if expno:        kwargs['expno']        = expno
-                    if product_type: kwargs['name']         = product_type
-                    if datasubsetno: kwargs['datasubsetno'] = datasubsetno
-                    if sourceno:     kwargs['sourceno']     = sourceno
-                    if extension:    kwargs['extension']    = extension
+            # If a filename was provided then convert it into inputs for astroquery.
+            if filename:
+                if not os.path.exists(pps_dir): os.mkdir(pps_dir)
+                logger.info(f'Changed directory to {pps_dir}')
+                os.chdir(pps_dir)
+                for file in filename:
+                    kwargs['instname']     = file[11:13]
+                    kwargs['expflag']      = file[13]
+                    kwargs['expno']        = file[14:17]
+                    kwargs['name']         = file[17:23]
+                    kwargs['datasubsetno'] = file[23]
+                    kwargs['sourceno']     = file[24:27]
+                    kwargs['extension']    = file[-3:]
+                    logger.debug(f'Requesting file: {file}')
+                    if proprietary: logger.debug('Requesting proprietary data.')
+                    XMMNewton.download_data(obsid, level='PPS',
+                                            prop=proprietary,
+                                            credentials_file=credentials_file,
+                                            **kwargs)
+            elif PPS_subset:
+                if not os.path.exists(pps_dir): os.mkdir(pps_dir)
+                logger.info(f'Changed directory to {pps_dir}')
+                os.chdir(pps_dir)
+                # Take care of the optional inputs.
+                if instname:     kwargs['instname']     = instname
+                if expflag:      kwargs['expflag']      = expflag
+                if expno:        kwargs['expno']        = expno
+                if product_type: kwargs['name']         = product_type
+                if datasubsetno: kwargs['datasubsetno'] = datasubsetno
+                if sourceno:     kwargs['sourceno']     = sourceno
+                if extension:    kwargs['extension']    = extension
                 
-                logger.debug(f'Requesting data: Obs ID={obsid}, level={levl}')
+                logger.debug(f'Requesting subset of PPS data.')
+                logger.debug(f'instname     : {instname}')
+                logger.debug(f'expflag      : {expflag}')
+                logger.debug(f'expno        : {expno}')
+                logger.debug(f'product_type : {product_type}')
+                logger.debug(f'datasubsetno : {datasubsetno}')
+                logger.debug(f'sourceno     : {sourceno}')
+                logger.debug(f'extension    : {extension}')
                 if proprietary: logger.debug('Requesting proprietary data.')
-                XMMNewton.download_data(obsid, level=levl,
+                XMMNewton.download_data(obsid, level='PPS',
                                         prop=proprietary,
                                         credentials_file=credentials_file,
                                         **kwargs)
-                
-                if levl == 'ODF':    
-                    os.mkdir(odf_dir)
-
-                if PPS_subset:
-                    logger.debug('PPS subset, moving files into PPS directory.')
-                    if not os.path.exists(pps_dir): os.mkdir(pps_dir)
-                    files = glob.glob(obs_dir+'/*.*')
-                    for file in files:
-                        file_name = os.path.basename(file)
-                        shutil.copy(file, os.path.join(pps_dir,file_name))
+                # if PPS_subset:
+                #     logger.debug('PPS subset, moving files into PPS directory.')
+                #     if not os.path.exists(pps_dir): os.mkdir(pps_dir)
+                #     files = glob.glob(obs_dir+'/*.*')
+                #     for file in files:
+                #         file_name = os.path.basename(file)
+                #         shutil.copy(file, os.path.join(pps_dir,file_name))
+            else:
+                if level == 'ALL':
+                    level = ['ODF','PPS']
                 else:
-                    # Check that the tar.gz file has been downloaded
-                    odftar = glob.glob(obs_dir+f'/{obsid}'+'*')[0]
-                    try:
-                        os.path.exists(odftar)
-                        logger.info(f'{odftar} found.') 
-                    except FileExistsError:
-                        logger.error(f'File {odftar} is not present. Not downloaded?')
-                        sys.exit(1)
+                    level = [level]
+                for levl in level:
+                    # Download the obsid from ESA, using astroquery
+                    logger.info(f'Downloading {obsid}, level {levl} into {obs_dir}')
+                    if proprietary: logger.debug('Requesting proprietary data.')
+                    XMMNewton.download_data(obsid, level=levl,
+                                            prop=proprietary,
+                                            credentials_file=credentials_file,
+                                            **kwargs)
+                    if levl == 'ODF':    
+                        os.mkdir(odf_dir)
+                # Check that the tar.gz file has been downloaded
+                odftar = glob.glob(obs_dir+f'/{obsid}'+'*')[0]
+                try:
+                    os.path.exists(odftar)
+                    logger.info(f'{odftar} found.') 
+                except FileExistsError:
+                    logger.error(f'File {odftar} is not present. Not downloaded?')
+                    sys.exit(1)
 
-                    tarextension = os.path.splitext(odftar)[1]
-                    if tarextension == '.gz': tar_mode = 'r:gz'
-                    elif tarextension == '.tar': tar_mode = 'r'
-                    else:
-                        logger.error(f'File {odftar} extension not recognized.')
-                        raise Exception(f'File {odftar} extension not recognized.')
+                tarextension = os.path.splitext(odftar)[1]
+                if tarextension == '.gz': tar_mode = 'r:gz'
+                elif tarextension == '.tar': tar_mode = 'r'
+                else:
+                    logger.error(f'File {odftar} extension not recognized.')
+                    raise Exception(f'File {odftar} extension not recognized.')
 
-                    # Untars the obsid.tar.gz file
-                    logger.info(f'Unpacking {odftar} ...')
+                # Untars the obsid.tar.gz file
+                logger.info(f'Unpacking {odftar} ...')
 
-                    try:
-                        with tarfile.open(odftar,tar_mode) as tar:
-                            if levl == 'ODF':
-                                tar.extractall(path=odf_dir)
-                            elif levl == 'PPS':
-                                tar.extractall(path=data_dir)
-                                if os.path.exists(pps_dir):
-                                    copytree('pps','PPS')
-                                    shutil.rmtree('pps')
-                                else:
-                                    os.rename('pps','PPS')
-                        os.remove(odftar)
-                        logger.info(f'{odftar} extracted successfully!')
-                        logger.info(f'{odftar} removed')
-                    except tarfile.ExtractError:
-                        logger.error('tar file extraction failed')
-                        raise Exception('tar file extraction failed')
+                try:
+                    with tarfile.open(odftar,tar_mode) as tar:
+                        if levl == 'ODF':
+                            tar.extractall(path=odf_dir)
+                        elif levl == 'PPS':
+                            tar.extractall(path=data_dir)
+                            if os.path.exists(pps_dir):
+                                copytree('pps','PPS')
+                                shutil.rmtree('pps')
+                            else:
+                                os.rename('pps','PPS')
+                    os.remove(odftar)
+                    logger.info(f'{odftar} extracted successfully!')
+                    logger.info(f'{odftar} removed')
+                except tarfile.ExtractError:
+                    logger.error('tar file extraction failed')
+                    raise Exception('tar file extraction failed')
         case 'heasarc' | 'nasa' | 'sciserver' | 'fornax' | 'aws':
             download_location = obs_dir
             on_host = '...'
@@ -316,53 +339,53 @@ def download_data(obsid,
                         # --cut-dirs=6: Removes six levels from the destination directory name, i.e. /FTP/xmm/data/rev0/{obsid}/{level}/
                         # -np: No parent, prevents wget from going up levels to search
                         # --accept-regex 'file pattern': Looks for files matching 'file pattern'
-                        if filename != None:
-                            # Single file, known name
-                            logger.info(f'Downloading {obsid}, level {level}, file {filename}')
-
-                            cmd = f'wget -nH -e robots=off --cut-dirs=6 -np https://heasarc.gsfc.nasa.gov/FTP/xmm/data/rev0/{obsid}/PPS/{filename}'
-
-                            logger.info(f'Using the command:\n{cmd}')
-
-                            result = subprocess.run(cmd, shell=True)
-
+                        if filename:
+                            for file in filename:
+                                # Single file, known name
+                                logger.info(f'Downloading {obsid}, level {level}, file {file}')
+                                cmd = f'wget -nH -e robots=off --cut-dirs=6 -np https://heasarc.gsfc.nasa.gov/FTP/xmm/data/rev0/{obsid}/PPS/{file}'
+                                logger.info(f'Using the command:\n{cmd}')
+                                result = subprocess.run(cmd, shell=True, capture_output=True)
+                                if result.returncode != 0:
+                                    print(f'Problem downloading data!')
+                                    print('Tried using the command:')
+                                    print(cmd)
+                                    logger.error(f'File download failed!')
+                                    raise Exception('File download failed!')
                         else:
                             # One or more files, unknown name(s)
-                            
                             # Replace "*" with ".*"
                             file_pattern = re.sub(r'\*', '.*', file_pattern)
-
                             logger.info(f'Downloading {obsid}, level {level} using file pattern {file_pattern}')
-
                             cmd = f'wget -nH -e robots=off --cut-dirs=6 -np -r --accept-regex "{file_pattern}" https://heasarc.gsfc.nasa.gov/FTP/xmm/data/rev0/{obsid}/PPS/'
-
                             logger.info(f'Using the command:\n{cmd}')
-
-                            result = subprocess.run(cmd, shell=True)
-
-                        if result.returncode != 0:
-                            error_message = """An error was encountered when downloading your data.
-                            There are some known instances where wget returns an error, but all files have actually been downloaded.
-                            Check to make sure all files have been downloaded."""
-                            logger.warning(error_message)
-
-                            #print(f'Problem downloading data!')
-                            #print('Tried using the command:')
-                            #print(cmd)
-                            #logger.error(f'File download failed!')
-                            #raise Exception('File download failed!')
+                            result = subprocess.run(cmd, shell=True, capture_output=True)
+                            if result.returncode != 0:
+                                error_message = """An error was encountered when downloading your data.
+                                There are some known instances where wget returns an error, but all files have actually been downloaded.
+                                Check to make sure all files have been downloaded."""
+                                logger.warning(error_message)
+                                #print(f'Problem downloading data!')
+                                #print('Tried using the command:')
+                                #print(cmd)
+                                #logger.error(f'File download failed!')
+                                #raise Exception('File download failed!')
                     case 'sciserver':
-                        if not os.path.exists(pps_dir): os.mkdir(pps_dir)
                         archive_data = f'/home/idies/workspace/headata/FTP/xmm/data/rev0//{obsid}/PPS'
-                        file_pattern = archive_data + f'/**/{file_pattern}'
-                        logger.debug(f'NEW PPS file name pattern: {file_pattern}')
-                        files = glob.glob(file_pattern, recursive=True)
-                        if len(files) == 0:
-                            logger.warning(f'No files of the pattern {file_pattern} found!')
-                        for file in files:
-                            file_name = os.path.basename(file)
-                            logger.info(f'Copying file {file_name} from {archive_data} ...')
-                            shutil.copy(file, os.path.join(pps_dir,file_name))
+                        if filename:
+                            for file in filename:
+                                archive_file = archive_data + f'/{file}'
+                                shutil.copy(archive_file, os.path.join(pps_dir,file))
+                        else:
+                            file_pattern = archive_data + f'/**/{file_pattern}'
+                            logger.debug(f'NEW PPS file name pattern: {file_pattern}')
+                            archive_files = glob.glob(file_pattern, recursive=True)
+                            if len(archive_files) == 0:
+                                logger.warning(f'No files of the pattern {file_pattern} found!')
+                            for archive_file in archive_files:
+                                file_name = os.path.basename(archive_file)
+                                logger.info(f'Copying file {file_name} from {archive_data} ...')
+                                shutil.copy(archive_file, os.path.join(pps_dir,file_name))
                     #case 'fornax' | 'aws':
                         # current_s3 = S3FileSystem(anon=True)
                         # s3_uri = f's3://nasa-heasarc/xmm/data/rev0/{obsid}/{level}'
@@ -374,9 +397,6 @@ def download_data(obsid,
                         #logger.error(f'Downloading individual PPS files not supported yet {on_host}. You must download all PPS files.')
         case _:
             logger.error(f'Repo {repo} not recognized!')
-
-    
-
         
         # else:
         #     logger.info(f'Copying data from {archive_data} ...')
