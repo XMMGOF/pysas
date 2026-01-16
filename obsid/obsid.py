@@ -770,8 +770,9 @@ class FileMain:
         """
 
         # Change to work directory.
-        os.chdir(self.work_dir)
-        self.logger.debug(f'Changing to work_dir: {self.work_dir}')
+        if os.getcwd() != self.work_dir:
+            os.chdir(self.work_dir)
+            self.logger.debug(f'Changing to work_dir: {self.work_dir}')
         
         if isinstance(ximagesize, numbers.Number):
             ximagesize = str(ximagesize)
@@ -1037,24 +1038,24 @@ class FileMain:
         """
         self.logger.debug('Entering get_SUM_SAS')
 
-        exists = False
-
-        if user_defined_file == None:
-            # Looking for *SUM.SAS file.
-            self.files['sas_odf'] = os.path.join('does','not','exist')
-            self.logger.info(f'Path to *SUM.SAS file not given. Will search for it.')
-            for path, directories, files in os.walk(self.obs_dir):
-                for file in files:
-                    if 'SUM.SAS' in file:
-                        self.logger.info(f'Found *SUM.SAS file in {path}.')
-                        self.files['sas_odf'] = os.path.join(path,file)
-        # Check if *SUM.SAS file exists.
-        if os.path.exists(self.files['sas_odf']):
-            self.logger.info('{0} is present'.format(self.files['sas_odf']))
-            exists = True
+        if user_defined_file is not None:
+            self.logger.info(f'Checking file path given by user: {user_defined_file}')
+            if os.path.exists(user_defined_file):
+                self.files['sas_odf'] = user_defined_file
+                self.logger.info('{0} is present'.format(self.files['sas_odf']))
+            else:
+                self.logger.error('User provided file does not exist!')
+                self.logger.error(f'File provided by user: {user_defined_file}')
+                return False
         else:
-            self.logger.info('sas_odf file not present! User must run calibrate_odf!')
-            return exists
+            self.logger.debug('Searching for *SUM.SAS file.')
+            sum_sas_file = glob.glob(self.obs_dir+'/**/*SUM.SAS', recursive=True)
+            if sum_sas_file:
+                self.files['sas_odf'] = sum_sas_file[0]
+                self.logger.info('{0} is present'.format(self.files['sas_odf']))
+            else:
+                self.logger.info('*SUM.SAS file not found.')
+                return False
         
         # Check that the SUM.SAS file PATH keyword points to a real ODF directory
         with open(self.files['sas_odf']) as inf:
@@ -1065,15 +1066,15 @@ class FileMain:
                     if not os.path.exists(path):
                         self.logger.error(f'Summary file PATH {path} does not exist. Rerun basic_setup with overwrite=True.')
                         print(f'\nSummary file PATH {path} does not exist. \n\n>>>>Rerun basic_setup with overwrite=True.')
-                        exists = False
+                        return False
                     MANIFEST = glob.glob(os.path.join(path, 'MANIFEST*'))
                     if len(MANIFEST) == 0:
                         self.logger.error(f'Missing MANIFEST file in {path}. Missing ODF components? Rerun basic_setup with overwrite=True.')
                         print(f'\nMissing MANIFEST file in {path}. Missing ODF components? \n\n>>>>Rerun basic_setup with overwrite=True.')
-                        exists = False
+                        return False
 
         self.logger.debug('Exiting get_SUM_SAS')
-        return exists
+        return True
     
     def clear_obs_dir(self):
         """
