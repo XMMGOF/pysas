@@ -559,10 +559,6 @@ class FileMain:
             # 'dl_data' will remove the WHOLE obs_dir.
             overwrite = False
 
-        # Set work directory.
-        work_dir_name = sas_cfg.get_setting('work_dir_name')
-        self.work_dir = os.path.join(self.obs_dir,work_dir_name)
-
         if call_download_data:
             self.logger.info(f'Will download PPS data for Obs ID {self.obsid}.')
             # Function for downloading a single pps data set.
@@ -585,6 +581,13 @@ class FileMain:
                     extension    = extension,
                     filename     = filename,
                     **kwargs)
+
+        # Set work directory.
+        work_dir_name = sas_cfg.get_setting('work_dir_name')
+        self.work_dir = os.path.join(self.obs_dir,work_dir_name)
+        if not os.path.exists(self.work_dir):
+            self.logger.debug(f'Creating work_dir: {self.work_dir}')
+            os.mkdir(self.work_dir)
             
         self.logger.info(f'Data directory: {self.data_dir}')
         self.logger.info(f'ObsID directory: {self.obs_dir}')
@@ -765,6 +768,10 @@ class FileMain:
         All standard inputs to 'MyTask' can be passed in as optional
         arguments.
         """
+
+        # Change to work directory.
+        os.chdir(self.work_dir)
+        self.logger.debug(f'Changing to work_dir: {self.work_dir}')
         
         if isinstance(ximagesize, numbers.Number):
             ximagesize = str(ximagesize)
@@ -1085,6 +1092,7 @@ class FileMain:
             self.logger.info(f'Removing existing directory {self.work_dir} ...')
             print(f'\nRemoving existing directory {self.work_dir} ...')
             shutil.rmtree(self.work_dir)
+            os.mkdir(self.work_dir)
 
     def resolve_obs_dir(self):
         """
