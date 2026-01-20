@@ -2338,6 +2338,7 @@ class PPSFiles(FileMain):
         self.EPIC_products = products['EPIC_products']
         self.RGS_products  = products['RGS_products']
         self.Obs_products  = products['Obs_products']
+        self.OM_products   = products['OM_products']
 
         self.parse_PPS_dir()
 

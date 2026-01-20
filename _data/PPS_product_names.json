@@ -551,7 +551,7 @@
             "Description": "CDS logo 3"
         }
     },
-    "OM_filenames": {
+    "OM_products": {
         "IMAGE__FIT": {
             "Format": "FTZ",
             "Product": "IMAGE_",
