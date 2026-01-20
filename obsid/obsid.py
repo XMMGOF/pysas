@@ -2351,7 +2351,7 @@ class PPSFiles(FileMain):
 
         summary_filename = self.return_file_list_on_pattern(self._file_patterns['main_summary'])
 
-        if summary_filename is None:
+        if not summary_filename:
             download_filename = f'P{self.obsid}OBX000SUMMAR0000.HTM'
             self.download_PPS_data(filename=download_filename)
 
@@ -2383,28 +2383,26 @@ class PPSFiles(FileMain):
         # If the file is not present then the value is set to 'None'
         # Main Summary File
         summary_file = self.return_file_list_on_pattern(self._file_patterns['main_summary'])
-        if summary_file is None:
-            self.logger.info('No main summary file found in PPS directory.')
-        else:
+        if summary_file:
             self.summary_file = summary_file[0]
             self.logger.info(f'Observation summary file found.')
             self.logger.debug(f'summary_file: {self.summary_file}')
             self.get_active_instruments()
+        else:
+            self.logger.info('No main summary file found in PPS directory.')
 
         # Attitude File
         attitude_file = self._return_list_of_filenames(self.Obs_products['ATTTSR_FIT'])
-        if attitude_file is None:
-            self.logger.info('No attitude file found in PPS directory.')
-        else:
+        if attitude_file:
             self.attitude_file = attitude_file[0]
             self.logger.info(f'Attitude file found.')
             self.logger.debug(f'attitude_file: {self.attitude_file}')
+        else:
+            self.logger.info('No attitude file found in PPS directory.')
 
         # Calibration Index File (CALIND)
         calind_file = self._return_list_of_filenames(self.Obs_products['CALIND_FIT'])
-        if calind_file is None:
-            self.logger.info('No calibration index (CALIND) file found in PPS directory.')
-        else:
+        if calind_file:
             self.calind_file = calind_file[0]
             self.logger.info(f'Calibration index (CALIND) file found.')
             self.logger.debug(f'calind_file: {self.calind_file}')
@@ -2412,42 +2410,48 @@ class PPSFiles(FileMain):
             self.logger.debug('Setting calind_file to environment variable "SAS_CCF".')
             self.files['sas_ccf'] = self.calind_file
             os.environ['SAS_CCF'] = self.calind_file
+        else:
+            self.logger.info('No calibration index (CALIND) file found in PPS directory.')
 
         # EPIC Event Lists
         self.EPIC_event_lists = self.return_file_list_on_pattern(self._file_patterns['EPIC_event_lists'])
-        if self.EPIC_event_lists is None:
-            self.logger.info('No EPIC event lists found in PPS directory.')
-        else:
+        if self.EPIC_event_lists:
+            self.EPIC_event_lists.sort()
             self.logger.info(f'EPIC event lists found.')
             for file in self.EPIC_event_lists:
                 self.logger.debug(f' >{file}')
+        else:
+            self.logger.info('No EPIC event lists found in PPS directory.')
 
         # EPIC Images
         self.EPIC_images = self.return_file_list_on_pattern(self._file_patterns['EPIC_images'])
-        if self.EPIC_images is None:
-            self.logger.info('No EPIC images (FITS) found in PPS directory.')
-        else:
+        if self.EPIC_images:
+            self.EPIC_images.sort()
             self.logger.info(f'EPIC FITS images found.')
             for file in self.EPIC_images:
                 self.logger.debug(f' >{file}')
+        else:
+            self.logger.info('No EPIC images (FITS) found in PPS directory.')
 
         # RGS Event Lists
         self.RGS_event_lists = self.return_file_list_on_pattern(self._file_patterns['RGS_event_lists'])
-        if self.RGS_event_lists is None:
-            self.logger.info('No RGS event lists found in PPS directory.')
-        else:
+        if self.RGS_event_lists:
+            self.RGS_event_lists.sort()
             self.logger.info(f'RGS event lists found.')
             for file in self.RGS_event_lists:
                 self.logger.debug(f' >{file}')
+        else:
+            self.logger.info('No RGS event lists found in PPS directory.')
 
         # RGS Spectra
         self.RGS_spectra = self.return_file_list_on_pattern(self._file_patterns['RGS_spectra'])
-        if self.RGS_spectra is None:
-            self.logger.info('No RGS spectra (FITS) found in PPS directory.')
-        else:
+        if self.RGS_spectra:
+            self.RGS_spectra.sort()
             self.logger.info(f'RGS spectra found.')
             for file in self.RGS_spectra:
                 self.logger.debug(f' >{file}')
+        else:
+            self.logger.info('No RGS spectra (FITS) found in PPS directory.')
 
         self.logger.debug('Exiting parse_PPS_dir.')
         return
@@ -2578,7 +2582,6 @@ class PPSFiles(FileMain):
 
         # Return 'None' if no files of pattern were found.
         self.logger.debug(f'Number of files found: {len(files)}')
-        if len(files) < 1: files = None
         
         return files
     
@@ -2605,7 +2608,7 @@ class PPSFiles(FileMain):
 
         return files
 
-    def _get_list_of_all_filenames(self):
+    def get_list_of_all_filenames(self):
         """
         This returns a list of all possible PPS filenames, regardless of
         whether or not the PPS files have already been downloaded.
@@ -2640,7 +2643,7 @@ class PPSFiles(FileMain):
             result = subprocess.run(cmd, shell=True, capture_output=True)
             if not os.path.exists(os.path.join(self.pps_dir,'index.html')):
                 self.logger.error('PPS index file not downloaded!')
-                self.logger.debug('Download failed. Exiting _get_list_of_all_filenames.')
+                self.logger.debug('Download failed. Exiting get_list_of_all_filenames.')
                 return
 
         with open('index.html') as file:
@@ -2658,6 +2661,6 @@ class PPSFiles(FileMain):
 
         self.logger.debug(f'{len(self.ALL_PPS_FILES)} files found.')
 
-        return
+        return self.ALL_PPS_FILES
         
         

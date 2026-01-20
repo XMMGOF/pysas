@@ -1,12 +1,12 @@
 {
     "EPIC_products": {
-        "IMAGE_FIT": {
+        "IMAGE__FIT": {
             "Format": "FTZ",
             "Product": "IMAGE_",
             "Source": "(M1|M2|PN)",
             "Description": "EPIC FITS image"
         },
-        "IMAGE_SLEW": {
+        "IMAGE__SLEW": {
             "Format": "FTZ",
             "Product": "IMAGE_",
             "Source": "(PN)",
@@ -18,7 +18,7 @@
             "Source": "(PN)",
             "Description": "Unfiltered slew step FITS image (slew only)"
         },
-        "IMAGE_PNG": {
+        "IMAGE__PNG": {
             "Format": "PNG",
             "Product": "IMAGE_",
             "Source": "(M1|M2|PN)",
@@ -326,13 +326,13 @@
         }
     },
     "RGS_products": {
-        "IMAGE_FIT": {
+        "IMAGE__FIT": {
             "Format": "FTZ",
             "Product": "IMAGE_",
             "Source": "(R1|R2)",
             "Description": "RGS FITS image"
         },
-        "IMAGE_PNG": {
+        "IMAGE__PNG": {
             "Format": "PNG",
             "Product": "IMAGE_",
             "Source": "(R1|R2)",
@@ -440,7 +440,7 @@
             "Source": "(R1|R2)",
             "Description": "RGS FITS event list file"
         },
-        "SRCLI_FIT": {
+        "SRCLI__FIT": {
             "Format": "FTZ",
             "Product": "SRCLI_",
             "Source": "(R1|R2)",
@@ -465,7 +465,7 @@
             "Description": "RGS HTML summary page"
         }
     },
-    "Obs_products": {
+    "Observation_products": {
         "SUMMAR_HTM": {
             "Format": "HTM",
             "Product": "SUMMAR",
@@ -549,6 +549,206 @@
             "Product": "CDSLG3",
             "Source": "OB",
             "Description": "CDS logo 3"
+        }
+    },
+    "OM_filenames": {
+        "IMAGE__FIT": {
+            "Format": "FTZ",
+            "Product": "IMAGE_",
+            "Source": "(OM)",
+            "Description": "OM OSW FITS image"
+        },
+        "FIMAG__FIT": {
+            "Format": "FTZ",
+            "Product": "FIMAG_",
+            "Source": "(OM)",
+            "Description": "OM OSW FITS image (Full Frame)"
+        },
+        "IMAGEF_FIT": {
+            "Format": "FTZ",
+            "Product": "IMAGEF",
+            "Source": "(OM)",
+            "Description": "OM OSW FITS image(FAST mode)"
+        },
+        "GIMAGE_FIT": {
+            "Format": "FTZ",
+            "Product": "GIMAGE",
+            "Source": "(OM)",
+            "Description": "OM OSW FITS grism-aligned image"
+        },
+        "SIMAGE_FIT": {
+            "Format": "FTZ",
+            "Product": "SIMAGE",
+            "Source": "(OM)",
+            "Description": "OM OSW FITS sky image"
+        },
+        "FSIMAG_FIT": {
+            "Format": "FTZ",
+            "Product": "FSIMAG",
+            "Source": "(OM)",
+            "Description": "OM OSW FITS sky image (Full Frame mode)"
+        },
+        "SIMAGF_FIT": {
+            "Format": "FTZ",
+            "Product": "SIMAGF",
+            "Source": "(OM)",
+            "Description": "OM OSW FITS sky image (FAST mode)"
+        },
+        "SIMAGE_PNG": {
+            "Format": "PNG",
+            "Product": "SIMAGE",
+            "Source": "(OM)",
+            "Description": "OM OSW PNG sky image"
+        },
+        "FSIMAG_PNG": {
+            "Format": "PNG",
+            "Product": "FSIMAG",
+            "Source": "(OM)",
+            "Description": "OM OSW PNG sky image (Full Frame mode)"
+        },
+        "SWSREG_ASC": {
+            "Format": "ASC",
+            "Product": "SWSREG",
+            "Source": "(OM)",
+            "Description": "OM OSW ASCII source regions"
+        },
+        "SFSREG_ASC": {
+            "Format": "ASC",
+            "Product": "SFSREG",
+            "Source": "(OM)",
+            "Description": "OM OSW ASCII source regions (FAST mode)"
+        },
+        "RSIMAG_FIT": {
+            "Format": "FTZ",
+            "Product": "RSIMAG",
+            "Source": "(OM)",
+            "Description": "OM Observation FITS sky image (Default)"
+        },
+        "LSIMAG_FIT": {
+            "Format": "FTZ",
+            "Product": "LSIMAG",
+            "Source": "(OM)",
+            "Description": "OM Observation FITS sky image (Full Frame low res)"
+        },
+        "HSIMAG_FIT": {
+            "Format": "FTZ",
+            "Product": "HSIMAG",
+            "Source": "(OM)",
+            "Description": "OM Observation FITS sky image (Full Frame hi res)"
+        },
+        "USIMAG_FIT": {
+            "Format": "FTZ",
+            "Product": "USIMAG",
+            "Source": "(OM)",
+            "Description": "OM Observation FITS sky image (User defined)"
+        },
+        "RSIMAG_PNG": {
+            "Format": "PNG",
+            "Product": "RSIMAG",
+            "Source": "(OM)",
+            "Description": "OM Observation PNG sky image (Default)"
+        },
+        "LSIMAG_PNG": {
+            "Format": "PNG",
+            "Product": "LSIMAG",
+            "Source": "(OM)",
+            "Description": "OM Observation PNG sky image (Full Frame low res)"
+        },
+        "HSIMAG_PNG": {
+            "Format": "PNG",
+            "Product": "HSIMAG",
+            "Source": "(OM)",
+            "Description": "OM Observation PNG sky image (Full Frame hi res)"
+        },
+        "USIMAG_PNG": {
+            "Format": "PNG",
+            "Product": "USIMAG",
+            "Source": "(OM)",
+            "Description": "OM Observation PNG sky image (User defined)"
+        },
+        "TIMESR_FIT": {
+            "Format": "FTZ",
+            "Product": "TIMESR",
+            "Source": "(OM)",
+            "Description": "OM OSW FITS source timeseries"
+        },
+        "TIMESR_PDF": {
+            "Format": "PDF",
+            "Product": "TIMESR",
+            "Source": "(OM)",
+            "Description": "OM OSW PDF source timeseries"
+        },
+        "TSTRTS_FIT": {
+            "Format": "FTZ",
+            "Product": "TSTRTS",
+            "Source": "(OM)",
+            "Description": "OM FITS tracking star timeseries"
+        },
+        "SWSRLI_FIT": {
+            "Format": "FTZ",
+            "Product": "SWSRLI",
+            "Source": "(OM)",
+            "Description": "OM OSW source list file"
+        },
+        "SFSRLI_FIT": {
+            "Format": "FTZ",
+            "Product": "SFSRLI",
+            "Source": "(OM)",
+            "Description": "OM OSW source list file (FAST mode)"
+        },
+        "OBSMLI_FIT": {
+            "Format": "FTZ",
+            "Product": "OBSMLI",
+            "Source": "(OM)",
+            "Description": "OM observation source list file"
+        },
+        "SGSRLI_FIT": {
+            "Format": "FTZ",
+            "Product": "SGSRLI",
+            "Source": "(OM)",
+            "Description": "OM grism OSW FITS source list file"
+        },
+        "SPECLI_FIT": {
+            "Format": "FTZ",
+            "Product": "SPECLI",
+            "Source": "(OM)",
+            "Description": "OM grism OSW FITS spectra list file"
+        },
+        "SGSREG_ASC": {
+            "Format": "ASC",
+            "Product": "SGSREG",
+            "Source": "(OM)",
+            "Description": "OM grism OSW ASCII region"
+        },
+        "SPCREG_ASC": {
+            "Format": "ASC",
+            "Product": "SPCREG",
+            "Source": "(OM)",
+            "Description": "OM grism OSW ASCII spectra region"
+        },
+        "SPECTR_FIT": {
+            "Format": "FTZ",
+            "Product": "SPECTR",
+            "Source": "(OM)",
+            "Description": "OM grism FITS spectrum"
+        },
+        "SPECTR_PDF": {
+            "Format": "PDF",
+            "Product": "SPECTR",
+            "Source": "(OM)",
+            "Description": "OM grism PDF spectrum plot"
+        },
+        "TSHPLT_PDF": {
+            "Format": "PDF",
+            "Product": "TSHPLT",
+            "Source": "(OM)",
+            "Description": "OM tracking history plot"
+        },
+        "SUMMAR_HTM": {
+            "Format": "HTM",
+            "Product": "SUMMAR",
+            "Source": "(OM)",
+            "Description": "OM products HTML summary page"
         }
     }
 }
