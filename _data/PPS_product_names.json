@@ -465,7 +465,7 @@
             "Description": "RGS HTML summary page"
         }
     },
-    "Observation_products": {
+    "Obs_products": {
         "SUMMAR_HTM": {
             "Format": "HTM",
             "Product": "SUMMAR",
