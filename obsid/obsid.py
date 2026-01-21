@@ -2342,7 +2342,46 @@ class PPSFiles(FileMain):
 
         self.parse_PPS_dir()
 
-    def get_main_summary_filename():
+    def run_cifbuild(self):
+        """
+        Runs 'cifbuild' for this Obs ID. Must have --at least one-- 
+        PPS FITS file in the PPS directory.
+        """
+        self.logger.debug('Entering run_cifbuild.')
+
+        obs_date = None
+
+        # Finds a FITS file and looks for 'DATE-OBS' in the header
+        for file in self.files['PPS']:
+            _, ext = os.path.splitext(file)
+            if ext == '.FTZ' or ext == '.FIT':
+                header = fits.getheader(file)
+                if 'DATE-OBS' in header:
+                    obs_date = header['DATE-OBS']
+                    self.logger.debug(f'Obs Date found: {obs_date}')
+                    break
+        
+        # Failsafe. Downloads Obs ID summary file.
+        if obs_date is None:
+            self.logger.debug('Obs Date not found. Looking in Obs ID summary file.')
+            summary_file = self.get_main_summary_filename()
+            with open(summary_file, "r", encoding="utf-8") as file:
+                html_content = file.readlines()
+            for line in html_content:
+                if re.search('<tr><td class="string">Start time</td><td class="string">:</td><td class="string">.*</td></tr>',line):
+                    obs_date = re.findall('<tr><td class="string">Start time</td><td class="string">:</td><td class="string">(.*)</td></tr>',line)
+                    obs_date = obs_date[0]
+                    self.logger.debug(f'Obs Date found: {obs_date}')
+
+        self.logger.debug('Running cifbuild.')
+        MyTask('cifbuild',{'observationdate' : obs_date}).run()
+
+        _ = self.get_cal_ind()
+
+        os.environ['SAS_CCF'] = self.files['sas_ccf']
+        self.logger.info('SAS_CCF = {0}'.format(self.files['sas_ccf']))
+
+    def get_main_summary_filename(self):
         """
         Returns the filename of the main summary (HTML) file.
 
