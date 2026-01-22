@@ -72,6 +72,81 @@ class FileMain:
                               will be output to the terminal.
         - output_to_file: If True, then logger information will
                           be written to a log file.
+
+    Available Methods:
+
+        - download_ODF_data: Download ODFs for a single Obs ID.
+
+        - download_ALL_data: Download both ODFs and PPS files 
+                             for a sinlge Obs ID.
+
+        - run_MyTask: Acts as a wrapper around 'MyTask'. Allows 
+                      calling SAS tasks using the same input values
+                      set by making an ObsID object.
+
+        - quick_eplot: Takes an event list in FITS format and 
+                       creates a FITS image file and plots it.
+
+        - quick_implot: Takes a FITS image file and plots it.
+
+        - quick_lcplot: Takes an event list and creates a light 
+                        curve and plots it.
+
+        - find_event_list_files: Searches  obs_dir for event lists 
+                        created by the procs or chains.
+
+        - find_rgs_spectra_files: Searches obs_dir for RGS spectra.
+
+        - get_cal_ind: Searches obs_dir for the calibration index 
+                        file (ccf.cif or *CALIND*).
+
+        - get_SUM_SAS: Searches obs_dir for the *SUM.SAS file.
+
+        - clear_obs_dir: Deletes the obs_dir. Creates a new 
+                         empty obs_dir.
+
+        - clear_work_dir: Deletes all files from the work_dir.
+
+        - resolve_obs_dir: Parses the obs_dir for different file
+                           types. Links the filenames.
+
+        - get_active_instruments: Searchs the *SUM.SAS or Obs summary
+                        files for which instruments were active.
+
+    Private Methods:
+
+        - _set_obsid: Initializes the obs_dir and sets environment 
+                      variables.
+
+        - _download_PPS_data: Downloads PPS files.
+
+        - _reset_logger: Resets the logger object.
+
+        - _parse_obs_dir: Parses obs_dir for what files exist.
+
+        - _set_data_dir: Detects the data_dir from input or config
+                         file.
+
+        - _check_for_ccf_cif: Checks for the existence of a ccf.cif
+                         file.
+
+        - _check_for_SUM_SAS: Checks for the existence of a *SUM.SAS
+                         file.
+
+        - _check_for_manifest: Checks for the existence of the 
+                         manifest file.
+
+        - _get_list_of_ODF_files: Returns list of files in odf_dir.
+
+        - _get_list_of_PPS_files: Returns list of files in pps_dir.
+
+        - _get_list_of_work_files: Returns list of files in work_dir.
+
+        - _inisas: Can be used to initialize SAS.
+
+        - _sas_talk: Can be used to set SAS environment variables.
+
+        - _remove_attr: Removes and attribute from the object.
     """
     def __init__(self, obsid, 
                  data_dir    = None,
@@ -1427,6 +1502,53 @@ class ObsID(FileMain):
                               will be output to the terminal.
         - output_to_file: If True, then logger information will
                           be written to a log file.
+
+    Available Methods:
+
+        - basic_setup: Runs cifbuild, odfingest, and the procs or
+                       the chains.
+
+        - calibrate_odf: Runs cifbuild and odfingest.
+
+        - download_ODF_data: Download ODFs for a single Obs ID.
+
+        - download_PPS_data: Downloads PPS files.
+
+        - download_ALL_data: Download both ODFs and PPS files 
+                             for a sinlge Obs ID.
+
+        - run_MyTask: Acts as a wrapper around 'MyTask'. Allows 
+                      calling SAS tasks using the same input values
+                      set by making an ObsID object.
+
+        - quick_eplot: Takes an event list in FITS format and 
+                       creates a FITS image file and plots it.
+
+        - quick_implot: Takes a FITS image file and plots it.
+
+        - quick_lcplot: Takes an event list and creates a light 
+                        curve and plots it.
+
+        - find_event_list_files: Searches  obs_dir for event lists 
+                        created by the procs or chains.
+
+        - find_rgs_spectra_files: Searches obs_dir for RGS spectra.
+
+        - get_cal_ind: Searches obs_dir for the calibration index 
+                        file (ccf.cif or *CALIND*).
+
+        - get_SUM_SAS: Searches obs_dir for the *SUM.SAS file.
+
+        - clear_obs_dir: Deletes the obs_dir. Creates a new 
+                         empty obs_dir.
+
+        - clear_work_dir: Deletes all files from the work_dir.
+
+        - resolve_obs_dir: Parses the obs_dir for different file
+                           types. Links the filenames.
+
+        - get_active_instruments: Searchs the *SUM.SAS or Obs summary
+                        files for which instruments were active.
     """
     def __init__(self, obsid, 
                  data_dir    = None,
@@ -2302,6 +2424,66 @@ class PPSFiles(FileMain):
                               will be output to the terminal.
         - output_to_file: If True, then logger information will
                           be written to a log file.
+
+    Available Methods:
+
+        - parse_PPS_dir: Parses the PPS file directory and links 
+                         major files.
+
+        - download_PPS_data: Downloads PPS data. Runs parse_PPS_dir
+                         afterwards.
+
+        - return_file_list_on_pattern: Returns a list of PPS files
+                         matching a regular expression pattern.
+
+        - run_cifbuild : Runs cifbuild to update the calibration 
+                         index file.
+
+        - get_main_summary_filename: Gets the filename of the main
+                         summary file. Downloads the file if not 
+                         present.
+
+        - get_list_of_all_filenames: Returns a list of all PPS 
+                         filenames, even if none have been
+                         downloaded.
+
+        - download_ODF_data: Download ODFs for a single Obs ID.
+
+        - download_ALL_data: Download both ODFs and PPS files 
+                             for a sinlge Obs ID.
+
+        - run_MyTask: Acts as a wrapper around 'MyTask'. Allows 
+                      calling SAS tasks using the same input values
+                      set by making an ObsID object.
+
+        - quick_eplot: Takes an event list in FITS format and 
+                       creates a FITS image file and plots it.
+
+        - quick_implot: Takes a FITS image file and plots it.
+
+        - quick_lcplot: Takes an event list and creates a light 
+                        curve and plots it.
+
+        - find_event_list_files: Searches  obs_dir for event lists 
+                        created by the procs or chains.
+
+        - find_rgs_spectra_files: Searches obs_dir for RGS spectra.
+
+        - get_cal_ind: Searches obs_dir for the calibration index 
+                        file (ccf.cif or *CALIND*).
+
+        - get_SUM_SAS: Searches obs_dir for the *SUM.SAS file.
+
+        - clear_obs_dir: Deletes the obs_dir. Creates a new 
+                         empty obs_dir.
+
+        - clear_work_dir: Deletes all files from the work_dir.
+
+        - resolve_obs_dir: Parses the obs_dir for different file
+                           types. Links the filenames.
+
+        - get_active_instruments: Searchs the *SUM.SAS or Obs summary
+                        files for which instruments were active.
     """
 
     def __init__(self, obsid, 
@@ -2342,63 +2524,6 @@ class PPSFiles(FileMain):
 
         self.parse_PPS_dir()
 
-    def run_cifbuild(self):
-        """
-        Runs 'cifbuild' for this Obs ID. Must have --at least one-- 
-        PPS FITS file in the PPS directory.
-        """
-        self.logger.debug('Entering run_cifbuild.')
-
-        obs_date = None
-
-        # Finds a FITS file and looks for 'DATE-OBS' in the header
-        for file in self.files['PPS']:
-            _, ext = os.path.splitext(file)
-            if ext == '.FTZ' or ext == '.FIT':
-                header = fits.getheader(file)
-                if 'DATE-OBS' in header:
-                    obs_date = header['DATE-OBS']
-                    self.logger.debug(f'Obs Date found: {obs_date}')
-                    break
-        
-        # Failsafe. Downloads Obs ID summary file.
-        if obs_date is None:
-            self.logger.debug('Obs Date not found. Looking in Obs ID summary file.')
-            summary_file = self.get_main_summary_filename()
-            with open(summary_file, "r", encoding="utf-8") as file:
-                html_content = file.readlines()
-            for line in html_content:
-                if re.search('<tr><td class="string">Start time</td><td class="string">:</td><td class="string">.*</td></tr>',line):
-                    obs_date = re.findall('<tr><td class="string">Start time</td><td class="string">:</td><td class="string">(.*)</td></tr>',line)
-                    obs_date = obs_date[0]
-                    self.logger.debug(f'Obs Date found: {obs_date}')
-
-        self.logger.debug('Running cifbuild.')
-        MyTask('cifbuild',{'observationdate' : obs_date}).run()
-
-        _ = self.get_cal_ind()
-
-        os.environ['SAS_CCF'] = self.files['sas_ccf']
-        self.logger.info('SAS_CCF = {0}'.format(self.files['sas_ccf']))
-
-    def get_main_summary_filename(self):
-        """
-        Returns the filename of the main summary (HTML) file.
-
-        Checks if it has been downloaded, and if not it will 
-        download the file.
-        """
-
-        summary_filename = self.return_file_list_on_pattern(self._file_patterns['main_summary'])
-
-        if not summary_filename:
-            download_filename = f'P{self.obsid}OBX000SUMMAR0000.HTM'
-            self.download_PPS_data(filename=download_filename)
-
-        summary_filename = self.return_file_list_on_pattern(self._file_patterns['main_summary'])[0]
-
-        return summary_filename
-    
     def parse_PPS_dir(self):
         """
         Parses the PPS directory and sets standard filenames.
@@ -2598,25 +2723,30 @@ class PPSFiles(FileMain):
         # in the ObsID class. This parses the downloaded files and sets key filenames.
         self.parse_PPS_dir()
     
-    def return_file_list_on_pattern(self, pattern):
+    def return_file_list_on_pattern(self, pattern, list_of_files=None):
         """
         Returns a list of PPS filenames based on the 
         regular expression pattern passed in.
 
-        Input (required):
+        Required Input:
             - pattern (str): A string with a regular expression (re) pattern.
                              The pattern must use proper 're' operators for the
                              're' python package.
 
                              See: https://docs.python.org/3/library/re.html
+        
+        Optional Input:
+            - list_of_files: A list of filenames to search. If not given, then 
+                             will use self.files['PPS'].
         """
 
         self.logger.debug(f'Searching PPS files for pattern: {pattern}')
 
-        self.files['PPS'] = self._get_list_of_PPS_files()
+        if list_of_files is None:
+            list_of_files = self._get_list_of_PPS_files()
 
         files = []
-        for filename in self.files['PPS']:
+        for filename in list_of_files:
             if re.search(pattern,filename):
                 files.append(filename)
 
@@ -2624,6 +2754,63 @@ class PPSFiles(FileMain):
         self.logger.debug(f'Number of files found: {len(files)}')
         
         return files
+    
+    def run_cifbuild(self):
+        """
+        Runs 'cifbuild' for this Obs ID. Must have --at least one-- 
+        PPS FITS file in the PPS directory.
+        """
+        self.logger.debug('Entering run_cifbuild.')
+
+        obs_date = None
+
+        # Finds a FITS file and looks for 'DATE-OBS' in the header
+        for file in self.files['PPS']:
+            _, ext = os.path.splitext(file)
+            if ext == '.FTZ' or ext == '.FIT':
+                header = fits.getheader(file)
+                if 'DATE-OBS' in header:
+                    obs_date = header['DATE-OBS']
+                    self.logger.debug(f'Obs Date found: {obs_date}')
+                    break
+        
+        # Failsafe. Downloads Obs ID summary file.
+        if obs_date is None:
+            self.logger.debug('Obs Date not found. Looking in Obs ID summary file.')
+            summary_file = self.get_main_summary_filename()
+            with open(summary_file, "r", encoding="utf-8") as file:
+                html_content = file.readlines()
+            for line in html_content:
+                if re.search('<tr><td class="string">Start time</td><td class="string">:</td><td class="string">.*</td></tr>',line):
+                    obs_date = re.findall('<tr><td class="string">Start time</td><td class="string">:</td><td class="string">(.*)</td></tr>',line)
+                    obs_date = obs_date[0]
+                    self.logger.debug(f'Obs Date found: {obs_date}')
+
+        self.logger.debug('Running cifbuild.')
+        MyTask('cifbuild',{'observationdate' : obs_date}).run()
+
+        _ = self.get_cal_ind()
+
+        os.environ['SAS_CCF'] = self.files['sas_ccf']
+        self.logger.info('SAS_CCF = {0}'.format(self.files['sas_ccf']))
+
+    def get_main_summary_filename(self):
+        """
+        Returns the filename of the main summary (HTML) file.
+
+        Checks if it has been downloaded, and if not it will 
+        download the file.
+        """
+
+        summary_filename = self.return_file_list_on_pattern(self._file_patterns['main_summary'])
+
+        if not summary_filename:
+            download_filename = f'P{self.obsid}OBX000SUMMAR0000.HTM'
+            self.download_PPS_data(filename=download_filename)
+
+        summary_filename = self.return_file_list_on_pattern(self._file_patterns['main_summary'])[0]
+
+        return summary_filename
     
     def _return_list_of_filenames(self,pattern_dict):
         """
