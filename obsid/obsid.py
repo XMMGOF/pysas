@@ -936,6 +936,8 @@ class FileMain:
     def quick_lcplot(self,fits_event_list_file,
                      light_curve_file = 'light_curve.fits',
                      timebinsize      = '100',
+                     tstart = None,
+                     tend   = None,
                      **kwargs):
         """
         Quick plot function to generate a light curve. As input takes an 
@@ -968,12 +970,14 @@ class FileMain:
         with fits.open(fits_event_list_file) as hdu:
             instrument = hdu[0].header['INSTRUME']
         
-        qlcp(light_curve_file,
-             title = kwargs.get('title', f'{instrument} Light Curve'),
-             save_file = kwargs.get('save_file', False),
-             out_fname = kwargs.get('out_fname', 'light_curve.png'))
+        ax = qlcp(light_curve_file,
+                  tstart = tstart,
+                  tend   = tend,
+                  title  = kwargs.get('title', f'{instrument} Light Curve'),
+                  save_file = kwargs.get('save_file', False),
+                  out_fname = kwargs.get('out_fname', 'light_curve.png'))
 
-        return
+        return ax
         
     def find_event_list_files(self,print_output=True):
 

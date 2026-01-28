@@ -134,7 +134,9 @@ def quick_image_plot(image_file,
     return ax
 
 def quick_light_curve_plot(light_curve_file,
-                           title = None,
+                           tstart = None,
+                           tend   = None,
+                           title  = None,
                            save_file = False,
                            out_fname = 'light_curve.png'):
     """
@@ -144,7 +146,11 @@ def quick_light_curve_plot(light_curve_file,
     plt.plot(ts['TIME'],ts['RATE'])
     plt.xlabel('Time (s)')
     plt.ylabel('Count Rate (ct/s)')
-    if not title is None:
+    if tstart is not None:
+        plt.xlim(left=tstart)
+    if tend is not None:
+        plt.xlim(right=tend)
+    if title is not None:
         plt.title(title)
     plt.show()
     if save_file:
