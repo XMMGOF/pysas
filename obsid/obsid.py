@@ -2538,6 +2538,7 @@ class PPSFiles(FileMain):
         self.calind_file      = None
         self.EPIC_event_lists = None
         self.EPIC_images      = None
+        self.EPIC_source_list = None
         self.RGS_event_lists  = None
         self.RGS_spectra      = None
 
@@ -2601,6 +2602,16 @@ class PPSFiles(FileMain):
                 self.logger.debug(f' >{file}')
         else:
             self.logger.info('No EPIC images (FITS) found in PPS directory.')
+
+        # EPIC Source List
+        self.EPIC_source_list = self._return_list_of_filenames(self.EPIC_products['OBSMLI_FIT'])
+        if self.EPIC_source_list:
+            self.EPIC_source_list.sort()
+            self.logger.info(f'EPIC source list found.')
+            for file in self.EPIC_source_list:
+                self.logger.debug(f' >{file}')
+        else:
+            self.logger.info('No EPIC source list found in PPS directory.')
 
         # RGS Event Lists
         self.RGS_event_lists = self.return_file_list_on_pattern(self._file_patterns['RGS_event_lists'])
@@ -2816,7 +2827,7 @@ class PPSFiles(FileMain):
 
         return summary_filename
     
-    def _return_list_of_filenames(self,pattern_dict):
+    def _return_list_of_filenames(self,pattern_dict, list_of_files=None):
         """
         Returns a list of PPS filenames based on a filename pattern dictionary.
 
@@ -2835,7 +2846,7 @@ class PPSFiles(FileMain):
 
         pattern = f'.*{source}.*{product}.*{format}'
 
-        files = self.return_file_list_on_pattern(pattern)
+        files = self.return_file_list_on_pattern(pattern, list_of_files=list_of_files)
 
         return files
 
