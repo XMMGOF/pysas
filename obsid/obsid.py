@@ -1164,6 +1164,8 @@ class FileMain:
             print(f'\nRemoving existing directory {self.obs_dir} ...')
             shutil.rmtree(self.obs_dir)
 
+        return
+
     def clear_work_dir(self):
         """
         Function to remove all files and subdirectories from the work_dir.
@@ -1173,6 +1175,25 @@ class FileMain:
             print(f'\nRemoving existing directory {self.work_dir} ...')
             shutil.rmtree(self.work_dir)
             os.mkdir(self.work_dir)
+
+        return
+
+    def make_work_dir(self):
+        """
+        Function to make a work directory in the obs_dir.
+
+        Will also make the obs_dir if it doesn't exist.
+        """
+
+        if not os.path.exists(self.obs_dir):
+            self.logger.info(f'Creating {self.obs_dir} ...')
+            os.mkdir(self.obs_dir)
+
+        if not os.path.exists(self.work_dir):
+            self.logger.info(f'Creating {self.work_dir} ...')
+            os.mkdir(self.work_dir)
+        
+        return
 
     def resolve_obs_dir(self):
         """
