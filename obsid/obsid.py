@@ -107,6 +107,8 @@ class FileMain:
 
         - clear_work_dir: Deletes all files from the work_dir.
 
+        - make_work_dir: Creates both the obs_dir and work_dir.
+
         - resolve_obs_dir: Parses the obs_dir for different file
                            types. Links the filenames.
 
@@ -190,9 +192,10 @@ class FileMain:
         else:
             # User defined directory
             if not os.path.exists(tasklogdir):
-                print(f'Warning: User defined tasklogdir, {tasklogdir} does not exist!')
+                if self.output_to_terminal:
+                    print(f'Warning: User defined tasklogdir, {tasklogdir} does not exist!')
+                    print(f'Resetting tasklogdir to the current directory!')
                 tasklogdir = None
-                print(f'Resetting tasklogdir to the current directory!')
             self.tasklogdir = tasklogdir
         
         # Create logger
@@ -435,15 +438,14 @@ class FileMain:
             if overwrite:
                 # If obs_dir exists and overwrite = True then remove obs_dir.
                 self.logger.info(f'Removing existing directory {self.obs_dir} ...')
-                print(f'\nRemoving existing directory {self.obs_dir} ...')
                 shutil.rmtree(self.obs_dir)
             else:
                 # Check for files
                 what_exists = self._parse_obs_dir()
                 if what_exists['odf_dir'] and what_exists['ODF_files'] and what_exists['manifest']:
-                    self.logger.info(f'Existing ODF directory {self.odf_dir} found ...')
+                    self.logger.debug(f'Existing ODF directory {self.odf_dir} found ...')
+                    self.logger.info(f'Data found in {self.odf_dir} not downloading again.')
                     call_download_data = False
-                    print(f'Data found in {self.odf_dir} not downloading again.')
                 else:
                     if not what_exists['odf_dir']:
                         self.logger.info(f'Existing ODF directory missing. Will download data.')
@@ -595,32 +597,71 @@ class FileMain:
             self.repo = repo
             self.logger.debug(f'repo set to: {self.repo}')
 
+        if instname or \
+           expflag or \
+           expno or \
+           product_type or \
+           datasubsetno or \
+           sourceno or \
+           extension:
+           PPS_subset = True
+
+        if filename:
+            # Temporarily setting PPS_subset to False
+            self.logger.debug('filename passed in. Setting PPS_subset = False')
+            PPS_subset = False
+            if isinstance(filename,str):
+                self.logger.debug('Converting filename string to list.')
+                filename = [filename]
+
         # Checks if pps_dir exists. Will ONLY check for PPS directory.
         # Removes it if overwrite = True. Default overwrite = False.
         call_download_data = True
         if os.path.exists(self.pps_dir):
+            self.logger.debug(f'Changing into pps_dir.')
+            os.chdir(self.pps_dir)
             self.logger.info(f'Existing directory for PPS files for Obs ID {self.obsid} found ...')
-            if overwrite:
-                # If obs_dir exists and overwrite = True then remove obs_dir.
-                self.logger.info(f'Removing existing PPS directory {self.pps_dir} ...')
-                print(f'\nRemoving existing PPS directory {self.pps_dir} ...')
-                shutil.rmtree(self.pps_dir)
-                self.logger.debug('Resetting: overwrite = False')
-                # Because 'overwrite' is passed into 'dl_data', and 'overwrite' in
-                # 'dl_data' will remove the WHOLE obs_dir.
-                overwrite = False
+            self.files['PPS'] = self._get_list_of_PPS_files()
+            # Handle things differently if PPS_subset or filename for download
+            if filename:
+                # If filename is passed in only download if overwrite=True or if files are not there
+                if overwrite:
+                    for file in filename:
+                        if os.path.exists(file):
+                            self.logger.debug(f'Removing {file}')
+                            os.remove(file)
+                    self.logger.info(f'Downloading filenames from list. Will silently overwrite any pre-existing files.')
+                else:
+                    file_remove = []
+                    for file in filename:
+                        if os.path.abspath(file) in self.files['PPS']:
+                            # File is already there, remove it from the list
+                            self.logger.debug(f'{file} already present.')
+                            file_remove.append(file)
+                    for file in file_remove:
+                        filename.remove(file)
+                    if len(filename) == 0:
+                        # All files requested are present! No need to download anything
+                        self.logger.debug('All files requested are already present. Not downloading again.')
+                        call_download_data = False
+                    else:
+                        self.logger.debug('Requested files not found. Will download.')
+            elif PPS_subset:
+                # If PPS_subset then download files no matter what
+                self.logger.info(f'Downloading subset of PPS data. Will silently overwrite any pre-existing files.')
             else:
-                # Check for files
-                what_exists = self._parse_obs_dir()
-                if what_exists['pps_dir'] and what_exists['PPS_files']:
-                    self.logger.info(f'Existing PPS directory {self.pps_dir} found ...')
-                    call_download_data = False
-                if (filename or PPS_subset):
-                    self.logger.info(f'Downloading subset of PPS data. Will silently overwrite any pre-existing files.')
-                    call_download_data = True
-                if not call_download_data:
-                    self.logger.info(f'Data found in {self.obs_dir} not downloading again.')
-                    print(f'Data found in {self.obs_dir} not downloading again.')
+                # If downloading ALL PPS files
+                if overwrite:
+                    # If obs_dir exists and overwrite = True then remove pps_dir.
+                    self.logger.debug(f'Changing into obs_dir.')
+                    os.chdir(self.obs_dir)
+                    self.logger.info(f'Removing existing PPS directory {self.pps_dir} ...')
+                    shutil.rmtree(self.pps_dir)
+                else:
+                    # Check for files
+                    if len(self.files['PPS']) > 0:
+                        self.logger.info(f'Data found in {self.pps_dir} not downloading again.')
+                        call_download_data = False
         else:
             # PPS directory does not exist
             # First check if obs_dir exists, if not create it.
@@ -630,9 +671,11 @@ class FileMain:
             # Create pps_dir
             os.mkdir(self.pps_dir)
             self.logger.debug('Resetting: overwrite = False')
-            # Because 'overwrite' is passed into 'dl_data', and 'overwrite' in
-            # 'dl_data' will remove the WHOLE obs_dir.
-            overwrite = False
+
+        # No matter what, reset overwrite = False 
+        # Because 'overwrite' is passed into 'dl_data', and 'overwrite' in
+        # 'dl_data' will remove the WHOLE obs_dir.
+        overwrite = False
 
         if call_download_data:
             self.logger.info(f'Will download PPS data for Obs ID {self.obsid}.')
@@ -749,9 +792,8 @@ class FileMain:
         # Checks if obs_dir exists and removes it.
 
         if os.path.exists(self.obs_dir):
-            self.logger.info(f'Existing directory for {self.obsid} found ...')
+            self.logger.debug(f'Existing directory for {self.obsid} found ...')
             self.logger.info(f'Removing existing directory {self.obs_dir} ...')
-            print(f'\nRemoving existing directory {self.obs_dir} ...')
             shutil.rmtree(self.obs_dir)
 
         self.logger.info(f'Will download ALL data for Obs ID {self.obsid}.')
@@ -1162,8 +1204,6 @@ class FileMain:
         if os.path.exists(self.obs_dir):
             os.chdir(self.data_dir)
             self.logger.info(f'Removing existing directory {self.obs_dir} ...')
-            if self.output_to_terminal:
-                print(f'\nRemoving existing directory {self.obs_dir} ...')
             shutil.rmtree(self.obs_dir)
 
         return
@@ -1174,8 +1214,6 @@ class FileMain:
         """
         if os.path.exists(self.work_dir):
             self.logger.info(f'Removing existing directory {self.work_dir} ...')
-            if self.output_to_terminal:
-                print(f'\nRemoving existing directory {self.work_dir} ...')
             shutil.rmtree(self.work_dir)
             os.mkdir(self.work_dir)
 
@@ -1202,8 +1240,6 @@ class FileMain:
         """
         Finds files in the obs_dir and stores paths and file names in self.files.
         """
-
-        #what_exists = self._parse_obs_dir()
 
         self.files['ODF'] = self._get_list_of_ODF_files()
         self.files['PPS'] = self._get_list_of_PPS_files()
@@ -1329,6 +1365,10 @@ class FileMain:
         exists['ccfcif'] = self._check_for_ccf_cif()
         exists['SUMSAS'] = self._check_for_SUM_SAS()
         exists['manifest'] = self._check_for_manifest()
+
+        self.files['ODF'] = self._get_list_of_ODF_files()
+        self.files['PPS'] = self._get_list_of_PPS_files()
+        self.files['work'] = self._get_list_of_work_files()
 
         return exists
     
@@ -1571,6 +1611,8 @@ class ObsID(FileMain):
                          empty obs_dir.
 
         - clear_work_dir: Deletes all files from the work_dir.
+
+        - make_work_dir: Creates both the obs_dir and work_dir.
 
         - resolve_obs_dir: Parses the obs_dir for different file
                            types. Links the filenames.
@@ -2354,7 +2396,7 @@ class ObsID(FileMain):
         # Now we start preparing the SAS_ODF and SAS_CCF
         self.logger.info(f'Setting SAS_ODF = {self.odf_dir}')
         if self.output_to_terminal:
-            print(f'\nSetting SAS_ODF = {self.odf_dir}')
+            print(f'Setting SAS_ODF = {self.odf_dir}')
         os.environ['SAS_ODF'] = self.odf_dir
 
         # Change to working directory
@@ -2364,7 +2406,7 @@ class ObsID(FileMain):
         # Run cifbuild
         self.logger.info(f'Running cifbuild with inputs: {cifbuild_opts} ...')
         if self.output_to_terminal:
-            print(f'\nRunning cifbuild with inputs: {cifbuild_opts} ...')
+            print(f'Running cifbuild with inputs: {cifbuild_opts} ...')
         MyTask('cifbuild',cifbuild_opts,
                logfilename = self.logfilename, 
                tasklogdir  = self.work_dir,
@@ -2385,14 +2427,14 @@ class ObsID(FileMain):
         fullccfcif = os.path.join(self.work_dir, 'ccf.cif')
         self.logger.info(f'Setting SAS_CCF = {fullccfcif}')
         if self.output_to_terminal:
-            print(f'\nSetting SAS_CCF = {fullccfcif}')
+            print(f'Setting SAS_CCF = {fullccfcif}')
         os.environ['SAS_CCF'] = fullccfcif
         self.files['sas_ccf'] = fullccfcif
 
         # Now run odfingest
         self.logger.info(f'Running odfingest with inputs: {odfingest_opts} ...')
         if self.output_to_terminal:
-            print(f'\nRunning odfingest with inputs: {odfingest_opts} ...')
+            print(f'Running odfingest with inputs: {odfingest_opts} ...')
         MyTask('odfingest',odfingest_opts,
                logfilename = self.logfilename, 
                tasklogdir  = self.work_dir,
@@ -2414,7 +2456,7 @@ class ObsID(FileMain):
         os.environ['SAS_ODF'] = fullsumsas
         self.logger.info(f'Setting SAS_ODF = {fullsumsas}')
         if self.output_to_terminal:
-            print(f'\nSetting SAS_ODF = {fullsumsas}')
+            print(f'Setting SAS_ODF = {fullsumsas}')
         self.files['sas_odf'] = fullsumsas
         
         # Check that the SUM.SAS file has the right PATH keyword
@@ -2428,8 +2470,6 @@ class ObsID(FileMain):
                         raise Exception(f'SAS summary file PATH {path} mismatches {self.odf_dir}')
                     else:
                         self.logger.info(f'Summary file PATH keyword matches {self.odf_dir}')
-                        if self.output_to_terminal:
-                            print(f'\nSummary file PATH keyword matches {self.odf_dir}')
 
         self.get_active_instruments()
 
@@ -2516,6 +2556,8 @@ class PPSFiles(FileMain):
                          empty obs_dir.
 
         - clear_work_dir: Deletes all files from the work_dir.
+
+        - make_work_dir: Creates both the obs_dir and work_dir.
 
         - resolve_obs_dir: Parses the obs_dir for different file
                            types. Links the filenames.

@@ -321,13 +321,6 @@ def download_data(obsid,
                     os.mkdir(pps_dir)
                 logger.info(f'Changed directory to {pps_dir}')
                 os.chdir(pps_dir)
-                logger.debug('Generating PPS file name pattern.')
-                file_pattern = generate_PPS_pattern(obsid=obsid,instname=instname,
-                                                    expflag=expflag,expno=expno,
-                                                    product_type=product_type,
-                                                    datasubsetno=datasubsetno,
-                                                    sourceno=sourceno,extension=extension)
-                logger.debug(f'PPS file name pattern: {file_pattern}')
                 match repo:
                 # If downloading a subset of PPS files instead of *all* PPS files for now
                 # we have to download from the HEASARC. We are still working on how to request
@@ -343,7 +336,7 @@ def download_data(obsid,
                             for file in filename:
                                 # Single file, known name
                                 logger.info(f'Downloading {obsid}, level {level}, file {file}')
-                                cmd = f'wget -nH -e robots=off --cut-dirs=6 -np https://heasarc.gsfc.nasa.gov/FTP/xmm/data/rev0/{obsid}/PPS/{file}'
+                                cmd = f'wget -nH -e robots=off --cut-dirs=6 -np -nc https://heasarc.gsfc.nasa.gov/FTP/xmm/data/rev0/{obsid}/PPS/{file}'
                                 logger.info(f'Using the command:\n{cmd}')
                                 result = subprocess.run(cmd, shell=True, capture_output=True)
                                 if result.returncode != 0:
@@ -354,6 +347,13 @@ def download_data(obsid,
                                     raise Exception('File download failed!')
                         else:
                             # One or more files, unknown name(s)
+                            logger.debug('Generating PPS file name pattern.')
+                            file_pattern = generate_PPS_pattern(obsid=obsid,instname=instname,
+                                                                expflag=expflag,expno=expno,
+                                                                product_type=product_type,
+                                                                datasubsetno=datasubsetno,
+                                                                sourceno=sourceno,extension=extension)
+                            logger.debug(f'PPS file name pattern: {file_pattern}')
                             # Replace "*" with ".*"
                             file_pattern = re.sub(r'\*', '.*', file_pattern)
                             logger.info(f'Downloading {obsid}, level {level} using file pattern {file_pattern}')
@@ -377,6 +377,12 @@ def download_data(obsid,
                                 archive_file = archive_data + f'/{file}'
                                 shutil.copy(archive_file, os.path.join(pps_dir,file))
                         else:
+                            file_pattern = generate_PPS_pattern(obsid=obsid,instname=instname,
+                                                                expflag=expflag,expno=expno,
+                                                                product_type=product_type,
+                                                                datasubsetno=datasubsetno,
+                                                                sourceno=sourceno,extension=extension)
+                            logger.debug(f'PPS file name pattern: {file_pattern}')
                             file_pattern = archive_data + f'/**/{file_pattern}'
                             logger.debug(f'NEW PPS file name pattern: {file_pattern}')
                             archive_files = glob.glob(file_pattern, recursive=True)
