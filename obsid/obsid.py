@@ -1160,8 +1160,10 @@ class FileMain:
         Function to remove all files and subdirectories from the obs_dir.
         """
         if os.path.exists(self.obs_dir):
+            os.chdir(self.data_dir)
             self.logger.info(f'Removing existing directory {self.obs_dir} ...')
-            print(f'\nRemoving existing directory {self.obs_dir} ...')
+            if self.output_to_terminal:
+                print(f'\nRemoving existing directory {self.obs_dir} ...')
             shutil.rmtree(self.obs_dir)
 
         return
@@ -1172,7 +1174,8 @@ class FileMain:
         """
         if os.path.exists(self.work_dir):
             self.logger.info(f'Removing existing directory {self.work_dir} ...')
-            print(f'\nRemoving existing directory {self.work_dir} ...')
+            if self.output_to_terminal:
+                print(f'\nRemoving existing directory {self.work_dir} ...')
             shutil.rmtree(self.work_dir)
             os.mkdir(self.work_dir)
 
@@ -1771,14 +1774,14 @@ class ObsID(FileMain):
         
         os.chdir(self.data_dir)
         self.logger.info(f'Changed directory to {self.data_dir}')
+        if self.output_to_terminal:
+            print(f'''
 
-        print(f'''
+            Starting SAS session
 
-        Starting SAS session
+            Data directory = {self.data_dir}
 
-        Data directory = {self.data_dir}
-
-        ''')
+            ''')
 
         # Download the data
         self.logger.debug('Call download_ODF_data')
@@ -2011,12 +2014,14 @@ class ObsID(FileMain):
                 # Set 'SAS_CCF' enviroment variable.
                 os.environ['SAS_CCF'] = self.files['sas_ccf']
                 self.logger.info('SAS_CCF = {0}'.format(self.files['sas_ccf']))
-                print('SAS_CCF = {}'.format(self.files['sas_ccf']))
+                if self.output_to_terminal:
+                    print('SAS_CCF = {}'.format(self.files['sas_ccf']))
 
                 # Set 'SAS_ODF' enviroment variable.
                 os.environ['SAS_ODF'] = self.files['sas_odf']
                 self.logger.info('SAS_ODF = {0}'.format(self.files['sas_odf']))
-                print('SAS_ODF = {0}'.format(self.files['sas_odf']))
+                if self.output_to_terminal:
+                    print('SAS_ODF = {0}'.format(self.files['sas_odf']))
             else:
                 # If either the ccf.cif or *SUM.SAS files are not present, then run calibration.
                 self._run_calibration(cifbuild_opts,odfingest_opts) 
@@ -2024,7 +2029,8 @@ class ObsID(FileMain):
             # Set 'SAS_ODF' enviroment variable.
             os.environ['SAS_ODF'] = self.files['sas_odf']
             self.logger.info('SAS_ODF = {0}'.format(self.files['sas_odf']))
-            print('SAS_ODF = {0}'.format(self.files['sas_odf']))
+            if self.output_to_terminal:
+                print('SAS_ODF = {0}'.format(self.files['sas_odf']))
 
             self.get_active_instruments()
 
@@ -2347,7 +2353,8 @@ class ObsID(FileMain):
 
         # Now we start preparing the SAS_ODF and SAS_CCF
         self.logger.info(f'Setting SAS_ODF = {self.odf_dir}')
-        print(f'\nSetting SAS_ODF = {self.odf_dir}')
+        if self.output_to_terminal:
+            print(f'\nSetting SAS_ODF = {self.odf_dir}')
         os.environ['SAS_ODF'] = self.odf_dir
 
         # Change to working directory
@@ -2356,7 +2363,8 @@ class ObsID(FileMain):
 
         # Run cifbuild
         self.logger.info(f'Running cifbuild with inputs: {cifbuild_opts} ...')
-        print(f'\nRunning cifbuild with inputs: {cifbuild_opts} ...')
+        if self.output_to_terminal:
+            print(f'\nRunning cifbuild with inputs: {cifbuild_opts} ...')
         MyTask('cifbuild',cifbuild_opts,
                logfilename = self.logfilename, 
                tasklogdir  = self.work_dir,
@@ -2376,13 +2384,15 @@ class ObsID(FileMain):
         # Sets SAS_CCF variable
         fullccfcif = os.path.join(self.work_dir, 'ccf.cif')
         self.logger.info(f'Setting SAS_CCF = {fullccfcif}')
-        print(f'\nSetting SAS_CCF = {fullccfcif}')
+        if self.output_to_terminal:
+            print(f'\nSetting SAS_CCF = {fullccfcif}')
         os.environ['SAS_CCF'] = fullccfcif
         self.files['sas_ccf'] = fullccfcif
 
         # Now run odfingest
         self.logger.info(f'Running odfingest with inputs: {odfingest_opts} ...')
-        print(f'\nRunning odfingest with inputs: {odfingest_opts} ...')
+        if self.output_to_terminal:
+            print(f'\nRunning odfingest with inputs: {odfingest_opts} ...')
         MyTask('odfingest',odfingest_opts,
                logfilename = self.logfilename, 
                tasklogdir  = self.work_dir,
@@ -2403,7 +2413,8 @@ class ObsID(FileMain):
         fullsumsas = os.path.join(self.work_dir, sumsas[0])
         os.environ['SAS_ODF'] = fullsumsas
         self.logger.info(f'Setting SAS_ODF = {fullsumsas}')
-        print(f'\nSetting SAS_ODF = {fullsumsas}')
+        if self.output_to_terminal:
+            print(f'\nSetting SAS_ODF = {fullsumsas}')
         self.files['sas_odf'] = fullsumsas
         
         # Check that the SUM.SAS file has the right PATH keyword
@@ -2417,14 +2428,16 @@ class ObsID(FileMain):
                         raise Exception(f'SAS summary file PATH {path} mismatches {self.odf_dir}')
                     else:
                         self.logger.info(f'Summary file PATH keyword matches {self.odf_dir}')
-                        print(f'\nSummary file PATH keyword matches {self.odf_dir}')
+                        if self.output_to_terminal:
+                            print(f'\nSummary file PATH keyword matches {self.odf_dir}')
 
         self.get_active_instruments()
 
-        print(f'''\n\n
-        SAS_CCF = {self.files['sas_ccf']}
-        SAS_ODF = {self.files['sas_odf']}
-        \n''')
+        if self.output_to_terminal:
+            print(f'''\n\n
+            SAS_CCF = {self.files['sas_ccf']}
+            SAS_ODF = {self.files['sas_odf']}
+            \n''')
 
         return
     
