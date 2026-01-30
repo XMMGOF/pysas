@@ -2540,12 +2540,12 @@ class PPSFiles(FileMain):
 
         # This simplifies discovery of several common files.
         # Reasoning: While these files can be found using 
-        # '_return_list_of_filenames', the returned list(s) 
+        # 'return_filenames_from_product_dict', the returned list(s) 
         # would need additional filtering.
         # For example, 'EPIC_images' would take two calls to 
-        # '_return_list_of_filenames' depending on whether the
+        # 'return_filenames_from_product_dict' depending on whether the
         # Obs is slew or not. This gets around that.
-        # Also, '_return_list_of_filenames' for SUMMAR files 
+        # Also, 'return_filenames_from_product_dict' for SUMMAR files 
         # would return a list of multiple files. This allows the 
         # main file to be selected directly.
         self._file_patterns = {'main_summary'     : '.*OBX.*SUMMAR.*.HTM$',
@@ -2597,7 +2597,7 @@ class PPSFiles(FileMain):
             self.logger.info('No main summary file found in PPS directory.')
 
         # Attitude File
-        attitude_file = self._return_list_of_filenames(self.Obs_products['ATTTSR_FIT'])
+        attitude_file = self.return_filenames_from_product_dict(self.Obs_products['ATTTSR_FIT'])
         if attitude_file:
             self.attitude_file = attitude_file[0]
             self.logger.info(f'Attitude file found.')
@@ -2606,7 +2606,7 @@ class PPSFiles(FileMain):
             self.logger.info('No attitude file found in PPS directory.')
 
         # Calibration Index File (CALIND)
-        calind_file = self._return_list_of_filenames(self.Obs_products['CALIND_FIT'])
+        calind_file = self.return_filenames_from_product_dict(self.Obs_products['CALIND_FIT'])
         if calind_file:
             self.calind_file = calind_file[0]
             self.logger.info(f'Calibration index (CALIND) file found.')
@@ -2639,7 +2639,7 @@ class PPSFiles(FileMain):
             self.logger.info('No EPIC images (FITS) found in PPS directory.')
 
         # EPIC Source List
-        self.EPIC_source_list = self._return_list_of_filenames(self.EPIC_products['OBSMLI_FIT'])
+        self.EPIC_source_list = self.return_filenames_from_product_dict(self.EPIC_products['OBSMLI_FIT'])
         if self.EPIC_source_list:
             self.EPIC_source_list.sort()
             self.logger.info(f'EPIC source list found.')
@@ -2862,7 +2862,7 @@ class PPSFiles(FileMain):
 
         return summary_filename
     
-    def _return_list_of_filenames(self,pattern_dict, list_of_files=None):
+    def return_filenames_from_product_dict(self,pattern_dict, list_of_files=None):
         """
         Returns a list of PPS filenames based on a filename pattern dictionary.
 
