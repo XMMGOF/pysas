@@ -124,8 +124,6 @@ class FileMain:
 
         - _reset_logger: Resets the logger object.
 
-        - _parse_obs_dir: Parses obs_dir for what files exist.
-
         - _set_data_dir: Detects the data_dir from input or config
                          file.
 
@@ -441,21 +439,28 @@ class FileMain:
                 shutil.rmtree(self.obs_dir)
             else:
                 # Check for files
-                what_exists = self._parse_obs_dir()
-                if what_exists['odf_dir'] and what_exists['ODF_files'] and what_exists['manifest']:
-                    self.logger.debug(f'Existing ODF directory {self.odf_dir} found ...')
-                    self.logger.info(f'Data found in {self.odf_dir} not downloading again.')
-                    call_download_data = False
-                else:
-                    if not what_exists['odf_dir']:
-                        self.logger.info(f'Existing ODF directory missing. Will download data.')
-                    else:
-                        if not what_exists['ODF_files']:
-                            self.logger.info(f'ODF files missing from {self.odf_dir}. Will download data.')
-                            shutil.rmtree(self.odf_dir)
-                        elif not what_exists['manifest']:
+                # Check for (in this order): odf_dir, ODF files, MANIFEST
+                if os.path.exists(self.odf_dir):
+                    # odf_dir exists
+                    if len(os.listdir(self.odf_dir)) != 0:
+                        # If files exist in odf_dir
+                        manifest_exists = self._check_for_manifest()
+                        if manifest_exists:
+                            # If MANIFEST exists
+                            self.logger.debug(f'Existing ODF directory {self.odf_dir} found ...')
+                            self.logger.info(f'Data found in {self.odf_dir} not downloading again.')
+                            call_download_data = False
+                        else:
+                            # If MANIFEST does not exist
                             self.logger.info(f'MANIFEST missing from {self.odf_dir}. Will download data.')
                             shutil.rmtree(self.odf_dir)
+                    else:
+                        # If no files in odf_dir
+                        self.logger.info(f'ODF files missing from {self.odf_dir}. Will download data.')
+                        shutil.rmtree(self.odf_dir)
+                else:
+                    # If odf_dir does not exist
+                    self.logger.info(f'Existing ODF directory missing. Will download data.')
 
         if call_download_data:
             self.logger.info(f'Will download ODF data for Obs ID {self.obsid}.')
@@ -1326,52 +1331,6 @@ class FileMain:
                                  logfilename = logfilename,
                                  tasklogdir  = tasklogdir)
     
-    def _parse_obs_dir(self):
-        """
-        --Not intended to be used by the end user. Internal use only.--
-
-        Parses the obs_dir for what is present.
-
-        Returns a dictionary with information on what exists.
-        """
-        exists = {}
-        items = ['obs_dir','odf_dir','pps_dir','work_dir',
-                 'ccfcif','SUMSAS','manifest',
-                 'ODF_files','PPS_files']
-        
-        for item in items: exists[item] = False
-
-        # Set directories for the observation, odf, pps, and work.
-        work_dir_name = sas_cfg.get_setting('work_dir_name')
-        obs_dir  = os.path.join(self.data_dir,self.obsid)
-        odf_dir  = os.path.join(obs_dir,'ODF')
-        pps_dir  = os.path.join(obs_dir,'PPS')
-        work_dir = os.path.join(obs_dir,work_dir_name)
-
-        if os.path.exists(obs_dir): exists['obs_dir']  = True
-        if os.path.exists(odf_dir): 
-            exists['odf_dir']  = True
-            # Just checks if files are there. Doesn't check if they
-            # are real or correct.
-            if len(os.listdir(odf_dir)) != 0:
-                exists['ODF_files'] = True
-        if os.path.exists(pps_dir):
-            exists['pps_dir']  = True
-            # Just checks if files are there. Doesn't check if they
-            # are real or correct.
-            if len(os.listdir(pps_dir)) != 0:
-                exists['PPS_files'] = True
-        if os.path.exists(work_dir): exists['work_dir'] = True
-        exists['ccfcif'] = self._check_for_ccf_cif()
-        exists['SUMSAS'] = self._check_for_SUM_SAS()
-        exists['manifest'] = self._check_for_manifest()
-
-        self.files['ODF'] = self._get_list_of_ODF_files()
-        self.files['PPS'] = self._get_list_of_PPS_files()
-        self.files['work'] = self._get_list_of_work_files()
-
-        return exists
-    
     def _set_data_dir(self, data_dir):
         """
         Sets the data_dir using the following hierarchy:
@@ -1997,22 +1956,22 @@ class ObsID(FileMain):
             self.work_dir = os.path.join(self.obs_dir,work_dir_name)
             self.logger.debug(f'Setting work_dir: {self.work_dir}')
 
-        # Check what exists in the obs_dir.
-        self.logger.debug('Parse obs_dir')
-        what_exists = self._parse_obs_dir()
-
         # Runs calibration if recalibrate = True. Default recalibrate = False
         # Else, looks for ccf.cif and *SUM.SAS files.
         # If ccf.cif and *SUM.SAS files are not found then will run calibration.
         
         if recalibrate:
-            if what_exists['odf_dir'] and what_exists['ODF_files']:
-                self.logger.debug('Run calibration')
-                self._run_calibration(cifbuild_opts,odfingest_opts)
-            else:
-                self.logger.error('ODF directory and files not found!')
-                print('ODF directory and files not found! Try downloading data again.')
-                raise Exception('ODF directory and files not found!')
+            if os.path.exists(self.odf_dir):
+                # odf_dir exists
+                if len(os.listdir(self.odf_dir)) != 0:
+                    # If files exist in odf_dir
+                    self.logger.debug('Run calibration')
+                    self._run_calibration(cifbuild_opts,odfingest_opts)
+                else:
+                    self.logger.error('ODF directory and files not found!')
+                    print('ODF directory and files not found! Try downloading data again.')
+                    raise Exception('ODF directory and files not found!')
+            # No need for further checks recalibration run. Return control to calling function.
             return
         else:
             ccf_exists = False
