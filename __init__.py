@@ -232,7 +232,7 @@ if sas_initialize:
 from . import sastask
 from . import parser
 from . import param
-from . import error
+# from . import error
 from . import init_sas
 from . import sasutils
 from . import config_pysas
@@ -255,7 +255,7 @@ SAS_COMMIT_ID        = return_list[6]
 __version__ = f'pysas - (pysas-{VERSION}) [SAS-{SAS_RELEASE}]'
 
 # Classes and functions needed at the top level
-from .obsid.obsid import ObsID
+from .obsid.obsid import ObsID, PPSFiles
 from .sastask import MyTask
 from .print_version import print_sas_version
 from .config_pysas import run_config
