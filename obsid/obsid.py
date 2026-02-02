@@ -2926,6 +2926,8 @@ class PPSFiles(FileMain):
         with open('index.html') as file:
             lines = file.readlines()
 
+        os.remove('index.html')
+
         self.ALL_PPS_FILES = []
 
         for line in lines:
