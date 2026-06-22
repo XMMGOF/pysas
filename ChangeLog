@@ -9,6 +9,8 @@ Version 2.5.0 - 2026-??-?? (RT)
 
 + obsid     : Move from subdirectory to top level directory.
 
++ pysasplot_utils : Move from subdirectory to top level directory.
+
 - _attic    : Remove files in _attic.
 
 - startsas  : Remove "startsas" as a separate module. All functionality is found
@@ -25,6 +27,8 @@ Version 2.5.0 - 2026-??-?? (RT)
 - sastask   : Remove references to pysaspkgs.
 
 - parser    : Remove references to pysaspkgs.
+
+- pyutils   : Renamed "sasfileutils". Relocated to top level directory.
 
 + General bug fixes.
 

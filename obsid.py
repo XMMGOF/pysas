@@ -44,8 +44,8 @@ from pysas.sasutils import download_data as dl_data
 from pysas.logger import get_logger
 from pysas.sastask import MyTask
 from pysas.sasutils import load_json_from_package
-from pysas.pysasplot_utils.pysasplot_utils import quick_image_plot as qip
-from pysas.pysasplot_utils.pysasplot_utils import quick_light_curve_plot as qlcp
+from pysas.pysasplot_utils import quick_image_plot as qip
+from pysas.pysasplot_utils import quick_light_curve_plot as qlcp
 
 repo_opts = ['esa','xsa','heasarc','nasa','sciserver','fornax','aws']
 

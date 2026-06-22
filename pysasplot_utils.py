@@ -18,7 +18,7 @@
 # pysasplot_utils.py
 
 import os, numbers, sys, re, warnings, pickle
-import pysas.pyutils.pyutils as pyutils
+import pysas.sasfileutils as sasfileutils
 from astropy.io import fits
 from astropy.wcs import WCS
 import matplotlib.pyplot as plt
@@ -232,14 +232,14 @@ def text_plot(fits_file: str, extra_text: str = ''):
         The text as a string to be added to the plot.
     """
 
-    obs = pyutils.get_key_word(fits_file, 'OBS_ID')
-    expo = pyutils.get_key_word(fits_file, 'EXPIDSTR')
-    inst = pyutils.get_key_word(fits_file, 'INSTRUME')
-    revolut = pyutils.get_key_word(fits_file, 'REVOLUT')
-    ra = pyutils.get_key_word(fits_file, 'RA_OBJ')
-    dec = pyutils.get_key_word(fits_file, 'DEC_OBJ')
-    obj = pyutils.get_key_word(fits_file, 'OBJECT')
-    date_obs = pyutils.get_key_word(fits_file, 'DATE-OBS')
+    obs = sasfileutils.get_key_word(fits_file, 'OBS_ID')
+    expo = sasfileutils.get_key_word(fits_file, 'EXPIDSTR')
+    inst = sasfileutils.get_key_word(fits_file, 'INSTRUME')
+    revolut = sasfileutils.get_key_word(fits_file, 'REVOLUT')
+    ra = sasfileutils.get_key_word(fits_file, 'RA_OBJ')
+    dec = sasfileutils.get_key_word(fits_file, 'DEC_OBJ')
+    obj = sasfileutils.get_key_word(fits_file, 'OBJECT')
+    date_obs = sasfileutils.get_key_word(fits_file, 'DATE-OBS')
 
     text_plot = 'OBS ID: {}\nInstrument: {}\nExposure: {}\nRevolution: {}\nDate: {}\nRA & DEC: ({} {})\n\n{}'.format(obs, inst, expo, revolut, date_obs, ra, dec, extra_text)
 
@@ -378,7 +378,7 @@ def get_time_deltas(fits_file: str,
     """
     
     if not isinstance(fits_file, Table):
-        timedel = pyutils.get_key_word(fits_file, card, extension)
+        timedel = sasfileutils.get_key_word(fits_file, card, extension)
     else:
         timedel = 'unknown'
 
@@ -705,7 +705,7 @@ def simple_1d_hist(y_data: dict,
     file_name = re.sub(r'\W+', '', plot_title)
 
     # will save the plot. If the program is running in a Notebook environment, will show the plot.
-    if pyutils.is_notebook():
+    if sasfileutils.is_notebook():
         plt.show()
         if outformat.upper() == 'PDF':
             saves_in_pdf([fig], file_name)
@@ -872,7 +872,7 @@ def simple_2d_plot(x_data: dict,
 
     file_name = re.sub(r'\W+', '', plot_title)
     # will save the plot. If the program is running in a Notebook environment, will show the plot.
-    if pyutils.is_notebook():
+    if sasfileutils.is_notebook():
         plt.show()
         if outformat.upper() == 'pdf':
             saves_in_pdf([fig], file_name)
