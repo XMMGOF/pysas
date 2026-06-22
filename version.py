@@ -30,8 +30,8 @@ def get_sas_version():
 
     Returns
     -------
-    list
-        List of SAS version information.
+    dict
+        Dictionary of SAS version information.
     """
 
     sas_dir = os.environ.get('SAS_DIR')
@@ -85,11 +85,11 @@ def get_sas_version():
                 pass
         if line.startswith('Platform'):
             SAS_PLATFORM = line.split(':')[1].lstrip()
-    return_list = [SAS_RELEASE,
-                   SAS_AKA,
-                   SAS_COMPILATION_DATE,
-                   SAS_COMPILATION_HOST,
-                   SAS_COMPILATION_USER,
-                   SAS_PLATFORM,
-                   SAS_COMMIT_ID]
-    return return_list
+    return_dict = {'RELEASE'          : SAS_RELEASE,
+                   'AKA'              : SAS_AKA,
+                   'COMPILATION_DATE' : SAS_COMPILATION_DATE,
+                   'COMPILATION_HOST' : SAS_COMPILATION_HOST,
+                   'COMPILATION_USER' : SAS_COMPILATION_USER,
+                   'PLATFORM'         : SAS_PLATFORM,
+                   'COMMIT_ID'        : SAS_COMMIT_ID}
+    return return_dict

@@ -85,17 +85,23 @@ from .version import VERSION, get_sas_version
 
 # Get SAS version information
 if sas_ready:
-    return_list = get_sas_version()
+    sas_info = get_sas_version()
 else:
-    return_list = ['NOT INITIALIZED','','','','','','']
+    sas_info = {'RELEASE'          : 'NOT INITIALIZED',
+                'AKA'              : '',
+                'COMPILATION_DATE' : '',
+                'COMPILATION_HOST' : '',
+                'COMPILATION_USER' : '',
+                'PLATFORM'         : '',
+                'COMMIT_ID'        : ''}
 
-SAS_RELEASE          = return_list[0]
-SAS_AKA              = return_list[1]
-SAS_COMPILATION_DATE = return_list[2]
-SAS_COMPILATION_HOST = return_list[3]
-SAS_COMPILATION_USER = return_list[4]
-SAS_PLATFORM         = return_list[5]
-SAS_COMMIT_ID        = return_list[6]
+SAS_RELEASE          = sas_info['RELEASE']
+SAS_AKA              = sas_info['AKA']
+SAS_COMPILATION_DATE = sas_info['COMPILATION_DATE']
+SAS_COMPILATION_HOST = sas_info['COMPILATION_HOST']
+SAS_COMPILATION_USER = sas_info['COMPILATION_USER']
+SAS_PLATFORM         = sas_info['PLATFORM']
+SAS_COMMIT_ID        = sas_info['COMMIT_ID']
 
 __version__ = f'pysas - (pysas-{VERSION}) [SAS-{SAS_RELEASE}]'
 
@@ -119,4 +125,4 @@ if sas_initialize:
     del sas_dir_config, sas_ccfpath_config, sas_verbosity, sas_suppress_warning
 del sas_initialize, sas_ready
 del sas_dir, sas_path, sas_ccfpath
-del value, return_list
+del value, sas_info
