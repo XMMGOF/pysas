@@ -39,8 +39,8 @@ from astroquery.heasarc import Heasarc
 
 # Local application imports
 from pysas import sas_cfg
-from ..init_sas import initializesas
-from ..sasutils import download_data as dl_data
+from pysas.init_sas import initializesas
+from pysas.sasutils import download_data as dl_data
 from pysas.logger import get_logger
 from pysas.sastask import MyTask
 from pysas.sasutils import load_json_from_package

@@ -23,8 +23,7 @@ all the methods required to parse any arguments entered either
 via the command line or through a list.
 
 The class initialization checks for the existence of SAS_PATH.
-Then it populates the pysaspkgs list with all packages below pysas.
-This is used to get the version of the package.
+Then it checks the version of the SAS task.
 
 The instance method optparser uses module argparse to define the
 two types of arguments supported: options and parameters.
@@ -99,23 +98,11 @@ class ParseArgs:
         if not sas_path:
             raise EnvironmentError('SAS_PATH is undefined.')
 
-        pysaspkgs = []
-
-        my_resources = importlib.resources.files("pysas")
-        for line in (my_resources / "pysaspkgs").read_text().splitlines():
-            pysaspkgs.append(line)
-
-        # If taskname is not in pysaspkgs it is a non Python SAS task
-        # then its version must be obtained differently.
-        # If it is a Python task, version is available from __version__ object
-        if self.taskname in pysaspkgs:
-            m = import_module('pysas.' + self.taskname + '.' + self.taskname)
-            self.version = m.__version__
-        else:
-            # Do not use --version because some SAS perl tasks like epchain do not 
-            # accept this option but only -v
-            cmd = self.taskname + ' -v'
-            self.version = subprocess.check_output(cmd, shell=True, text=True)
+        # Get version of the SAS task
+        # Do not use --version because some SAS perl tasks like epchain do not 
+        # accept this option but only -v
+        cmd = self.taskname + ' -v'
+        self.version = subprocess.check_output(cmd, shell=True, text=True)
 
     def __repr__(self):
         """

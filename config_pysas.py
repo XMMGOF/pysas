@@ -26,14 +26,162 @@ import os, glob
 # Third party imports
 
 # Local application imports
-from pysas import sas_cfg
+# from pysas import sas_cfg
 from pysas.init_sas import initializesas
-from pysas.sasutils import update_calibration_files
+from configparser import ConfigParser
+from pathlib import Path
 
-__version__ = 'config_pysas (config_pysas-1.1)'
+# Config class
+class sas_config:
+    def __init__(self, config_file=None):
+        self.config = ConfigParser()
 
-verbosity        = sas_cfg.get_setting('verbosity')
-suppress_warning = sas_cfg.get_setting('suppress_warning')
+        # Raw defaults
+        self.sas_cfg_defaults = {
+            "suppress_warning" : 1,
+            "verbosity"        : 4,
+            "pysas_verbosity"  : "WARNING",
+            "repo"             : "ESA",
+            "work_dir_name"    : "work"
+        }
+        
+        # Resolve the full path to the configuration file
+        if config_file is None:
+            home_dir = Path.home()
+            # For SciServer
+            if str(home_dir) == '/home/idies':
+                user = os.environ.get('SCISERVER_USER_NAME')
+                home_dir = home_dir / "workspace" / "Storage" / user / "persistent"
+                if not home_dir.exists(): home_dir = Path.home()
+            CONFIG_ROOT = os.environ.get("XDG_CONFIG_HOME", home_dir / ".config")
+            CONFIG_ROOT = Path(CONFIG_ROOT).resolve()
+            CONFIG_ROOT  = CONFIG_ROOT / 'sas'
+            if not CONFIG_ROOT.exists():
+                try:
+                    os.makedirs(CONFIG_ROOT)
+                except OSError:
+                    #print(f'Unable to create config directory {CONFIG_ROOT}')
+                    pass    
+            config_file = CONFIG_ROOT / 'sas.cfg'
+        else:
+            config_file = Path(config_file).resolve()
+
+        self.absolute_config_path = config_file
+
+        if self.absolute_config_path.exists():
+            # Read the configuration file
+            self.config.read(self.absolute_config_path)
+        else:
+            self.config = ConfigParser(self.sas_cfg_defaults)
+            if not self.config.has_section('sas'): self.config.add_section('sas')
+            self.save_config()
+
+    def get_setting(self, option, section = 'sas'):
+        """
+        Retrieves a setting from the configuration.
+        """
+        return self.config.get(section, option)
+
+    def set_setting(self, option, value, section = 'sas'):
+        """
+        Sets a setting in the configuration.
+        """
+        if not self.config.has_section(section):
+            self.config.add_section(section)
+        self.config.set(section, option, value)
+
+    def set_setting_and_save(self, option, value, section = 'sas'):
+        """
+        Sets a setting in the configuration.
+        Saves the setting to file.
+        """
+        if not self.config.has_section(section):
+            self.config.add_section(section)
+        self.config.set(section, option, value)
+        self.save_config()
+
+    def save_config(self, config_file_path = None):
+        """
+        Saves the current configuration back to a file.
+        """
+        if config_file_path is None:
+            absolute_config_path = self.absolute_config_path
+        else:
+            absolute_config_path = Path(config_file_path).resolve()
+        try:
+            with open(absolute_config_path, 'w') as file:
+                self.config.write(file)
+        except IOError:
+            print(f'Unable to write config file to {absolute_config_path}')
+            pass
+
+    def show_current_config(self):
+        """
+        Shows the current configuration settings.
+        """
+        defaults = self.config.defaults()
+        print(f'[{self.config.default_section}]')
+        for k,v in defaults.items():
+            print(f'{k} = {v}')
+        
+        for section in self.config.sections():
+            print(f'\n[{section}]')
+            for k,v in self.config.items(section):
+                if k in defaults.keys():
+                    if defaults[k] == v:
+                        continue
+                print(f'{k} = {v}')
+
+    def show_config_file(self):
+        """
+        Prints the contents of the configuration file to the terminal.
+        """
+        with open(self.absolute_config_path, 'r') as file:
+            content = file.read()
+            print(content)
+
+    def reset_to_defaults(self):
+        """
+        Resets config file to defaults.
+        """
+        self.config = ConfigParser(self.sas_cfg_defaults)
+        if not self.config.has_section('sas'): self.config.add_section('sas')
+        self.save_config()
+
+    def simple_config(self, 
+                      sas_dir = None, 
+                      sas_ccfpath = None, 
+                      data_dir = None,
+                      repo = None):
+        """
+        For quick, simple configuration of pySAS.
+        """
+        home_dir = Path.home()
+        if sas_dir is None: sas_dir = os.environ.get('SAS_DIR')
+        if sas_ccfpath is None: sas_ccfpath = os.environ.get('SAS_CCFPATH')
+        
+        # For Fornax
+        if str(sas_ccfpath) == '/opt/support-data/xmm_ccf':
+            if repo is None:
+                repo = 'fornax'
+        
+        # For SciServer
+        if str(home_dir) == '/home/idies':
+            if data_dir is None:
+                user = os.environ.get('SCISERVER_USER_NAME')
+                data_dir = os.path.join('/home/idies/workspace/Temporary/',user,'scratch/xmm_data')
+            if repo is None:
+                repo = 'sciserver'
+        
+        if data_dir is None: 
+            data_dir = home_dir / 'xmm_data'
+            data_dir = data_dir.resolve()
+
+        if sas_dir: self.set_setting('sas_dir', sas_dir)
+        if sas_ccfpath: self.set_setting('sas_ccfpath', sas_ccfpath)
+        if repo: self.set_setting('repo', repo)
+        self.set_setting('data_dir', str(data_dir))
+        self.save_config()
 
 def run_config():
     """
@@ -114,7 +262,7 @@ def run_config():
     positive = ['y','yes','ye','yeah','yea','ys','aye','yup','totally','si','oui']
     negative = ['n','no','not','nay','no way','nine','non']
     esa = ['esa','e','es','europe']
-    nasa = ['nasa','n','na','nas','ns','nsa','us','usa']
+    nasa = ['nasa','n','na','nas','ns','nsa','us','usa','heasarc','hea']
 
     ############## Getting sas_dir ##############
     
@@ -257,7 +405,7 @@ def run_config():
         print('SAS_DIR and SAS_CCFPATH exist. Will use the following to initialize SAS:')
         print(f'     SAS_DIR = {sas_dir}')
         print(f'     SAS_CCFPATH = {sas_ccfpath}')
-        initializesas(sas_dir, sas_ccfpath, verbosity=verbosity,suppress_warning=suppress_warning)
+        initializesas(sas_dir, sas_ccfpath)
 
     if not os.path.exists(sas_dir):
         print(f'There is a problem with SAS_DIR {sas_dir}. Please check and try again.')
@@ -281,7 +429,14 @@ def run_config():
 
     # Putting calibration file download in its own function since it is used in multiple locations.
     if download_calibration:
-        result = update_calibration_files(repo=esa_or_nasa)
+        if esa_or_nasa in esa:
+            cmd = f'rsync -v -a --delete --delete-after --force --include=\'*.CCF\' --exclude=\'*/\' sasdev-xmm.esac.esa.int::XMM_VALID_CCF {sas_ccfpath}'
+        elif esa_or_nasa in nasa:
+            cmd = f'wget -nH --no-remove-listing -N -np -r --cut-dirs=4 -e robots=off -l 1 -R "index.html*" https://heasarc.gsfc.nasa.gov/FTP/xmm/data/CCF/ -P {sas_ccfpath}'
+        print(f'Downloading calibration data using the command:\n{cmd}')
+        print('This may take a while...')
+        time.sleep(1)
+        result = subprocess.run(cmd, shell=True)
 
     scomment = f"""
         Success!

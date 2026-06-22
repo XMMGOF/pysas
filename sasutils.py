@@ -39,7 +39,6 @@ from pysas.logger import get_logger
 from .logger import TaskLogger as TL
 from pysas import sas_cfg
 
-
 def download_data(obsid: str,
                   data_dir: str,
                   level: str = 'ODF',
@@ -645,7 +644,7 @@ def update_calibration_files(repo='NASA'):
         cmd = f'wget -nH --no-remove-listing -N -np -r --cut-dirs=4 -e robots=off -l 1 -R "index.html*" https://heasarc.gsfc.nasa.gov/FTP/xmm/data/CCF/ -P {sas_ccfpath}'
     print(f'Downloading calibration data using the command:\n{cmd}')
     print('This may take a while...')
-    time.sleep(3)
+    time.sleep(1)
     result = subprocess.run(cmd, shell=True)
 
     return result
