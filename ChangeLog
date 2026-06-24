@@ -9,7 +9,12 @@ Version 2.5.0 - 2026-??-?? (RT)
 
 + obsid     : Move from subdirectory to top level directory.
 
+- obsid     : The class FileMain has become ObsID, and the class PPSFiles has 
+              been folded into the class ObsID.
+
 + pysasplot_utils : Move from subdirectory to top level directory.
+                    Redirect put in place until SAS code can be modified to 
+                    change import path.
 
 - _attic    : Remove files in _attic.
 
@@ -29,6 +34,8 @@ Version 2.5.0 - 2026-??-?? (RT)
 - parser    : Remove references to pysaspkgs.
 
 - pyutils   : Renamed "sasfileutils". Relocated to top level directory.
+              Redirect put in place until SAS code can be modified to change 
+              import path.
 
 + General bug fixes.
 

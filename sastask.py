@@ -105,59 +105,12 @@ from pysas.logger import get_logger
 # Class MyTask
 class MyTask:
     """
-    The SASTask class replaces the Wrapper class from
-    wrapper.py.
+    Class for SAS tasks. 
 
-    For pySAS v2.0 the inargs has switched to fundamentally being a dictionary.
-    If a list is passed in it will be converted into a dictionary.
-                                
-    In the class initialization, the task name and the input args to run it are 
-    processed. Task parameters as identified by the '=' sign are separated of 
-    task options, to reorder them to avoid conflicts at the time of parsing 
-    them.
-
-    The instance method 'readparfile' gets a full picture of the task parameter 
-    file, receiving a bunch of information abouth subparameters and their 
-    relationship with its predecessors.
-
-    The instance method 'processargs' performs the processing of any immediate 
-    options and filter out the legitimate and mandatory parameters so as they 
-    can be used in the 'run' instance method.
-
-    Parameters
-    ----------
-    taskname : str
-        SAS task name.
-    inargs : dict | list | str, optional
-        SAS input arguments, by default {}.
-    logfilename : str, optional
-        Designated log file name. Useful for putting all output from multiple 
-        tasks into the same file. By default "{taskname}.log".
-    tasklogdir : str, optional
-        Output directory for the log file, by default None.
-        Priority of defaults for task_logdir
-            1. tasklogdir (passed in)
-            2. SAS_TASKLOGDIR (envirnment variable)
-            3. cwd (final default)
-    output_to_terminal : bool, optional
-        Whether to print output to the terminal, by default True.
-    output_to_file : bool, optional
-        Whether to print output to file, by default False.
-    logger : logger, optional
-        Logger object, by default None.
-
-    Raises
-    ------
-    Exception
-        Parameter '{p}' is not recognized!
-    Exception
-        Missing, at least, mandatory parameter "{p}".
-    Exception
-        If subparameter {p} is used then {parent} must be set to "{cond_par_val}"!
-    Exception
-        Missing mandatory subparameter {child}.
-    EnvironmentError
-        SAS_PATH is undefined!
+    When a class instance is generated the corresponding parameter file is read. 
+    If input arguments are passed in as a list or string then they are converted 
+    into a dictionary, but input arguments are not processed until either 'run' 
+    or 'processargs' is called.
     """    
 
     def __init__(self, taskname: str, 
