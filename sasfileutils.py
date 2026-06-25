@@ -14,9 +14,12 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with SAS.  If not, see <http://www.gnu.org/licenses/>.
-
+# 
 # sasfileutils.py
 
+"""
+Utilities for dealing with SAS data files.
+"""
 import numpy as np
 import subprocess
 import os
@@ -47,7 +50,6 @@ def pyadd(images, outfile):
     primary_hdu.data = sum_im
     primary_hdu.writeto(outfile, overwrite = True)
 
-
 def date_time():
     """
     Returns the current date.
@@ -58,7 +60,6 @@ def date_time():
 
     now = datetime.datetime.now()
     return('Current time: {}'.format(now.strftime('%Y - %m - %d -- %H:%M:%s')))
-
 
 def pyselect(filename, outfile, extension, column, lim_up = ' ', lim_down = ' ',
     return_data = False, exact_match = ''):
@@ -111,7 +112,6 @@ def pyselect(filename, outfile, extension, column, lim_up = ' ', lim_down = ' ',
     if return_data:
         return selection
 
-
 def pymodhdu(filename, extension, card, value, comment = ''):
     """
     Modifies the header of a fits file.
@@ -129,7 +129,6 @@ def pymodhdu(filename, extension, card, value, comment = ''):
         hdr = fits_file[extension].header
         hdr.set(card, value, comment)
         fits_file.flush()
-
 
 def get_key_word(filename, keyword, extension = '', not_found_output = 'unknown'):
     """
@@ -182,7 +181,6 @@ def get_key_word(filename, keyword, extension = '', not_found_output = 'unknown'
 
     return not_found_output
 
-
 def pydump(fits_file, extension, column):
     """
     Returns the value or values of a wanted column for a fits file.
@@ -222,7 +220,6 @@ def pydump(fits_file, extension, column):
         raise TypeError('Unrecognised format for the fits file.')
     return data_ev
 
-
 def is_notebook():
     """
     Checks whether or not the user is running a Python terminal or a Notebook environment.
@@ -242,7 +239,6 @@ def is_notebook():
             return False  # Other type
     except NameError:
         return False      # Probably standard Python interpreter
-
 
 def delete_data(fits_file, extension, to_delete, direction):
     """
@@ -338,7 +334,6 @@ def delete_data(fits_file, extension, to_delete, direction):
         print('invalid type for the FITS file. Entered {}.'.format(type(fits_file)))
         return None
 
-
 def create_fits_from_data(data, labels, filename = '', ext_name = None):
     """
     Creates a table object containing the data and the labels passed to its
@@ -372,7 +367,6 @@ def create_fits_from_data(data, labels, filename = '', ext_name = None):
             ef.flush()
 
     return 0
-
 
 def filter_data(data, nan_values = -999, upper_limit = None, lower_limit = None):
     """
@@ -434,7 +428,6 @@ def filter_data(data, nan_values = -999, upper_limit = None, lower_limit = None)
         return 1
 
     return data
-
 
 def merge_fits(fits_list, extensions, output_file, columns, new_ext = None):
     """
@@ -520,7 +513,6 @@ def merge_fits(fits_list, extensions, output_file, columns, new_ext = None):
 
     return 0
 
-
 def imgstat(fits_file, lower_limit = None, upper_limit = None, output = None):
     """
     Similar to fimgstat, the function return the statistical information from the image
@@ -593,7 +585,6 @@ def imgstat(fits_file, lower_limit = None, upper_limit = None, output = None):
 
     return(mean_image, std_dev_image, min_val, max_val, sum_val, used_val, max_index, min_index)
 
-
 def add_column_to_fits(fits_file, extension, colname, coldata):
     """
     Adds a column and its data to the given FITS file.
@@ -640,7 +631,6 @@ def add_column_to_fits(fits_file, extension, colname, coldata):
 
     return 0
 
-
 def add_row_to_fits(fits_file, extension, rows):
     """
     Adds a row to the given FITS file in the provided extension.
@@ -673,7 +663,6 @@ def add_row_to_fits(fits_file, extension, rows):
             return 1
 
     return 0
-
 
 def sort_fits(fits_file, extension, label, desc = True):
     """

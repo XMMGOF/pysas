@@ -33,7 +33,18 @@ from pathlib import Path
 
 # Config class
 class sas_config:
-    def __init__(self, config_file=None):
+    """
+    Class for interacting with the pySAS configuration file.
+
+    Parameters
+    ----------
+    config_file : str, optional
+        Path to config file, by default 'XDG_CONFIG_HOME (usually the user's 
+        HOME directory).
+    """
+
+    def __init__(self, config_file: str =None):
+
         self.config = ConfigParser()
 
         # Raw defaults
@@ -76,33 +87,71 @@ class sas_config:
             if not self.config.has_section('sas'): self.config.add_section('sas')
             self.save_config()
 
-    def get_setting(self, option, section = 'sas'):
+    def get_setting(self, option: str, section: str = 'sas'):
         """
-        Retrieves a setting from the configuration.
+        Retrieves a setting from the current session configuration (not from 
+        the config file).
+
+        Parameters
+        ----------
+        option : str
+            Which setting to retrieve.
+        section : str, optional
+            Which section in the config file, by default 'sas'.
+
+        Returns
+        -------
+        str
+            The returned setting.
         """
         return self.config.get(section, option)
 
-    def set_setting(self, option, value, section = 'sas'):
+    def set_setting(self, option: str, value: str, section: str = 'sas'):
         """
-        Sets a setting in the configuration.
+        Sets a setting in the current session configuration (does not change 
+        the config file).
+
+        Parameters
+        ----------
+        option : str
+            Which setting to set.
+        value : str
+            Value to be set.
+        section : str, optional
+            Which section in the configuration has the option, by default 'sas'.
         """
         if not self.config.has_section(section):
             self.config.add_section(section)
         self.config.set(section, option, value)
 
-    def set_setting_and_save(self, option, value, section = 'sas'):
+    def set_setting_and_save(self, option: str, value: str, section: str = 'sas'):
         """
-        Sets a setting in the configuration.
-        Saves the setting to file.
+        Sets a setting in the current session configuration AND saves the 
+        setting to the config file.
+
+        Parameters
+        ----------
+        option : str
+            Which setting to set.
+        value : str
+            Value to be set.
+        section : str, optional
+            Which section in the configuration has the option, by default 'sas'.
         """
         if not self.config.has_section(section):
             self.config.add_section(section)
         self.config.set(section, option, value)
         self.save_config()
 
-    def save_config(self, config_file_path = None):
+    def save_config(self, config_file_path: str = None):
         """
-        Saves the current configuration back to a file.
+        Saves the current session configuration to the config file. Does not 
+        modify any configuration options.
+
+        Parameters
+        ----------
+        config_file_path : str, optional
+            Path to config file, by default None.
         """
         if config_file_path is None:
             absolute_config_path = self.absolute_config_path
@@ -117,7 +166,10 @@ class sas_config:
 
     def show_current_config(self):
         """
-        Shows the current configuration settings.
+        Prints the current session configuration settings to the terminal. 
+        
+        Note: The current session configuration settings are usually the same 
+        as the contents of the config file, but they can be different.
         """
         defaults = self.config.defaults()
         print(f'[{self.config.default_section}]')
@@ -142,19 +194,41 @@ class sas_config:
 
     def reset_to_defaults(self):
         """
-        Resets config file to defaults.
+        Resets configuration file to the defaults.
         """
         self.config = ConfigParser(self.sas_cfg_defaults)
         if not self.config.has_section('sas'): self.config.add_section('sas')
         self.save_config()
 
     def simple_config(self, 
-                      sas_dir = None, 
-                      sas_ccfpath = None, 
-                      data_dir = None,
-                      repo = None):
+                      sas_dir: str = None, 
+                      sas_ccfpath: str = None, 
+                      data_dir: str = None,
+                      repo: str = None):
         """
         For quick, simple configuration of pySAS.
+
+        Parameters
+        ----------
+        sas_dir : str, optional
+            Directory where SAS is installed, by default None.
+        sas_ccfpath : str, optional
+            Directory with calibration files, by default None.
+        data_dir : str, optional
+            User data directory, by default None.
+        repo : str, optional
+            Default repository for downloading data, by default None.
+            Accepted values are,
+
+            'ESA' (data from the XSA)
+
+            'NASA' (data from the HEASARC)
+
+            'AWS' (data from AWS s3 bucket (NASA))
+
+            'Fornax' (if user is on Fornax)
+
+            'SciServer' (if user is on SciServer)
         """
         home_dir = Path.home()
         if sas_dir is None: sas_dir = os.environ.get('SAS_DIR')
@@ -189,7 +263,9 @@ def run_config():
     defaults 
     
         sas_dir (required)
+
         sas_ccfpath (required)
+
         data_dir (optional)
         
     Once the defaults are set by the user, SAS will automatically be 
@@ -197,25 +273,25 @@ def run_config():
 
     The user can also optionally set a default data directory (data_dir)
     where observation data files (odf) will be downloaded. A separate 
-    subdirectory will be made for each observation ID (obsID).
+    subdirectory will be made for each observation ID (Obs ID).
     
-    The default data directory can be set or change later using the 
-    function set_sas_config_option().
+    The default data directory can be set or change later using functions in 
+    the 'sas_cfg' object.
 
-    For example:
+    For example::
 
-        from pysas import sas_cfg
+        import pysas
         data_path = '/path/to/data/dir/'
-        sas_cfg.set_setting_and_save('data_dir', data_path)
+        pysas.sas_cfg.set_setting_and_save('data_dir', data_path)
         
     The default values for the SAS directory (sas_dir), the path to the
     calibration files (sas_ccfpath), along with 'verbosity' and 
     'suppress_warning', can also be set in the same way.
 
-    At any time the user can reset the config file to the defaults,
+    At any time the user can reset the config file to the defaults,::
 
-        from pysas import sas_cfg
-        sas_cfg.reset_to_defaults()
+        import pysas
+        pysas.sas_cfg.reset_to_defaults()
     """
 
     outcomment = """
@@ -240,9 +316,9 @@ def run_config():
 
         For example:
 
-            from pysas import sas_cfg
+            import pysas
             data_path = '/path/to/data/dir/'
-            sas_cfg.set_setting_and_save('data_dir', data_path)
+            pysas.sas_cfg.set_setting_and_save('data_dir', data_path)
             
         The default values for the SAS directory (sas_dir), the path to the
         calibration files (sas_ccfpath), along with 'verbosity' and 
@@ -250,8 +326,8 @@ def run_config():
 
         At any time the user can reset the config file to the defaults,
 
-            from pysas import sas_cfg
-            sas_cfg.reset_to_defaults()
+            import pysas
+            pysas.sas_cfg.reset_to_defaults()
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

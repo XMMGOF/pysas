@@ -37,6 +37,8 @@ Version 2.5.0 - 2026-??-?? (RT)
               Redirect put in place until SAS code can be modified to change 
               import path.
 
+- print_version: Functionality has been moved to version.py.
+
 + General bug fixes.
 
 Version 2.4.0 - 2026-03-31 (RT)

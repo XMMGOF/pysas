@@ -14,12 +14,10 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with SAS.  If not, see <http://www.gnu.org/licenses/>.
-
+# 
 # sasutils.py
 
 """
-sasutils.py
-
 Utility functions specific to SAS or pySAS.
 """
 
@@ -60,7 +58,8 @@ def download_data(obsid: str,
                   **kwargs):
     """
     Not intended to be used by the end user. Internal use only. Use 
-    obsid.download_ODF_data() or obsid.download_ALL_data() instead.
+    obsid.download_ODF_data(), obsid.download_PPS_data(), 
+    or obsid.download_ALL_data() instead.
 
     Downloads, or copies, data from chosen repository. 
 

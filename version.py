@@ -17,6 +17,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with SAS.  If not, see <http://www.gnu.org/licenses/>.
 #
+# version.py
 
 # pySAS version
 VERSION = '2.5.0'
@@ -93,3 +94,47 @@ def get_sas_version():
                    'PLATFORM'         : SAS_PLATFORM,
                    'COMMIT_ID'        : SAS_COMMIT_ID}
     return return_dict
+
+def print_sas_version():
+    """
+    Shows release and information about the XMM-Newton 
+    Science Analysis System (SAS).
+
+    Raises
+    ------
+    EnvironmentError
+        SAS_DIR is undefined.
+    """
+
+    from pysas import VERSION, SAS_RELEASE, SAS_AKA, SAS_COMPILATION_DATE
+    from pysas import SAS_COMPILATION_USER, SAS_COMPILATION_HOST, SAS_PLATFORM
+    from pysas import SAS_COMMIT_ID
+
+    sas_dir = os.environ.get('SAS_DIR')
+    if sas_dir == None:
+        raise EnvironmentError('SAS_DIR is undefined.')
+
+    sas_path = os.environ.get('SAS_PATH')
+    sas_ccfpath = os.environ.get('SAS_CCFPATH')
+    sas_ccf = os.environ.get('SAS_CCF')
+    sas_odf = os.environ.get('SAS_ODF')
+
+    print(f'''
+    XMM-Newton SAS - release and build information
+
+    SAS release  : {SAS_RELEASE}
+    SAS AKA      : {SAS_AKA}
+    SAS commit ID: {SAS_COMMIT_ID}
+    Compiled on  : {SAS_COMPILATION_DATE}
+    Compiled by  : {SAS_COMPILATION_USER}@{SAS_COMPILATION_HOST}
+    Platform     : {SAS_PLATFORM}
+    pySAS version: {VERSION}
+
+    SAS-related environment variables set:
+
+    ''')
+    print(f'SAS_DIR        = {sas_dir}')
+    print(f'SAS_PATH       = {sas_path}')
+    print(f'SAS_CCFPATH    = {sas_ccfpath}') if sas_ccfpath != None else None
+    print(f'SAS_CCF        = {sas_ccf}') if sas_ccf != None else None
+    print(f'SAS_ODF        = {sas_odf}') if sas_odf != None else None

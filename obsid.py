@@ -17,7 +17,7 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with SAS. If not, see <http://www.gnu.org/licenses/>.
-
+# 
 # obsid.py
 
 # Standard library imports
@@ -216,7 +216,7 @@ class ObsID:
             odf_dir -or- pps_dir
             work_dir
 
-        Then checks for the ccf.cif, *SUM.SAS files and event lists.
+        Then checks for the ccf.cif, SUM.SAS files and event lists.
 
         Similar to download_data, but will not download any data, 
         or do anything other than link to files and directories. 
@@ -360,13 +360,15 @@ class ObsID:
         """
         Function to do all basic analysis tasks. The function will:
 
-            1. Download data by calling 'download_ODF_data'
-            2. Call the function 'calibrate_odf'
-                A. Run 'cifbuild'
-                B. Run 'odfingest'
-            3. Run 'epproc' -OR- 'epchain'
-            4. Run 'emproc' -OR- 'emchain'
-            5. Run 'rgsproc'
+        1. Download data by calling 'download_ODF_data'
+        2. Call the function 'calibrate_odf'
+
+            A. Run 'cifbuild'
+            B. Run 'odfingest'
+
+        3. Run 'epproc' -OR- 'epchain'
+        4. Run 'emproc' -OR- 'emchain'
+        5. Run 'rgsproc'
 
         If 'run_epchain' is set to 'True', then 'epproc' will not run.
         If 'run_emchain' is set to 'True', then 'emproc' will not run.
@@ -374,91 +376,6 @@ class ObsID:
         All input arguments for 'download_ODF_data' and 'calibrate_odf'
         can be passed to 'basic_setup'.
 
-        'download_ODF_data' inputs (with defaults):
-
-            repo             = 'esa'
-            data_dir         = None
-            overwrite        = False
-            proprietary      = False
-            credentials_file = None
-            encryption_key   = None
-
-        'calibrate_odf' inputs (with defaults):
-               
-            obs_dir        = None
-            sas_ccf        = None
-            sas_odf        = None
-            cifbuild_opts  = {}
-            odfingest_opts = {}
-            recalibrate    = False
-
-        Input arguments for 'epproc', 'emproc', and 'rgsproc' can also be 
-        passed in using 'epproc_args', 'emproc_args', or 'rgsproc_args' 
-        respectively (or 'epchain_args' and 'emchain_args'). By defaut 
-        'epproc', 'emproc', and 'rgsproc' will not rerun if output files 
-        are found, but they can be forced to rerun by setting 'rerun=True' 
-        as an input to 'basic_setup'.
-
-        Examples for use:
-
-            my_obs.basic_setup()
-
-                - Uses the defaults.
-
-            my_obs.basic_setup(repo='heasarc')
-
-                - Uses the defaults, but downloads data from the HEASARC.
-
-            my_obs.basic_setup(overwrite=True)
-
-                - Will erase any previous data files for the Obs ID and 
-                  download a fresh set of data files.
-
-            my_obs.basic_setup(recalibrate=True)
-
-                - Will rerun cifbuild and odfingest to generate new 
-                  ccf.cif and *SUM.SAS files.
-
-            my_obs.basic_setup(rerun=True)
-
-                - Will **not** download new files, but will rerun 'epproc',
-                  'emproc', and 'rgsproc' and create new event lists.
-
-            my_obs.basic_setup(repo='heasarc',
-                               epproc_args=['withoutoftime=yes'])
-
-                - Downloads data from the HEASARC and runs 'epproc' with the
-                  'withoutoftime' option.
-
-            my_obs.basic_setup(run_epchain=True,
-                               run_emchain=True)
-
-                - Will run 'epchain' and 'emchain' instead of 'epproc' and
-                  'emproc'.
-
-            my_obs.basic_setup(run_epproc=False,
-                               run_emproc=False)
-
-                - Will not run 'epproc' or 'emproc'. Will only run 'rgsproc'
-                  by default.
-
-            my_obs.basic_setup(run_epproc=False,
-                               run_emproc=True,
-                               run_rgsproc=False)
-
-                - Will only run 'emproc', **not** 'epproc' or 'rgsproc'.
-
-            my_obs.basic_setup(repo='heasarc',encryption_key='XXXXXXXXXXXXXXX')
-
-                - Uses the defaults, but downloads *proprietary* data from 
-                  the HEASARC. Must provide an encryption key, an alpha-numeric
-                  string with 30 characters.
-
-            my_obs.basic_setup(proprietary=True)
-
-                - Uses the defaults, but downloads *proprietary* data from 
-                  the XSA at ESA. Astroquery will ask for user's Cosmos
-                  username and password.
         Parameters
         ----------
         data_dir : str, optional
@@ -476,7 +393,7 @@ class ObsID:
             If True will force overwrite of data if obsid data already exists 
             in 'data_dir/obsid'. Defaults to False.
         rerun : bool, optional
-            Rerun the *procs or *chains.
+            Rerun the 'procs' or 'chains'.
             Defaults to False.
         recalibrate : bool, optional
             Rerun 'cifbuild' and 'odfingest'.
@@ -673,36 +590,25 @@ class ObsID:
                       odfingest_opts: dict = {},
                       recalibrate: bool    = False):
         """
-        Before running this function an ObsID object must be created first. e.g.
-
-            my_obs = pysas.obsid.ObsID(obsid)
-
-        *Then* the data must be downloaded using:
-
-            my_obs.download_ODF_data()
-
-        This function can then be used as, 
+        Function to run 'cifbuild' and 'odfingest' on ODF files.
         
-            my_obs.calibrate_odf()
-        
-        If it exists it will search data_dir/obsid and any subdirectories for the ccf.cif
-        and *SUM.SAS files. Will not rerun calibration if the ccf.cif and *SUM.SAS files
-        exist, unless recalibrate = True.
+        If obs_dir exists it will search it and any subdirectories for the 
+        ccf.cif and SUM.SAS files. Will not rerun calibration if the ccf.cif 
+        and SUM.SAS files exist, unless recalibrate = True.
 
-        Optionally the paths to the ccf.cif and *SUM.SAS files can be given through 
-        sas_ccf and sas_odf respectively.
+        Optionally the paths to the ccf.cif and SUM.SAS files can be given 
+        through sas_ccf and sas_odf respectively.
 
         Parameters
         ----------
         obs_dir : str | Path, optional
-            Path to the obs directory. If no path given, then will look in 
-            data_dir/obsid/. If directory exists then will look for ccf.cif and 
-            *SUM.SAS files. Defaults to data_dir/obsid/.
+            Path to the obs directory. By default will use the obs_dir in the 
+            default data_dir.
         sas_ccf : str | Path, optional
             Path to the Calibration Configuration File (ccf.cif). Defaults to 
             None.
         sas_odf : str | Path, optional
-            Path to the *SUM.SAS file. Defaults to None.
+            Path to the SUM.SAS file. Defaults to None.
         cifbuild_opts : dict, optional
             Additional keyword options passed to the SAS `cifbuild` task.
             Defaults to an empty dictionary.
@@ -717,9 +623,9 @@ class ObsID:
         Raises
         ------
         IsADirectoryError
-            Observation directory: {self._obs_dir} does not exist!
+            Observation directory: {self._obs_dir} does not exist.
         FileNotFoundError
-            ODF directory and files not found!
+            ODF directory and files not found.
         """
 
         # If user passes in obs_dir
@@ -887,8 +793,9 @@ class ObsID:
                           credentials_file: str = None,
                           encryption_key: str = None):
         """
-        This handles preliminary setup for downloading data files, then 
-        calls download_data (as "dl_data") from sasutils.
+        This handles preliminary setup for downloading ODF data files, then 
+        calls download_data from sasutils. If ODF files are present then will 
+        not download the files again, unless overwrite=True.
 
         Parameters
         ----------
@@ -1029,8 +936,9 @@ class ObsID:
                           **kwargs
                          ):
         """
-        This handles preliminary setup for downloading data files, then 
-        calls download_data from sasutils.
+        This handles preliminary setup for downloading PPS data files, then 
+        calls download_data from sasutils. If PPS files are present then will 
+        not download the files again, unless overwrite=True.
 
         If only a subset of PPS files is needed (i.e. not every thing) then set
         PPS_subset to True. The remaining inputs are used for downloading groups 
@@ -1262,8 +1170,8 @@ class ObsID:
         This function assumes you want to overwrite everything in the
         obs_dir. Makes no checks.
 
-        This handles preliminary setup for downloading data files, then 
-        calls download_data (as "dl_data") from sasutils.
+        This handles preliminary setup for downloadingboth ODF and PPS data 
+        files, then calls download_data from sasutils.
 
         Parameters
         ----------
@@ -1371,15 +1279,6 @@ class ObsID:
         This acts as a wrapper around 'MyTask'. This provides a way of calling
         SAS tasks, while using the values set when the 'ObsID' object was 
         instantiated.
-
-        Optional inputs (just like MyTask, but **only** use these if you want 
-        them to be different from the values used when instantiating 'ObsID'):
-            logfilename
-            tasklogdir
-            output_to_terminal
-            output_to_file
-            logger (Only in very rare circumstances **DO NOT USE** unless you
-                    know exactly what you are doing!!)
         
         Parameters
         ----------
@@ -1649,10 +1548,9 @@ class ObsID:
         """
         Checks the observation directory (obs_dir) for basic unfiltered 
         event list files created by 'epproc', 'emproc', 'epchain', 
-        'emchain', and 'rgsproc'. 
-        Stores paths and file names in self._files.
+        'emchain', and 'rgsproc'.
 
-        'self._files' is a dictionary with the following keys:
+        Adds them to 'files' dictrionary with the keys:
 
             'PNevt_list'
             'M1evt_list'
@@ -1719,6 +1617,7 @@ class ObsID:
 
             'R1SPEC'
             'R2SPEC'
+
         Parameters
         ----------
         print_output : bool, optional
@@ -1788,18 +1687,18 @@ class ObsID:
     
     def get_SUM_SAS(self,user_defined_file: str = None) -> bool:
         """
-        Checks for the *SUM.SAS file.
+        Checks for the SUM.SAS file.
 
         Parameters
         ----------
         user_defined_file : str, optional
-            Filename and path of the *SUM.SAS file, checks if it is valid. 
-            By default it will search the obs_dir for the *SUM.SAS file.
+            Filename and path of the SUM.SAS file, checks if it is valid. 
+            By default it will search the obs_dir for the SUM.SAS file.
 
         Returns
         -------
         bool
-            Returns True if the *SUM.SAS file is found.
+            Returns True if the SUM.SAS file is found.
         """
         self._logger.debug('Entering get_SUM_SAS')
 
@@ -2051,8 +1950,12 @@ class ObsID:
         The dictionary passed in must have the keys:
 
             'Source' : Data source identifier (DD)
+
             'Product': Product filename field (TTTTTT)
+
             'Format' : File format or extension (FFF)
+
+        This follows the general format for PPS file names:
 
             POOOOOOOOOODDUEEETTTTTTSXXX.FFF
 
@@ -2297,8 +2200,11 @@ class ObsID:
         How to use:
 
         In a terminal go to the Obs ID work directory and run: 
+
             > source set_env_variables.sh
-        --or--
+
+        or
+
             > . set_env_variables.sh
 
         Parameters
@@ -2777,12 +2683,12 @@ class ObsID:
     
     def _check_for_SUM_SAS(self):
         """
-        Checks if the the *SUM.SAS file exists.
+        Checks if the the SUM.SAS file exists.
 
         Returns
         -------
         bool
-            Whether or not the *SUM.SAS file was found.
+            Whether or not the SUM.SAS file was found.
         """
         exists = False
 

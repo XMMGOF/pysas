@@ -15,78 +15,11 @@
 #    You should have received a copy of the GNU General Public License
 #    along with SAS.  If not, see <http://www.gnu.org/licenses/>.
 #
-"""sastask.py
+# sastask.py
 
-All stand alone SAS tasks can be called by using MyTask.
-
-As any other SAS task, Python based tasks are used to
-perform specific data processing jobs.
-
-The task invocation command may include several parameters
-and generic options.
-
-Parameters allow to set or to choose among specific task processing
-options. SAS parameter syntax has the form param=value.
-Mandatory parameters must be present in the command line.
-Optional parameters might have a default value.
-All task parameters with their properties
-must be defined in a parameter file, which is unique for each task.
-Such file provides for each paramater, its name, type (int, real,
-boolean, string, etc), options (one or several choices), whether it is
-mandatory or not, its default value if none is given, etc.
-The parameter file is written in XML format.
-
-Generic options, common to all SAS tasks, allow to handle
-several features of the execution environment.
-They can be expressed either with a single or with a double "-",
-e.g. -v or --version (to show the task version and exit), -V or
---verbosity (to set the level of output verbosity between 0 and 10), etc.
-Some of these options modify shell environment variables, e.g.
-SAS_VERBOSITY is modified by the value given to --verbosity, etc.
-
-Let be mytask a new SAS task. It will be an instance of MyTask
- 
-mytask = MyTask('mytask', args)
-  
-where args is a list that includes all arguments we pass to mytask
-in the command line.
-
-The specific Python code for mytask, and possibly other auxiliary Python
-code which might be required by mytask to operate, will be placed all
-within the directory structure of mytask.
-
-A typical invocation of mytask could be of the form
-
-MyTask('mytask', ['param0=value0','param1=value1', ... [Options]).run()
-
-where param0, param1, etc, are any task parameters defined in
-a file named mytask.par, and [Options] are any of the generic options
-common to all SAS task. If a parameter, e.g. param0, is defined in
-mytask.par as 'mandatory', it must be present.
-
-Of course, the presence of some of the Options, will trigger specific
-immediate actions: e.g. the option -v or --version will immediately
-show the version of mytask and exit.
- 
-Arguments of the form param=value can alternate with Options. 
-The only requirement is that Options with a value, e.g. -V 4, must be
-adjacent.
-
-Methods defined by MyTask (identified so far):
-
-1. readparfile: Read and loads the task parameter file.
-
-2. processargs: Parses arguments and acts accordingly. 
-
-3. run: Executes the task with the proper arguments.
-
-4. printHelp: Prints information about the task, equivalent to
-              MyTask('mytask', ['-h']).run()
-
-The readparfile method used class paramXmlInfoReader from
-param.py module.
-
-The processargs methods uses the class ParseArgs based on argparse.
+"""
+All stand alone SAS tasks can be called by using MyTask. The task invocation 
+command may include several parameters and generic options.
 """
 
 # Standard library imports
@@ -111,6 +44,30 @@ class MyTask:
     If input arguments are passed in as a list or string then they are converted 
     into a dictionary, but input arguments are not processed until either 'run' 
     or 'processargs' is called.
+
+    Parameters
+    ----------
+    taskname : str
+        SAS task name.
+    inargs : dict | list | str, optional
+        SAS input arguments, by default {}.
+    logfilename : str, optional
+        Designated log file name. Useful for putting all output from 
+        multiple tasks into the same file. By default "{taskname}.log".
+    tasklogdir : str, optional
+        Output directory for the log file, by default None.
+        Priority of defaults for task_logdir
+
+            1. tasklogdir (passed in)
+            2. SAS_TASKLOGDIR (envirnment variable)
+            3. current directory (final default)
+
+    output_to_terminal : bool, optional
+        Whether to print output to the terminal, by default True.
+    output_to_file : bool, optional
+        Whether to print output to file, by default False.
+    logger : logger, optional
+        Logger object, by default None.
     """    
 
     def __init__(self, taskname: str, 
@@ -122,28 +79,6 @@ class MyTask:
                  logger = None):
         """
         Class constructor for MyTask.
-
-        Parameters
-        ----------
-        taskname : str
-            SAS task name.
-        inargs : dict | list | str, optional
-            SAS input arguments, by default {}.
-        logfilename : str, optional
-            Designated log file name. Useful for putting all output from 
-            multiple tasks into the same file. By default "{taskname}.log".
-        tasklogdir : str, optional
-            Output directory for the log file, by default None.
-            Priority of defaults for task_logdir
-                1. tasklogdir (passed in)
-                2. SAS_TASKLOGDIR (envirnment variable)
-                3. cwd (final default)
-        output_to_terminal : bool, optional
-            Whether to print output to the terminal, by default True.
-        output_to_file : bool, optional
-            Whether to print output to file, by default False.
-        logger : logger, optional
-            Logger object, by default None.
         """
         self.taskname    = taskname
         self.inargs      = inargs
@@ -230,16 +165,21 @@ class MyTask:
         """
         Reads the parameter file (taskname.par) for the task. Adds various lists 
         and dictionaries to the object.
-            - allparams : Dictionary { parameter: {attributes} }
-            - mandpar   : List of all mandatory parameters/subparameters
-            - mainparams: List of main paramaters
-            - parmap    : Dictionary { pname: [ subparameters ...], ...}
-            - mandpar_dict: Dictionary, key = mandatory subparamater, 
-                            value=its parent parameter
-            - rev_mandpar_dict: Dictionary, keys = parent paramater, 
-                                value = list of all mandatory subparameters
-            - rev_mandpar_string_dict: Dictionary, keys = parent parameter type 
-                                       'string' value = list of alternatives
+
+        allparams (dictionary)
+            Dictionary of the form: { parameter: {attributes} }
+        mandpar (list)
+            List of all mandatory parameters/subparameters
+        mainparams (list)
+            List of main paramaters
+        parmap (list)
+            Dictionary of the form: { pname: [ subparameters ...], ...}
+        mandpar_dict (dictionary)
+            Dictionary, key = mandatory subparamater, value=its parent parameter
+        rev_mandpar_dict (dictionary)
+            Dictionary, keys = parent paramater, value = list of all mandatory subparameters
+        rev_mandpar_string_dict (dictionary)
+            Dictionary, keys = parent parameter type 'string', value = list of alternatives
         """
         t = paramXmlInfoReader(self.taskname, logger = self.logger)
         t.xmlParser()
@@ -517,16 +457,9 @@ class MyTask:
     def runtask(self):
         """
         This method is here for legacy reasons since some Python based SAS tasks 
-        still create a MyTask object.
-        e.g.
-            # Instatntiate MyTask for the task
-            t = MyTask('sasver', args)
-            t.readparfile()
-            t.processargs()
-            t.runtask()
+        still use 'runtask' instead of 'run'.
         """
         self.run()
-
 
 class SASTask(MyTask):
     """
@@ -535,8 +468,7 @@ class SASTask(MyTask):
     """
     def __init__(self, taskname, inargs):
         super().__init__(taskname,inargs)
-        warn(
-             """
+        warn("""
              The class SASTask has been depricated. Use MyTask instead.
              ex: from pysas.sastask import MyTask
              """)

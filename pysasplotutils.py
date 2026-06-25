@@ -14,9 +14,12 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with SAS.  If not, see <http://www.gnu.org/licenses/>.
-
+# 
 # pysasplot_utils.py
 
+"""
+Utilities for pySAS related plotting.
+"""
 import os, numbers, sys, re, warnings, pickle
 import pysas.sasfileutils as sasfileutils
 from astropy.io import fits
