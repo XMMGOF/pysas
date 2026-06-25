@@ -118,6 +118,7 @@ class paramXmlInfoReader:
         Examples:
         
         1- Parent parameter: keepfilteroutput
+        
            Subparameters: withfilteredset, filteredset
 
            {'keepfilteroutput': ['withfilteredset, 'filteredset'],
@@ -131,6 +132,7 @@ class paramXmlInfoReader:
                        └── filteredset
 
         2- Parent parameter: filtertype
+
            Subparameters: dssblock, expression
            
            {'filtertype': ['dssblock', 'expression'],
@@ -139,6 +141,7 @@ class paramXmlInfoReader:
            
            filtertype
                ├── dssblock
+
                └── expression
 
 
