@@ -728,32 +728,38 @@ def generate_PPS_pattern(obsid: str = None,
 
         POOOOOOOOOODDUEEETTTTTTSXXX.FFF
 
-    P           The character P, to identify the files as a PPS product file
+    P
+        The character P, to identify the files as a PPS product file
 
-    OOOOOOOOOO  (obsid) Observation identifier 
+    OOOOOOOOOO
+        (obsid) Observation identifier 
 
-    DD          (instname) Data source identifier (instrument name)
+    DD
+        (instname) Data source identifier (instrument name)
 
-    U           (expflag) Exposure flag (1 character = S (sched),
-                U (unsched), X (not applicable))
+    U
+        (expflag) Exposure flag (1 character = S (sched), U (unsched), 
+        X (not applicable))
 
-    EEE         (expno) Exposure number within the instrument 
-                observation (3 digits)
+    EEE
+        (expno) Exposure number within the instrument observation (3 digits)
 
-    TTTTTT      (product_type) Product type (6 characters)
+    TTTTTT
+        (product_type) Product type (6 characters)
 
-    S           (datasubsetno) 0 or data subset number/character 
-                (1 character, differentiates energy bands,
-                OSWs, filters, orders etc.)
+    S
+        (datasubsetno) 0 or data subset number/character (1 character, 
+        differentiates energy bands, OSWs, filters, orders etc.)
 
-    XXX         (sourceno) Source number or slew step number (3 characters, 
-                hexadecimal). It is set to 000 in source products from EPIC-pn 
-                Timing mode.
+    XXX
+        (sourceno) Source number or slew step number (3 characters, 
+        hexadecimal). It is set to 000 in source products from EPIC-pn Timing 
+        mode.
 
-    FFF         (extension) File format (3 characters)
+    FFF
+        (extension) File format (3 characters)
 
-    If inputs are not given then a wildcard "*" character will 
-    be inserted.
+    If inputs are not given then a wildcard "*" character will be inserted.
 
     Parameters
     ----------
