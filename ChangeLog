@@ -7,6 +7,38 @@ Version 2.5.0 - 2026-??-?? (RT)
 + All files : Update and format docstrings to NumPy-style format. Add type hints
               to all function inputs.
 
++ obsid     : Move from subdirectory to top level directory.
+
+- obsid     : The class FileMain has become ObsID, and the class PPSFiles has 
+              been folded into the class ObsID.
+
++ pysasplot_utils : Move from subdirectory to top level directory.
+                    Redirect put in place until SAS code can be modified to 
+                    change import path.
+
+- _attic    : Remove files in _attic.
+
+- startsas  : Remove "startsas" as a separate module. All functionality is found
+              elsewhere.
+
+- pkgmaker  : Remove "pkgmaker" as a separate module. End users are unable to 
+              use this moduel. Only used in a SAS dev environment.
+
+- odfcontrol: Remove depricated submodule "odfcontrol". All functionality is in
+              the submodule "obsid".
+
+- pysaspkgs : File no longer needed.
+
+- sastask   : Remove references to pysaspkgs.
+
+- parser    : Remove references to pysaspkgs.
+
+- pyutils   : Renamed "sasfileutils". Relocated to top level directory.
+              Redirect put in place until SAS code can be modified to change 
+              import path.
+
+- print_version: Functionality has been moved to version.py.
+
 + General bug fixes.
 
 Version 2.4.0 - 2026-03-31 (RT)

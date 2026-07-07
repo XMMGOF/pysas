@@ -21,10 +21,7 @@
 # init_sas.py
 
 """
-init_sas.py
-
 For auto initializing SAS on import of pySAS.
-
 """
 
 # Standard library imports

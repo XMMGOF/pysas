@@ -14,12 +14,10 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with SAS.  If not, see <http://www.gnu.org/licenses/>.
-
+# 
 # sasutils.py
 
 """
-sasutils.py
-
 Utility functions specific to SAS or pySAS.
 """
 
@@ -38,7 +36,6 @@ from astroquery.heasarc import Heasarc
 from pysas.logger import get_logger
 from .logger import TaskLogger as TL
 from pysas import sas_cfg
-
 
 def download_data(obsid: str,
                   data_dir: str,
@@ -61,7 +58,8 @@ def download_data(obsid: str,
                   **kwargs):
     """
     Not intended to be used by the end user. Internal use only. Use 
-    obsid.download_ODF_data() or obsid.download_ALL_data() instead.
+    obsid.download_ODF_data(), obsid.download_PPS_data(), 
+    or obsid.download_ALL_data() instead.
 
     Downloads, or copies, data from chosen repository. 
 
@@ -645,7 +643,7 @@ def update_calibration_files(repo='NASA'):
         cmd = f'wget -nH --no-remove-listing -N -np -r --cut-dirs=4 -e robots=off -l 1 -R "index.html*" https://heasarc.gsfc.nasa.gov/FTP/xmm/data/CCF/ -P {sas_ccfpath}'
     print(f'Downloading calibration data using the command:\n{cmd}')
     print('This may take a while...')
-    time.sleep(3)
+    time.sleep(1)
     result = subprocess.run(cmd, shell=True)
 
     return result
@@ -730,32 +728,38 @@ def generate_PPS_pattern(obsid: str = None,
 
         POOOOOOOOOODDUEEETTTTTTSXXX.FFF
 
-    P           The character P, to identify the files as a PPS product file
+    P
+        The character P, to identify the files as a PPS product file
 
-    OOOOOOOOOO  (obsid) Observation identifier 
+    OOOOOOOOOO
+        (obsid) Observation identifier 
 
-    DD          (instname) Data source identifier (instrument name)
+    DD
+        (instname) Data source identifier (instrument name)
 
-    U           (expflag) Exposure flag (1 character = S (sched),
-                U (unsched), X (not applicable))
+    U
+        (expflag) Exposure flag (1 character = S (sched), U (unsched), 
+        X (not applicable))
 
-    EEE         (expno) Exposure number within the instrument 
-                observation (3 digits)
+    EEE
+        (expno) Exposure number within the instrument observation (3 digits)
 
-    TTTTTT      (product_type) Product type (6 characters)
+    TTTTTT
+        (product_type) Product type (6 characters)
 
-    S           (datasubsetno) 0 or data subset number/character 
-                (1 character, differentiates energy bands,
-                OSWs, filters, orders etc.)
+    S
+        (datasubsetno) 0 or data subset number/character (1 character, 
+        differentiates energy bands, OSWs, filters, orders etc.)
 
-    XXX         (sourceno) Source number or slew step number (3 characters, 
-                hexadecimal). It is set to 000 in source products from EPIC-pn 
-                Timing mode.
+    XXX
+        (sourceno) Source number or slew step number (3 characters, 
+        hexadecimal). It is set to 000 in source products from EPIC-pn Timing 
+        mode.
 
-    FFF         (extension) File format (3 characters)
+    FFF
+        (extension) File format (3 characters)
 
-    If inputs are not given then a wildcard "*" character will 
-    be inserted.
+    If inputs are not given then a wildcard "*" character will be inserted.
 
     Parameters
     ----------

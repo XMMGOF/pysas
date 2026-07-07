@@ -16,6 +16,9 @@
 #    along with SAS.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+"""
+Module for logging pySAS output.
+"""
 
 # Standard library imports
 import copy
@@ -42,7 +45,7 @@ def get_logger(taskname: str,
                tasklogdir: str  = None,
                pylogger: bool   = True):
     """
-    Function to get a loguru logger object.
+    Function to get a logger object. Uses the package 'loguru'.
 
     Parameters
     ----------
@@ -183,31 +186,30 @@ def get_logger(taskname: str,
 
 class TaskLogger:
     """
-    TaskLogger creates a logger for Python tasks.
-    The name of the logger is the name of the task.
-    Such logger is known as saslogger. 
-    It includes two handlers, one console handler
-    and one file handler. The file handler will put
-    all logging messages in a file named <taskname>.log.
-    
-    This file is by default written in the starting directory
-    of the task (os.getcwd()). However, for each task we can 
-    set that directory by taking into account the env variable 
-    SAS_TASKLOGDIR, if defined. 
-    
-    By default the logging file is created in  mode -a- (append)
-    to allow to use the same file to log several runs of the
-    same task. However, the SAS_TASKLOGFMODE environment variable
-    can be set to -w- (new file), to change that behaviour.
+    This is only here for legacy reasons. This was the original logger class for 
+    pySAS.
 
-    File handler has alogging level of DEBUG, so everything
-    is logged. However, console handler logging level is 
-    controlled by the SAS Verbosity (SAS_VERBOSITY env. variable)
-    which is set via the option -V.
+    TaskLogger creates a logger for Python tasks. The name of the logger is the 
+    name of the task. Such logger is known as saslogger. It includes two 
+    handlers, one console handler and one file handler. The file handler will 
+    put all logging messages in a file named <taskname>.log.
+    
+    This file is by default written in the starting directory of the task 
+    (os.getcwd()). However, for each task we can set that directory by taking 
+    into account the env variable SAS_TASKLOGDIR, if defined. 
+    
+    By default the logging file is created in mode -a- (append) to allow to use 
+    the same file to log several runs of the same task. However, the 
+    SAS_TASKLOGFMODE environment variable can be set to -w- (new file), to 
+    change that behaviour.
 
-    The logger can not be called more than once. If not, 
-    messages start appearing duplicated. That is why the
-    logging method is separarted from the logger definition.
+    File handler has alogging level of DEBUG, so everything is logged. However, 
+    console handler logging level is controlled by the SAS Verbosity 
+    (SAS_VERBOSITY env. variable) which is set via the option -V.
+
+    The logger can not be called more than once. If not, messages start 
+    appearing duplicated. That is why the logging method is separarted from the 
+    logger definition.
     """
 
     def __init__(self, taskname):
@@ -274,10 +276,8 @@ class TaskLogger:
         self.ch.setFormatter(cformat)
         self.fh.setFormatter(fformat)
 
-
     def __repr__(self):
         return f'{self.__class__.__name__}({self.taskname})'
-
 
     def log(self, level, msg):
         """
@@ -286,10 +286,15 @@ class TaskLogger:
         on the console will depend on SAS_VERBOSITY.
         SAS_VERBOSITY can be set between 1 (min) and 10 (max).
         Correspondence between SAS_VERBOSITY levels and logging levels
+
         DEBUG      ->   verbosity  = 8, 9, 10
+
         INFO       ->   verbosity  = 6, 7
+
         WARNING    ->   verbosity  = 4, 5
+
         ERROR      ->   verbosity  = 2, 3
+        
         CRITICAL   ->   verbosity  = 1
         """
 

@@ -15,29 +15,18 @@
 #    You should have received a copy of the GNU General Public License
 #    along with SAS.  If not, see <http://www.gnu.org/licenses/>.
 #
-# 
-"""parser.py
-
+# parser.py
+"""
 The parser module implements the class ParseArgs which includes
 all the methods required to parse any arguments entered either 
-via the command line or through a list.
+via the command line or through MyTask.
 
 The class initialization checks for the existence of SAS_PATH.
-Then it populates the pysaspkgs list with all packages below pysas.
-This is used to get the version of the package.
+Then it checks the version of the SAS task.
 
-The instance method optparser uses module argparse to define the
-two types of arguments supported: options and parameters.
-Options can be classified into two categories: immediate action and
-execution modifiers. Options are accessed via the a single or a 
-double '-'. All SAS tasks allow for a given set of specific options.
-Parameters must include the '='symbol to separate the name and its
-value. Within the value there can be more '=' symbols. 
-
-Method procopt either executes the immediate options or sets the 
-environment variables that modify the execution of the task.
+This module is for internal use. It is not intended for the end 
+user to use this module.
 """
-
 
 # Standard library imports
 import os
@@ -58,11 +47,6 @@ class ParseArgs:
     """
     Class for parsing the input arguments. For pySAS v2.0 it is now assumed that 
     the input arguments are passed in as a dictionary.
-
-    Raises
-    ------
-    EnvironmentError
-        SAS_PATH is undefined.
     """
     
     def __init__(self, taskname: str, 
@@ -99,23 +83,11 @@ class ParseArgs:
         if not sas_path:
             raise EnvironmentError('SAS_PATH is undefined.')
 
-        pysaspkgs = []
-
-        my_resources = importlib.resources.files("pysas")
-        for line in (my_resources / "pysaspkgs").read_text().splitlines():
-            pysaspkgs.append(line)
-
-        # If taskname is not in pysaspkgs it is a non Python SAS task
-        # then its version must be obtained differently.
-        # If it is a Python task, version is available from __version__ object
-        if self.taskname in pysaspkgs:
-            m = import_module('pysas.' + self.taskname + '.' + self.taskname)
-            self.version = m.__version__
-        else:
-            # Do not use --version because some SAS perl tasks like epchain do not 
-            # accept this option but only -v
-            cmd = self.taskname + ' -v'
-            self.version = subprocess.check_output(cmd, shell=True, text=True)
+        # Get version of the SAS task
+        # Do not use --version because some SAS perl tasks like epchain do not 
+        # accept this option but only -v
+        cmd = self.taskname + ' -v'
+        self.version = subprocess.check_output(cmd, shell=True, text=True)
 
     def __repr__(self):
         """
@@ -128,32 +100,49 @@ class ParseArgs:
         """
         return f'{self.__class__.__name__}({self.taskname} - {self.argdict})'
 
-    # This is the task parser constructor
     def optparser(self):
         """
         This parses the 'options' from the input. The parsed options are stored 
         in a dict called parsedargs.
+
         There are two groups of options:
-        a) Immediate action:
+
+        1. Immediate action:
+
             If the option is present, it must be processed immediately and exit.
-            These are: 
-                -v/--version, 
-                -d/--dialog, 
-                -m/--manpage, 
-                -h/--help, 
-                -p/--param.
-        b) Modifiers:
+            These are:
+
+                -v/--version
+
+                -d/--dialog
+
+                -m/--manpage
+
+                -h/--help
+
+                -p/--param
+
+        2. Modifiers:
+
             If the option is present, it modifies the execution of the command 
             and/or the environment, usually by setting an environment variable.
-            These are: 
-            -V/--verbosity (SAS_VERBOSITY), 
-            -c/--noclobber (SAS_CLOBBER), 
-            -a/--ccfpath (SAS_CCFPATH),
-            -i/--ccf (SAS_CCF), 
-            -o/--odf (SAS_ODF), 
-            -f/--ccffiles,
-            -w/--warning, 
-            -t/--trace.
+            These are:
+
+                -V/--verbosity (SAS_VERBOSITY)
+
+                -c/--noclobber (SAS_CLOBBER)
+
+                -a/--ccfpath (SAS_CCFPATH)
+
+                -i/--ccf (SAS_CCF)
+
+                -o/--odf (SAS_ODF)
+
+                -f/--ccffiles
+
+                -w/--warning
+
+                -t/--trace.
         """
 
         # Define the parser. No need to make it class wide.
@@ -259,29 +248,17 @@ class ParseArgs:
         These include options that execute the command and exit. These are: 
 
             version(--version, -v)
+
             help(--help, -h)
+
             param(--param, -p)
+
             dialog(--dialog, -d)
+
             manpage(--manpage, -m)
 
         Returns 'Exit' which if True will send the exit command up the chain. 
         If False, then pySAS will continue to execute.
-
-        # Process options entered in command line
-        #
-        # Options version(--version, -v), help(--help, -h), param(--param, -p)
-        # dialog(--dialog, -d) and manpage(--manpage, -m) are exclusive.  
-        # Only one can be present and will set Exit to True. 
-        # When exe_options is executed on the instance of ParseArgs (e.g. p), as
-        # p.exe_options() the return Exit determines wheter to return immediately or
-        # not. If Exit is set to True, the method will return immediately.
-        #
-        # Some options entered in self.argdict will launch special SAS tasks
-        # designed only to provide specific result. These are:
-        #
-        # -d/--dialog   => sasdialog to launch task GUI
-        # -m/--manpage  => sashelp to show HTML doc in the default web browser
-        #
 
         Returns
         -------
@@ -337,13 +314,13 @@ class ParseArgs:
         if self.parsedargs.dialog:
             print(f'\nLaunching {self.taskname} GUI ...')
             cmd = ['sasdialog', self.taskname]
-            self.runext(cmd)
+            self._runext(cmd)
             Exit = True
         # manpage (HTML doc)
         if self.parsedargs.manpage:
             print(f'\nLaunching web browser to display HTML documentation on {self.taskname} ...')
             cmd = ['sashelp', 'doc=' + self.taskname]
-            self.runext(cmd)
+            self._runext(cmd)
             Exit = True
 
         if Exit:
@@ -356,12 +333,19 @@ class ParseArgs:
         and then continue running the SAS task. These are:
 
             -V/--verbosity (SAS_VERBOSITY)
+
             -c/--noclobber (SAS_CLOBBER)
+
             -a/--ccfpath (SAS_CCFPATH)
+
             -i/--ccf (SAS_CCF)
+
             -o/--odf (SAS_ODF)
+
             -f/--ccffiles
+
             -w/--warning
+
             -t/--trace
 
         Returns
@@ -431,7 +415,7 @@ class ParseArgs:
 
         return return_options
 
-    def runext(self, runcmd):
+    def _runext(self, runcmd):
         """
         Run options that need to be executed.
 

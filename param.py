@@ -15,32 +15,12 @@
 #    You should have received a copy of the GNU General Public License
 #    along with SAS.  If not, see <http://www.gnu.org/licenses/>.
 #
-"""param.py
-
+# param.py
+"""
 Defines class paramXmlInfoReader with methods to parse and extract all
 the information included in the task parameter file and build several
 data structures which allow to handle them when entered either from the
-command line or via an argument list.
-
-
-Methods (Class and instance):
-
-xmlParser:		Parses the parameter file into a Document object.
-printHelp:		Prints a table with the parameters read from xmlFile.
-defaultValues: 	Returns a dictionary with the default values for each parameter.
-
-Functions:
-att(p):                     Fills in the attributes of parameter p
-getsub(p):                  Obtains the sub-parameters of parameter p
-el2nam(p, pels):            Gets the name off parameter element p
-nam2el(pname, rev_pels):    Gets the element of parameter name pname
-
-
-Class Instantiation
-
-t = paramXmlInfoReader('epproc')
-t.xmlParser()
-
+command line or via an argument dict.
 """
 
 # Standard library imports
@@ -64,21 +44,24 @@ class paramXmlInfoReader:
     the DOM standard. Once the information is loaded, it is distributed into 
     several data structures to allow proper handling of any parameters entered 
     from the command line or through an argument list.
-
-    Raises
-    ------
-    FileNotFoundError
-        Parameter file for {taskname} not found.
-    Exception
-        ERROR opening parameter file.
-    Exception
-        rev_pels is undefined.
-    Exception
-        pels is undefined.
     """
 
     def __init__(self, taskname: str, logger = None):
-        """taskname to be handled."""
+        """
+        Class constructor for ParseArgs.
+
+        Parameters
+        ----------
+        taskname : str
+            Name of SAS task.
+        logger : _type_, optional
+            Logger object, by default None.
+
+        Raises
+        ------
+        FileNotFoundError
+            Parameter file for {taskname} not found.
+        """
 
         self.taskname = taskname
         self.xmlFile = ''
@@ -105,29 +88,37 @@ class paramXmlInfoReader:
     # xmlParser instance method
     def xmlParser(self):
         """
+        Parses the parameter file into a Document object.
+
         The first task of xmlParser is to get the whole XML file as an object 
-        of type Document (For a list of all objects, look at the xml.dom documentation).
-        Then, it produces a list of Element objects in the paramater file which are 
-        identified by the tag 'PARAM'. This is done by means of the Element method
-        getElementsByTagName.
-        
+        of type Document (For a list of all objects, look at the xml.dom 
+        documentation). Then, it produces a list of Element objects in the 
+        paramater file which are identified by the tag 'PARAM'. This is done by 
+        means of the Element method getElementsByTagName.
         
         Outputs:
+
         - params                  : List of all elements with tag PARAM
+
         - allparams               : Dictionary { parameter: {attributes} }
+
         - pels                    : Dictionary { element: pname }
+
         - rev_pels                : Dictionary { pname : element }
+
         - parmap                  : Dictionary { pname: [ subparameters ...], ...}
         
         It is the map of the parameter tree as a list of dictionaries.
         Each dictionary corresponds to a paramater and all its sub-parameters
         structure as follows:
-        keys are the parent parameters and values are lists with all their subparameters
-        
+
+        keys are the parent parameters and values are lists with all their 
+        subparameters
         
         Examples:
         
         1- Parent parameter: keepfilteroutput
+        
            Subparameters: withfilteredset, filteredset
 
            {'keepfilteroutput': ['withfilteredset, 'filteredset'],
@@ -141,6 +132,7 @@ class paramXmlInfoReader:
                        └── filteredset
 
         2- Parent parameter: filtertype
+
            Subparameters: dssblock, expression
            
            {'filtertype': ['dssblock', 'expression'],
@@ -149,6 +141,7 @@ class paramXmlInfoReader:
            
            filtertype
                ├── dssblock
+
                └── expression
 
 
@@ -158,10 +151,14 @@ class paramXmlInfoReader:
            {'table': [] }
            
            - mandpar                 : List of all parameters/subparameters defined mandatory = 'yes'.
+
            - mainparams              : List of main paramaters, with or without subparamaters
+
            - mandpar_dict            : Dictionary, key = mandatory subparamater, value=its parent parameter
+
            - rev_mandpar_dict        : Dictionary, keys  = parent paramater, 
                         value = list of all mandatory subparameters
+
            - rev_mandpar_string_dict : Dictionary, keys  = parent parameter type 'string'
                         value = list of alternatives
         """
@@ -321,7 +318,7 @@ class paramXmlInfoReader:
     # Print table of all parameters
     def printHelp(self):
         """
-        Prints a table of all parameters with columns.
+        Prints a table with the parameters read from xmlFile.
         """
         table = BeautifulTable()
         table.columns.header = ['name', 'mandatory', 'type', 'default', 'description']
@@ -335,6 +332,8 @@ class paramXmlInfoReader:
     # method defaultValues - Returns defaults
     def defaultValues(self):
         """
+        Returns a dictionary with the default values for each parameter.
+
         Default values might be of different types with multiple values.
         For the time being, we create lists for all of then, which can be either 
         single or multiple values.
@@ -414,7 +413,7 @@ class paramXmlInfoReader:
     @staticmethod
     def nam2el(pname, rev_pels):
         """
-        returns the parameter element p for a parameter name
+        Returns the parameter element p for a parameter name.
 
         Parameters
         ----------
@@ -478,24 +477,27 @@ class SASParams(UserDict):
 
     The end user should interact with the SASParams dict like a normal
     Python dictionary.
-    
-    The special methods are intended for internal pySAS use only!
 
     How to use:
+
         from pysas.param import SASParams
+
         my_task_inputs = SASParams({})
+
         my_task_inputs.set_inparams_to_defaults(taskname)
+
     """
     def __init__(self, *args, **kwargs):
         self.inparams = {}
         super().__init__(*args, **kwargs)
         for key in self.data.keys():
             self.inparams[key] = (self.data[key],False)
+            
     def __setitem__(self, key, value):
         self.inparams[key] = (value,True)
         super().__setitem__(key, value)
 
-    def get_task_defaults(self,taskname):
+    def _get_task_defaults(self,taskname):
         """
         Function to get the default parameters for a SAS task.
 
@@ -510,7 +512,7 @@ class SASParams(UserDict):
         self.defaults = t.defaultValues()
         self.defaults['options'] = ''
 
-    def get_task_params(self,taskname):
+    def _get_task_params(self,taskname):
         """
         Function to get ALL the parameter information for a SAS task.
 
@@ -540,7 +542,7 @@ class SASParams(UserDict):
         taskname : str
             SAS task name.
         """
-        self.get_task_defaults(taskname)
+        self._get_task_defaults(taskname)
         for k, v in self.defaults.items():
             self.inparams[k] = (v,False)
             super().__setitem__(k, v)

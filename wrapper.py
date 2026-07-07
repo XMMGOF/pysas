@@ -14,11 +14,11 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with SAS.  If not, see <http://www.gnu.org/licenses/>.
-
-"""wrapper.py
-
-This file is only here for legacy reasons. Its only purpose
-is to point to the MyTask class in sastask.py.
+#
+# wrapper.py
+"""
+This file is only here for legacy reasons. Its only purpose is to point to the 
+MyTask class in sastask.py.
 """
 
 # Standard library imports
@@ -48,8 +48,7 @@ class Wrapper:
         self.tasklogdir  = tasklogdir
         self.output_to_terminal = output_to_terminal
         self.output_to_file     = output_to_file
-        warn(
-             """
+        warn("""
              The wrapper class has been depricated. Use MyTask instead.
              ex: 
                  from pysas.sastask import MyTask
