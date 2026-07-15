@@ -21,7 +21,7 @@
 # config_pysas.py
 
 # Standard library imports
-import os, glob
+import os, glob, time, subprocess
 
 # Third party imports
 
@@ -43,7 +43,7 @@ class sas_config:
         HOME directory).
     """
 
-    def __init__(self, config_file: str =None):
+    def __init__(self, config_file: str = None):
 
         self.config = ConfigParser()
 
@@ -490,6 +490,8 @@ def run_config():
     if not os.path.exists(sas_ccfpath) and not download_calibration:
         print(f'SAS_CCFPATH ({sas_ccfpath}) does not exist! Make sure you create it and download the calibration files!')
         
+    # Create config object
+    sas_cfg = sas_config()
 
     # Set sas_dir in configuration settings
     sas_cfg.set_setting('sas_dir', sas_dir)
@@ -511,7 +513,7 @@ def run_config():
             cmd = f'wget -nH --no-remove-listing -N -np -r --cut-dirs=4 -e robots=off -l 1 -R "index.html*" https://heasarc.gsfc.nasa.gov/FTP/xmm/data/CCF/ -P {sas_ccfpath}'
         print(f'Downloading calibration data using the command:\n{cmd}')
         print('This may take a while...')
-        time.sleep(1)
+        time.sleep(3)
         result = subprocess.run(cmd, shell=True)
 
     scomment = f"""

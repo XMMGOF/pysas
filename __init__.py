@@ -95,6 +95,7 @@ if sas_ready:
     SAS_COMPILATION_USER = sas_info['COMPILATION_USER']
     SAS_PLATFORM         = sas_info['PLATFORM']
     SAS_COMMIT_ID        = sas_info['COMMIT_ID']
+    del sas_info
 
 from .version import VERSION, print_sas_version
 
@@ -126,4 +127,4 @@ if sas_initialize:
     del sas_dir_config, sas_ccfpath_config, sas_verbosity, sas_suppress_warning
 del sas_initialize, sas_ready
 del sas_dir, sas_path, sas_ccfpath
-del value, sas_info
+del value
