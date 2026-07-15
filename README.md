@@ -1,5 +1,9 @@
 ### Installing pySAS
 
+Full documentation for pySAS can be found here:
+
+[xmmpysas.readthedocs.io](https://xmmpysas.readthedocs.io)
+
 This version of pySAS can be used with versions 20 and up of XMM-Newton SAS. After installing SAS [following the installation instructions](https://www.cosmos.esa.int/web/xmm-newton/sas-installation) you can then install the development version of pySAS using
 ```
 pip install xmmpysas
@@ -21,7 +25,8 @@ You can update pySAS using
 ```
 pip install xmmpysas --upgrade
 ```
-### Example Scripts
+
+### Documentatio and Example Scripts
 
 There are example scripts and Jupyter notebooks available on [GitHub demonstrating how to use pySAS](https://github.com/XMMGOF/pysas_docs). We are expanding the number of example scripts and Jupyter notebooks. You can clone the repository with the example notebooks by running the following command in a directory of your choosing:
 
@@ -29,7 +34,13 @@ There are example scripts and Jupyter notebooks available on [GitHub demonstrati
 git clone https://github.com/XMMGOF/pysas_docs.git
 ```
 
-With the documentation on GitHub there are notebooks explaining the [basics of pySAS](https://github.com/XMMGOF/pysas_docs/blob/master/Basics_of_pySAS.ipynb), and using [pySAS v2.0](https://github.com/XMMGOF/pysas_docs/blob/master/Using_pySASv2.ipynb).
+The documentation for pySAS on Read the Docs has:
+
+- [An introduction to pySAS](https://xmmpysas.readthedocs.io/en/latest/intro.html)
+- [A more extensive overview of pySAS](https://xmmpysas.readthedocs.io/en/latest/overview.html)
+- [Technical information for advanced users](https://xmmpysas.readthedocs.io/en/latest/technical.html)
+- [Helpful functions for pySAS](https://xmmpysas.readthedocs.io/en/latest/helpfulfunctions.html)
+- [The Absolute Beginner’s Guide to XMM-Newton](https://xmmpysas.readthedocs.io/en/latest/absolutebeginners.html)
 
 ### Running pySAS for the First Time
 
@@ -73,7 +84,7 @@ git pull https://github.com/XMMGOF/pysas.git
 
 Q: Will this break my SAS inatallation?
 
-A: No. All changes have been made to keep this version of pySAS working with SAS.
+A: No. This makes no changes to your SAS installation.
 
 Q: I have already been working with pySAS and I have several Python scripts already written. Will this make them break?
 
@@ -104,11 +115,3 @@ pysas.sasutils.update_calibration_files()
 ```
 
 This will download new calibration files.
-
-Q: What version of pySAS is installed on SciServer?
-
-A: Version 2.0.
-
-Q: Why have this version of pySAS separate from the standard version you can download from ESA when you download SAS?
-
-A: Because of the realities of developing across multiple systems. Changes were needed to make pySAS run on systems such as SciServer (and other future online systems that are in the works, stay tuned!). The development timetable for SciServer did not match up with the development timetable for SAS. This allows us to continuously develop pySAS to match *all* of the development timetables. This also allows us to get feedback from the XMM-Newton user community about what they want to see in pySAS.
