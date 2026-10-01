@@ -834,3 +834,135 @@ def load_json_from_package(filename: str):
     except Exception as e:
         print(f"Unexpected error: {e}")
     
+def parse_odf_filename(filepath):
+    """
+    Separates the filename from the path and parses the ODF/SDF filename
+    according to the RRRR_obsidentif_IIUEEECCMMF.ZZZ convention.
+
+    Parameters
+    ----------
+    filepath : str | Path
+        ODF filename (+path, optional)
+
+    Returns
+    -------
+    parsed_info : dict
+        Dictionary with information parsed from the filename.
+    """
+    # 1. Separate filename from the path
+    filename = os.path.basename(filepath)
+    
+    # 2. Define the regex pattern for RRRR_obsidentif_IIUEEECCMMF.ZZZ
+    # Breaking down the pattern:
+    # RRRR (4) _ PPPPPPOOLL (10) _ II (2) U (1) EEE (3) CC (2) MM (2) F (1) \. ZZZ (3)
+    pattern = r'^([A-Z0-9]{4})_([A-Z0-9]{10})_([A-Z0-9]{2})([A-Z0-9])([A-Z0-9]{3})([A-Z0-9]{2})([A-Z0-9]{2})([A-Z0-9])\.([A-Z0-9]{3})$'
+    
+    # Use re.IGNORECASE to ensure it handles lower case gracefully, though spec says all upper
+    match = re.match(pattern, filename.upper())
+    
+    if not match:
+        raise ValueError(f"Filename '{filename}' does not match the expected ODF/SDF format (RRRR_obsidentif_IIUEEECCMMF.ZZZ).")
+        
+    # Extract the matched groups
+    rrrr, obsidentif, ii, u, eee, cc, mm, f, zzz = match.groups()
+    
+    # --- Look-up Dictionaries for descriptive output ---
+    
+    instruments = {
+        'OM': 'OM', 
+        'R1': 'RGS1', 
+        'R2': 'RGS2',
+        'M1': 'EMOS1', 
+        'M2': 'EMOS2', 
+        'PN': 'EPN',
+        'RM': 'ERM', 
+        'SC': 'SC'
+    }
+    
+    file_types = {
+        'E': 'EventList', 'I': 'Image', 'X': 'Auxiliary',
+        'H': 'Housekeeping', 'S': 'Spacecraft', 'M': 'Summary'
+    }
+    
+    # Default data content (MM) map. Overlaps/Exceptions handled below.
+    data_content = {
+        'AT': 'Spacecraft attitude', 'AU': 'EPIC or RGS auxiliary', 'BU': 'EPIC PN burst',
+        'CC': 'EPIC counting cycle report', 'CI': 'EPIC MOS compressed timing',
+        'D1': 'DPP non-periodic Housekeeping', 'D2': 'DPP non-periodic Housekeeping',
+        'DI': 'EPIC MOS or RGS diagnostic', 'DL': 'EPIC PN discarded lines data',
+        'DP': 'RGS Digital Pre-Processor non periodic housekeeping',
+        'ES': 'EPIC Radiation Monitor (ERC) spectra', 'FA': 'OM fast',
+        'HB': 'EPIC high bit rate interface buffer size non-periodic housekeeping',
+        'HC': 'EPIC high bit rate interface configuration non-periodic housekeeping',
+        'IM': 'EPIC or OM imaging', 'NO': 'EPIC PN noise data',
+        'NP': 'OM non-periodic housekeeping', 'OF': 'RGS offset file',
+        'OD': 'EPIC PN offset data', 'OV': 'EPIC MOS offset / variance',
+        'P1': 'Spacecraft housekeeping 1 periodic housekeeping',
+        'P2': 'Spacecraft housekeeping 2 periodic housekeeping',
+        'P3': 'Spacecraft Attitude 1 periodic housekeeping',
+        'P4': 'Spacecraft Attitude 2 periodic housekeeping',
+        'P5': 'Spacecraft SYS_HK_SID0 periodic housekeeping',
+        'P6': 'Spacecraft SYS_HK_SID1 periodic housekeeping',
+        'P7': 'Spacecraft SYS_HK_SID4 periodic housekeeping',
+        'P8': 'Spacecraft SYS_HK_SID5 periodic housekeeping',
+        'P9': 'Spacecraft SYS_HK_SID6 periodic housekeeping',
+        'PC': 'RGS CCD temperature periodic housekeeping',
+        'PM': 'EPIC PN main periodic housekeeping',
+        'PT': 'EPIC MOS bright pixel table non-periodic housekeeping',
+        'PE': 'EPIC MOS or OM periodic housekeeping', 'RA': 'Raw Attitude file',
+        'RF': 'OM reference frame (auxiliary file)', 'RI': 'EPIC MOS reduced imaging',
+        'RO': 'Spacecraft reconstructed orbit', 'SP': 'RGS spectroscopy',
+        'SU': 'Summary information', 'TC': 'Spacecraft time correlation',
+        'TH': 'OM tracking history (auxiliary file)', 'TI': 'EPIC timing',
+        'TM': 'EPIC thermal monitoring limits non-periodic housekeeping',
+        'WD': 'OM priority window data (auxiliary file)'
+    }
+    
+    # Handle Data Content (MM) Context/Overlaps
+    mm_desc = data_content.get(mm)
+    
+    if mm == 'EC':
+        mm_desc = "EPIC MOS extra heating config non-periodic housekeeping" if ii in ['M1', 'M2'] else "EPIC Radiation Monitor (ERC) count rate" if ii == 'RM' else "Unknown 'EC'"
+    elif mm == 'HT':
+        mm_desc = "EPIC MOS high bit rate interface threshold values" if ii in ['M1', 'M2'] else "RGS high time resolution" if ii in ['R1', 'R2'] else "Unknown 'HT'"
+    elif mm == 'PA':
+        mm_desc = "EPIC PN additional periodic housekeeping" if ii == 'PN' else "OM priority field acquisition (auxiliary file)" if ii == 'OM' else "Unknown 'PA'"
+    elif mm == 'PF':
+        mm_desc = "RGS full periodic housekeeping" if ii in ['R1', 'R2'] else "OM priority fast (auxiliary file)" if ii == 'OM' else "Unknown 'PF'"
+    elif mm.startswith('E') and mm[1].isdigit() and 1 <= int(mm[1]) <= 7:
+        mm_desc = f"OM engineering (window {mm[1]})"
+
+    # --- Construct Results Dictionary ---
+    parsed_info = {
+        'filename' : filename,
+        'REVOLUT'  : rrrr,
+        'OBS_ID'   : obsidentif,
+        'INSTRUME' : instruments[ii],
+        'EXP_ID'   : obsidentif+eee,
+        'EXPIDSTR' : u+eee,
+        'obs_type' : u,
+        'exposure' : eee,
+        'format'   : zzz,
+        'file_type': f,
+        'ftype_des': file_types[f],
+        'content'  : mm, 
+        'cont_des' : mm_desc,
+    }
+
+    if cc == '00':
+        if parsed_info['INSTRUME'] == 'OM':
+            parsed_info['SCIWIN'] = int(cc)
+        else:
+            parsed_info['CCDID'] = 0
+    else:
+        if 'EMOS' in parsed_info['INSTRUME']:
+            parsed_info['CCDID']  = int(cc[0])
+            parsed_info['mode']   = int(cc[1])
+        elif parsed_info['INSTRUME'] == 'EPN':
+            parsed_info['CCDID']  = int(cc)
+        elif 'RGS' in parsed_info['INSTRUME']:
+            parsed_info['CCDID']  = int(cc)
+        elif parsed_info['INSTRUME'] == 'OM':
+            parsed_info['SCIWIN'] = int(cc)
+
+    return parsed_info
