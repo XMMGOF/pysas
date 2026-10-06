@@ -102,6 +102,7 @@ from .version import VERSION, print_sas_version
 __version__ = f'pysas - (pysas-{VERSION}) [SAS-{SAS_RELEASE}]'
 
 # Import pySAS modules
+from . import obsid
 from . import sastask
 from . import parser
 from . import param
