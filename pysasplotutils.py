@@ -32,7 +32,6 @@ from pypdf import PdfMerger
 from matplotlib.patches import Rectangle
 from matplotlib.collections import PatchCollection
 from matplotlib.ticker import StrMethodFormatter
-import xspec
 
 def plot_spectra_model(spectrum,
                        plot_file_name: str = 'spectra_model_plot.png'):
@@ -52,6 +51,8 @@ def plot_spectra_model(spectrum,
     fig
         Matplotlib figure object and two axis objects.
     """
+
+    import xspec
     
     xspec.Plot.device='/null'
     xspec.Plot.xAxis = 'keV'
