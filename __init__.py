@@ -107,12 +107,15 @@ from . import parser
 from . import param
 from . import init_sas
 from . import sasutils
+from . import pysasfcls
+from . import lightcurve
 
 # Classes and functions needed at the top level
 from .obsid import ObsID, PPSFiles
 from .sastask import MyTask
 from .config_pysas import run_config
 from .sasutils import download_data, generate_logger, update_calibration_files
+from .lightcurve import XMMLightCurve
 
 # API
 __all__ = ['ObsID',

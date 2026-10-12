@@ -20,15 +20,13 @@
 """
 Utilities for dealing with SAS data files.
 """
-import numpy as np
-import subprocess
-import os
-from astropy.io import fits
-import re
-import datetime
-import sys
-from astropy.table import Table
 
+import subprocess, os, re, sys, datetime, shutil, glob, numbers
+import errno
+import numpy as np
+from pathlib import Path
+from astropy.io import fits
+from astropy.table import Table
 
 def pyadd(images, outfile):
     """

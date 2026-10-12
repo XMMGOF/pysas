@@ -22,7 +22,8 @@ Utility functions specific to SAS or pySAS.
 """
 
 # Standard library imports
-import os, sys, subprocess, shutil, glob, tarfile, gzip, time, platform, re
+import os, sys, subprocess, shutil, tarfile, gzip, time, platform
+import operator, re, glob
 from shutil import copytree
 import json
 import importlib.resources as resources
@@ -966,3 +967,100 @@ def parse_odf_filename(filepath):
             parsed_info['SCIWIN'] = int(cc)
 
     return parsed_info
+
+def validate_event_list_pattern(pattern: int | str, instrument: str):
+    """
+    Validates pattern value or string for filtering by PATTERN 
+    events in an event list.
+
+    Parameters
+    ----------
+    pattern : int | str
+        Event list pattern value or string.
+    instrument : str
+        Which EPIC camera ('EMOS' or 'EPN')
+
+    Returns
+    -------
+    tuple
+        Tuple of operations and values.
+
+    Raises
+    ------
+    ValueError
+        Invalid max pattern value.
+    ValueError
+        Pattern must be a str or int.
+    ValueError
+        Invalid interval range.
+    SyntaxError
+        Invalid pattern function.
+    """
+    max_patt = {'EMOS':12,'EPN':4}
+    OPS = {'==': operator.eq, '!=': operator.ne,
+           '<=': operator.le, '>=': operator.ge,
+           '<':  operator.lt, '>':  operator.gt}
+    if 'EMOS' in instrument: instrument = 'EMOS'
+    max_val = max_patt[instrument]
+    og_pat = pattern
+
+    # 1. Handle Integer Input directly (Guard Clause)
+    if isinstance(pattern, int):
+        if pattern > max_val:
+            raise ValueError(f'Invalid max pattern value ({pattern}) for {instrument}.')
+        return ((operator.eq, pattern),)
+
+    # 2. Type Check
+    if not isinstance(pattern, str):
+        raise ValueError('Pattern must be a str or int.')
+
+    # 3. Clean the string (Remove spaces, "PATTERN", and "in" case-insensitively)
+    # \b ensures we only match the whole words "PATTERN" or "in"
+    pat_str = re.sub(r'(?i)\b(PATTERN|in)\b|\s+', '', pattern)
+
+    # 4. Match Exact Values (e.g., "4", "[4]", "(4)")
+    m_exact = re.match(r'^[\(\[]?(\d+)[\)\]]?$', pat_str)
+    if m_exact:
+        val = int(m_exact.group(1))
+        if val > max_val:
+            raise ValueError(f'Invalid max pattern value ({val}) for {instrument}.')
+        return ((operator.eq, val),)
+
+    # 5. Match Relational Operators (e.g., "<=4", ">2", "==12", "4:", ":4")
+    # Pre-process "4:" to ">=4" and ":4" to "<=4"
+    m_lo_open = re.match(r'^(\d+):$', pat_str)
+    if m_lo_open: pat_str = f">={m_lo_open.group(1)}"
+    
+    m_hi_open = re.match(r'^:(\d+)$', pat_str)
+    if m_hi_open: pat_str = f"<={m_hi_open.group(1)}"
+
+    m_rel = re.match(r'^(==|!=|<=|>=|<|>)(\d+)$', pat_str)
+    if m_rel:
+        op_str, val_str = m_rel.groups()
+        val = int(val_str)
+        if val > max_val:
+            raise ValueError(f'Invalid max pattern value ({val}) for {instrument}.')
+        return ((OPS[op_str], val),)
+
+    # 6. Match Intervals (e.g., "[0:4]", "0:4", "(1:4]")
+    m_range = re.match(r'^([\[\(]?)(\d*):(\d*)([\]\)]?)$', pat_str)
+    if m_range:
+        left_b, lo_str, hi_str, right_b = m_range.groups()
+        
+        # Fill defaults if lo/hi are missing
+        lo = int(lo_str) if lo_str else 0
+        hi = int(hi_str) if hi_str else max_val
+        
+        if lo >= hi:
+            raise ValueError(f'Invalid interval range ({lo}:{hi}) for {instrument}.')
+        if hi > max_val:
+            raise ValueError(f'Invalid max pattern value ({hi}) for {instrument}.')
+        
+        # Determine operator bounds (Assume inclusive '>=' / '<=' if no bracket provided)
+        op_lo = OPS['>='] if left_b in ('[', '') else OPS['>']
+        op_hi = OPS['<='] if right_b in (']', '') else OPS['<']
+        
+        return ((op_lo, lo), (op_hi, hi))
+
+    # If it reaches here, the syntax didn't match any known formats
+    raise SyntaxError(f'Invalid pattern function: {og_pat}')
