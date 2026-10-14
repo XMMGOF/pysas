@@ -107,7 +107,7 @@ from . import parser
 from . import param
 from . import init_sas
 from . import sasutils
-from . import pysasfcls
+from . import xmmfiles
 from . import lightcurve
 
 # Classes and functions needed at the top level

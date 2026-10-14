@@ -32,6 +32,7 @@ import importlib.resources as resources
 # Third party imports
 from astroquery.esa.xmm_newton import XMMNewton
 from astroquery.heasarc import Heasarc
+from astropy.units import Quantity
 
 # Local application imports
 from pysas.logger import get_logger
@@ -1064,3 +1065,21 @@ def validate_event_list_pattern(pattern: int | str, instrument: str):
 
     # If it reaches here, the syntax didn't match any known formats
     raise SyntaxError(f'Invalid pattern function: {og_pat}')
+
+def parse_value(value, default_units, equivalence=None):
+    if hasattr(value, "to_astropy"):
+        value = value.to_astropy()
+    if isinstance(value, Quantity):
+        q = Quantity(value.value, value.unit)
+    else:
+        q = Quantity(value, default_units)
+    return q.to(default_units, equivalencies=equivalence).value
+
+def set_unit(value, default_units, equivalence=None):
+    if hasattr(value, "to_astropy"):
+        value = value.to_astropy()
+    if isinstance(value, Quantity):
+        q = Quantity(value.value, value.unit)
+    else:
+        q = Quantity(value, default_units)
+    return q.to(default_units, equivalencies=equivalence)

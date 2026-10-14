@@ -1,4 +1,4 @@
-# pysasfcls.py
+# xmmfiles.py
 #
 # Written by: Ryan Tanner
 # email: ryan.tanner@nasa.gov
@@ -20,12 +20,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with SAS.  If not, see <http://www.gnu.org/licenses/>.
 # 
-# pysasfcls.py
+# xmmfiles.py
 # 
 # Contains classes for different files used by SAS and pySAS.
 
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy.table import Table
 from astropy.units import Quantity
@@ -65,18 +66,21 @@ class XMMFits:
         self._instrument    = None
         self._obs_id        = None
         self._exposure_time = None
-        self.data          = None
+        self._data          = None
             
         # Verify it's actually an XMM file upon initialization
-        self._telescope = self.telescope
+        self._telescope = self.get_keyword('TELESCOP', ext=0)
         if self._telescope != 'XMM':
             print(f"Warning: TELESCOP keyword is '{self._telescope}', expected 'XMM'.")
         else:
             self._primary_head  = self.get_header()
-            self._instrument    = self.instrument
-            self._obs_id        = self.obs_id
-            self._exposure_time = self.exposure_time
-            self.data           = self.get_data()
+            self._instrument    = self.get_keyword('INSTRUME', ext=0)
+            self._obs_id        = self.get_keyword('OBS_ID', ext=0)
+            keyword = 'ONTIME'
+            if not self.has_keyword(keyword, ext=1): keyword = 'EXPOSURE'
+            et = self.get_keyword(keyword, ext=1, default=0.0)
+            self._exposure_time = Quantity(et,'s')
+            self._data          = self.get_data()
 
     # ---------------------------------------------------------
     # Properties (Quick access to common XMM metadata)
@@ -84,36 +88,27 @@ class XMMFits:
     @property
     def telescope(self):
         """For XMM files should be 'XMM'."""
-        if not self._telescope:
-            self._telescope = self.get_keyword('TELESCOP', ext=0)
         return self._telescope
 
     @property
     def instrument(self):
         """Returns the instrument name (e.g., EPN, EMOS1, EMOS2)."""
-        if not self._instrument:
-            self._instrument = self.get_keyword('INSTRUME', ext=0)
         return self._instrument
 
     @property
     def obs_id(self):
         """Returns the Observation ID."""
-        if not self._obs_id:
-            self._obs_id = self.get_keyword('OBS_ID', ext=0)
         return self._obs_id
         
     @property
     def exposure_time(self):
         """Returns the total exposure time in seconds."""
-        # ONTIME is generally the most accurate representation of live exposure in XMM
-        if not self._exposure_time:
-            self._exposure_time = self.get_keyword('ONTIME', ext='EVENTS', default=0.0)
         return self._exposure_time
 
     @property
     def filename(self):
         """Returns the filename (and path if included)."""
-        return self._fits_file
+        return str(self._fits_file)
 
     # ---------------------------------------------------------
     # Header Methods
@@ -188,3 +183,44 @@ class XMMFits:
         # astropy has a built-in info method that prints HDU structure
         with fits.open(self._fits_file) as hdul:
             hdul.info()
+
+class XMMEventList(XMMFits):
+
+    def __init__(self,fits_file):
+        super().__init__(fits_file)
+
+    def create_light_curve(self,
+                           dt, 
+                           time_col='TIME', 
+                           ext_name='EVENTS'):
+        """
+        Reads an XMM-Newton event list, extracts events and GTIs, and bins them.
+        XMM-Newton typically stores GTIs in extensions starting with 'STDGTI' or 'GTI'.
+        """
+        event_times = self.data[time_col]
+        
+        # 2. Search for XMM-Newton GTI extensions
+        # gti_list = []
+        # for hdu in self._xmmhdul:
+        #     if 'GTI' in hdu.name: # Catches STDGTI, GTI, STDGTI04, etc.
+        #         gti_list.append(np.column_stack((hdu.data['START'], hdu.data['STOP'])))
+        
+        # if gti_list:
+        #     # If multiple GTI extensions exist (e.g., different CCDs), 
+        #     # we stack and use the bounding boxes, or simply take the first one.
+        #     # For a basic class, we take the primary/first GTI extension.
+        #     gti = gti_list[0] 
+        # else:
+        gti = None
+
+        # 3. Bin the events into a lightcurve
+        if gti is not None:
+            t_start, t_stop = gti[:, 0].min(), gti[:, 1].max()
+        else:
+            t_start, t_stop = event_times.min(), event_times.max()
+
+        bins = np.arange(t_start, t_stop + dt, dt)
+        counts, edges = np.histogram(event_times, bins=bins)
+        time_centers = edges[:-1] + (dt / 2)
+
+        return time_centers, counts, dt, gti

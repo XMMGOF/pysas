@@ -27,12 +27,13 @@ import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy.table import Table
 from astropy.units import Quantity
+from astropy import units as u
 from pathlib import Path
-import warnings
 
-from pysas.pysasfcls import XMMFits
+from pysas.xmmfiles import XMMFits
+from pysas.sasutils import parse_value, set_unit
 
-class XMMLightCurve(XMMFits):
+class XMMLightCurve:
     """
     A class to generate, store, and manipulate XMM-Newton X-ray light curves.
     """
@@ -49,57 +50,65 @@ class XMMLightCurve(XMMFits):
     #
     
     def __init__(self,
-                 time=None,
+                 time,
                  counts=None,
+                 rate=None,
                  err=None,
-                 input_counts=True,
+                 dt=None,
                  gti=None,
                  err_dist="poisson",
                  bg_counts=None,
                  bg_ratio=None,
                  frac_exp=None,
-                 dt=None,
                  instr=None,
                  header=None,
                  **other_kw,
                 ):
 
-        if 'fits_file' in other_kw.keys():
-            super().__init__(other_kw['fits_file'])
-            time_col=other_kw['time_col']
-            ext_name=other_kw['ext_name']
-            time,counts,dt,gti = self._lcurve_from_events(dt=dt,
-                                                          time_col=time_col,
-                                                          ext_name=ext_name)
-        self._time = None
-        self._mask = None
-        self._counts = None
-        self._counts_err = None
-        self._countrate = None
-        self._countrate_err = None
+        self._xunit = u.second
+
+        self._time = set_unit(time, self._xunit)
+
+        if dt is None:
+            dt = self._time[1] - self._time[0]
+
+        self._dt = set_unit(dt, self._xunit)
+
+        if counts is None and rate is None:
+            raise ValueError('Either a counts or rate array must be passed in.')
+
+        if rate is None:
+            self._yunit = u.photon
+            self._counts = set_unit(counts, self._yunit)
+            if err is not None:
+                self._counts_err = set_unit(err, self._yunit)
+            self._compute_from_counts()
+        else:
+            self._yunit = u.photon / u.second
+            self._rate = set_unit(rate, self._yunit)
+            if err is not None:
+                self._rate_err = set_unit(err, self._yunit)
+            self._compute_from_rate()
+
         self._meanrate = None
         self._meancounts = None
         self._bin_lo = None
         self._bin_hi = None
         self._n = None
-
-        self._time = np.asarray(time, dtype=float)
-        self._counts = np.asarray(counts, dtype=float)
-        self._dt = float(dt)
         
         if self._dt <= 0:
             raise ValueError("Time resolution (dt) must be strictly positive.")
         if len(self._time) != len(self._counts):
             raise ValueError("Time and counts arrays must be the same length.")
             
-        if gti is None:
-            # Default GTI covers the whole observation
-            self._gti = np.array([[self._time.min() - self._dt/2, 
-                                   self._time.max() + self._dt/2]])
-        else:
-            self._gti = np.asarray(gti, dtype=float)
-            if self._gti.ndim != 2 or self._gti.shape[1] != 2:
-                raise ValueError("GTIs must be a 2D array of shape (N, 2).")
+        # if gti is None:
+        #     # Default GTI covers the whole observation
+        #     self._gti = np.array([[self._time.min() - self._dt/2, 
+        #                            self._time.max() + self._dt/2]])
+        # else:
+        #     self._gti = np.asarray(gti, dtype=float)
+        #     if self._gti.ndim != 2 or self._gti.shape[1] != 2:
+        #         raise ValueError("GTIs must be a 2D array of shape (N, 2).")
 
         # GTI masking computation
         # self._gti_mask = self._compute_gti_mask()
@@ -123,8 +132,8 @@ class XMMLightCurve(XMMFits):
 
     @property
     def rate(self):
-        """Returns the count rate (counts/sec)."""
-        return self._counts / self._dt
+        """Returns the rate (counts/sec)."""
+        return self._rate
 
     @property
     def rate_error(self):
@@ -141,65 +150,58 @@ class XMMLightCurve(XMMFits):
             mask |= in_gti
         return mask
 
+    def _compute_from_counts(self):
+        self._rate = self._counts / self._dt
+        # Add calc
+        self._rate_err = None
+        return
+
+    def _compute_from_rate(self):
+        self._counts = self._rate * self._dt
+        # Add calc
+        self._counts_err = None
+        return
+
     @classmethod
-    def lcurve_from_fits(cls,
+    def lcurve_from_file(cls,
                          fits_file,
-                         timecolumn="TIME",
-                         ratecolumn=None,
+                         timecolumn='TIME',
+                         countcolumn='COUNTS',
                          datahdu=1,
-                         gtistring="GTI",
-                         outfile=None,
-                         outdir=None,
-                         noclobber=False,):
-
-        super().__init__(fits_file)
-
-        return cls(time=time_centers, counts=counts, dt=dt, gti=gti)
-
-    def _lcurve_from_events(self,
-                            dt, 
-                            time_col='TIME', 
-                            ext_name='EVENTS'):
-        """
-        Reads an XMM-Newton event list, extracts events and GTIs, and bins them.
-        XMM-Newton typically stores GTIs in extensions starting with 'STDGTI' or 'GTI'.
-        """
-        event_times = self.data[time_col]
-        
-        # 2. Search for XMM-Newton GTI extensions
-        # gti_list = []
-        # for hdu in self._xmmhdul:
-        #     if 'GTI' in hdu.name: # Catches STDGTI, GTI, STDGTI04, etc.
-        #         gti_list.append(np.column_stack((hdu.data['START'], hdu.data['STOP'])))
-        
-        # if gti_list:
-        #     # If multiple GTI extensions exist (e.g., different CCDs), 
-        #     # we stack and use the bounding boxes, or simply take the first one.
-        #     # For a basic class, we take the primary/first GTI extension.
-        #     gti = gti_list[0] 
-        # else:
-        gti = None
-
-        # 3. Bin the events into a lightcurve
-        if gti is not None:
-            t_start, t_stop = gti[:, 0].min(), gti[:, 1].max()
+                        ):
+        lcfits = XMMFits(fits_file)
+        data   = lcfits._data
+        if datahdu != 1:
+            data = lcfits.get_data(ext=datahdu)
+        table = Table(data)
+        if countcolumn in table.colnames:
+            counts = Quantity(table[countcolumn],'photon')
+        elif 'RATE' in table.colnames:
+            counts = Quantity(table['RATE'],'photon/s')
         else:
-            t_start, t_stop = event_times.min(), event_times.max()
+            raise KeyError(f'Count column {countcolumn} not found in {fits_file}.')
+        if timecolumn in table.colnames:
+            time    = Quantity(table[timecolumn],'s')
+            _dt     = lcfits.get_keyword('TIMEDEL', ext=1)
+        else:
+            t_start = lcfits.get_keyword('TSTART', ext=1)
+            t_stop  = lcfits.get_keyword('TSTOP', ext=1)
+            _dt     = lcfits.get_keyword('TIMEDEL', ext=1)
+            if not all([t_start,t_stop,_dt]):
+                raise ValueError(f'Could not find times in {fits_file}.')
+            bins    = np.arange(t_start, t_stop + _dt, _dt)
+            time    = Quantity(bins,'s')
+        dt = Quantity(_dt,'s')
 
-        bins = np.arange(t_start, t_stop + dt, dt)
-        counts, edges = np.histogram(event_times, bins=bins)
-        time_centers = edges[:-1] + (dt / 2)
+        if 'ERROR' in table.colnames:
+            error = Quantity(table['ERROR'],counts.unit)
+        else:
+            error = None
 
-        return time_centers, counts, dt, gti
-
-    @classmethod
-    def lcurve_from_events(cls, 
-                           fits_file, 
-                           dt, 
-                           time_col='TIME', 
-                           ext_name='EVENTS'):
-        
-        return cls(fits_file=fits_file,dt=dt,time_col=time_col,ext_name=ext_name)
+        if counts.unit == 'photon':
+            return cls(time=time, counts=counts, dt=dt, err=error, instr=lcfits.instrument)
+        else:
+            return cls(time=time, rate=counts, dt=dt, err=error, instr=lcfits.instrument)
 
     def rebin(self, new_dt):
         """
@@ -225,7 +227,7 @@ class XMMLightCurve(XMMFits):
         return XMMLightCurve(time=new_time, counts=new_counts, dt=new_dt, gti=self._gti)
 
     # --- yt-style Plotting ---
-    def plot(self, apply_mask=False, return_objs=False):
+    def plot(self, apply_mask=False):
         """
         Plots the lightcurve using yt's object-oriented Matplotlib philosophy.
         Provides publication-quality styling and handles missing data.
@@ -241,7 +243,7 @@ class XMMLightCurve(XMMFits):
 
         # yt-style styling: step plot, distinct colors, tick formatting
         ax.step(self._time, plot_rate, where='mid', color='#1f77b4', 
-                linewidth=1.5, label=f'dt = {self._dt}s')
+                linewidth=1.5, label=f'dt = {self._dt}')
         
         # Axis labeling and styling
         ax.set_xlabel("Time (s)", fontsize=12, fontweight='bold')
@@ -258,12 +260,10 @@ class XMMLightCurve(XMMFits):
         
         # Adjust layout tightly, standard in yt
         fig.tight_layout()
+
+        # fig.show()
         
-        if return_objs:
-            # yt heavily features returning plot objects for user manipulation
-            return fig, ax
-        else:
-            plt.show()
+        return fig, ax
 
     def write_fits(self, filename):
         """Writes the light curve to a FITS file."""
