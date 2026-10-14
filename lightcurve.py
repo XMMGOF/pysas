@@ -23,6 +23,7 @@
 # lightcurve.py
 
 import numpy as np
+from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy.table import Table
@@ -50,21 +51,17 @@ class XMMLightCurve:
     #
     
     def __init__(self,
-                 time,
-                 counts=None,
-                 rate=None,
-                 err=None,
-                 dt=None,
-                 gti=None,
-                 err_dist="poisson",
-                 bg_counts=None,
-                 bg_ratio=None,
-                 frac_exp=None,
-                 instr=None,
-                 header=None,
+                 time: list | NDArray | Quantity,
+                 counts: list | NDArray | Quantity = None,
+                 rate: list | NDArray | Quantity = None,
+                 err: list | NDArray | Quantity = None,
+                 dt: int | float | Quantity = None,
+                 gti: list | tuple = None,
+                 err_dist:str = "poisson",
+                 instr: str = None,
                  **other_kw,
                 ):
-
+        
         self._xunit = u.second
 
         self._time = set_unit(time, self._xunit)
@@ -90,13 +87,15 @@ class XMMLightCurve:
                 self._rate_err = set_unit(err, self._yunit)
             self._compute_from_rate()
 
+        self.instrument = instr
+
         self._meanrate = None
         self._meancounts = None
         self._bin_lo = None
         self._bin_hi = None
         self._n = None
         
-        if self._dt <= 0:
+        if self.dt <= 0:
             raise ValueError("Time resolution (dt) must be strictly positive.")
         if len(self._time) != len(self._counts):
             raise ValueError("Time and counts arrays must be the same length.")
@@ -116,31 +115,26 @@ class XMMLightCurve:
     # --- Properties (Read-only to prevent accidental corruption) ---
     @property
     def time(self):
-        return self._time
+        return self._time.value
 
     @property
     def counts(self):
-        return self._counts
+        return self._counts.value
 
     @property
     def dt(self):
-        return self._dt
+        return self._dt.value
 
     @property
     def gti(self):
-        return self._gti
+        return self._gti.value
 
     @property
     def rate(self):
-        """Returns the rate (counts/sec)."""
-        return self._rate
-
-    @property
-    def rate_error(self):
-        """Assumes Poisson statistics for errors."""
-        return np.sqrt(self._counts) / self._dt
+        return self._rate.value
 
     # --- Math & Internal Methods ---
+    
     def _compute_gti_mask(self):
         """Creates a boolean mask for time bins falling within GTIs."""
         mask = np.zeros_like(self._time, dtype=bool)
@@ -196,7 +190,7 @@ class XMMLightCurve:
         if 'ERROR' in table.colnames:
             error = Quantity(table['ERROR'],counts.unit)
         else:
-            error = None
+            error = Quantity([0]*len(counts),counts.unit)
 
         if counts.unit == 'photon':
             return cls(time=time, counts=counts, dt=dt, err=error, instr=lcfits.instrument)
@@ -227,28 +221,61 @@ class XMMLightCurve:
         return XMMLightCurve(time=new_time, counts=new_counts, dt=new_dt, gti=self._gti)
 
     # --- yt-style Plotting ---
-    def plot(self, apply_mask=False):
+    def plot(self,
+             plot_rate=True,
+             xmin=None,
+             xmax=None,
+             ymin=None,
+             ymax=None,
+             xscale='linear',
+             yscale='linear',
+             label=None,
+             fontsize=18,
+             lw=1.5,
+             fig=None,
+             ax=None,
+             apply_mask=False,
+             **kwargs,):
         """
         Plots the lightcurve using yt's object-oriented Matplotlib philosophy.
         Provides publication-quality styling and handles missing data.
         """
-        # Create Figure and Axes explicitly
-        fig, ax = plt.subplots(figsize=(8, 5))
+        
+        if fig is None:
+            # Create Figure and Axes explicitly
+            fig = plt.figure(figsize=(8, 5))
+        if ax is not None:
+            xscale = ax.get_xscale()
+            yscale = ax.get_yscale()
+        else:
+            ax = fig.add_subplot(111)
+
+        if plot_rate:
+            y = self.rate
+            ylabel = f"Rate ({self._rate.unit})"
+        else:
+            y = self.counts
+            ylabel = f"Counts ({self._counts.unit})"
         
         if apply_mask:
             # Apply mask to show gaps where GTIs are missing (turns data to NaNs)
-            plot_rate = np.where(self._gti_mask, self.rate, np.nan)
-        else:
-            plot_rate = self.rate
+            y = np.where(self._gti_mask, y, np.nan)
+
+        if label is None:
+            label = f'dt = {self._dt}'
 
         # yt-style styling: step plot, distinct colors, tick formatting
-        ax.step(self._time, plot_rate, where='mid', color='#1f77b4', 
-                linewidth=1.5, label=f'dt = {self._dt}')
+        ax.step(self._time, y, where='mid', color='#1f77b4', 
+                linewidth=lw, label=label)
         
         # Axis labeling and styling
-        ax.set_xlabel("Time (s)", fontsize=12, fontweight='bold')
-        ax.set_ylabel("Count Rate (counts s$^{-1}$)", fontsize=12, fontweight='bold')
-        ax.set_title("XMM-Newton Light Curve", fontsize=14, fontweight='bold')
+        ax.set_xlabel(f"Time ({self._time.unit})", fontsize=fontsize-2, fontweight='bold')
+        ax.set_ylabel(ylabel, fontsize=fontsize-2, fontweight='bold')
+        if self.instrument is not None:
+            tinst = f' {self.instrument}'
+        else:
+            tinst = ''
+        ax.set_title(f"XMM-Newton{tinst} Light Curve", fontsize=fontsize, fontweight='bold')
         
         # Tick parameters
         ax.minorticks_on()

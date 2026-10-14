@@ -32,6 +32,8 @@ from astropy.table import Table
 from astropy.units import Quantity
 from pathlib import Path
 
+from pysas.sasutils import parse_value, set_unit
+
 class XMMFits:
     """
     A utility class for managing and extracting data from XMM-Newton FITS files.
@@ -79,7 +81,7 @@ class XMMFits:
             keyword = 'ONTIME'
             if not self.has_keyword(keyword, ext=1): keyword = 'EXPOSURE'
             et = self.get_keyword(keyword, ext=1, default=0.0)
-            self._exposure_time = Quantity(et,'s')
+            self._exposure_time = set_unit(et,'s')
             self._data          = self.get_data()
 
     # ---------------------------------------------------------
@@ -103,7 +105,7 @@ class XMMFits:
     @property
     def exposure_time(self):
         """Returns the total exposure time in seconds."""
-        return self._exposure_time
+        return self._exposure_time.value
 
     @property
     def filename(self):
@@ -192,12 +194,16 @@ class XMMEventList(XMMFits):
     def create_light_curve(self,
                            dt, 
                            time_col='TIME', 
-                           ext_name='EVENTS'):
+                           ext_name='EVENTS',
+                           gti=None):
         """
         Reads an XMM-Newton event list, extracts events and GTIs, and bins them.
         XMM-Newton typically stores GTIs in extensions starting with 'STDGTI' or 'GTI'.
         """
-        event_times = self.data[time_col]
+
+        from pysas.lightcurve import XMMLightCurve
+
+        event_times = self._data[time_col]
         
         # 2. Search for XMM-Newton GTI extensions
         # gti_list = []
@@ -211,7 +217,6 @@ class XMMEventList(XMMFits):
         #     # For a basic class, we take the primary/first GTI extension.
         #     gti = gti_list[0] 
         # else:
-        gti = None
 
         # 3. Bin the events into a lightcurve
         if gti is not None:
@@ -223,4 +228,6 @@ class XMMEventList(XMMFits):
         counts, edges = np.histogram(event_times, bins=bins)
         time_centers = edges[:-1] + (dt / 2)
 
-        return time_centers, counts, dt, gti
+        self.light_curve = XMMLightCurve(time=edges[:-1], counts=counts, dt=dt, err=None, instr=self.instrument)
+
+        return self.light_curve
