@@ -450,10 +450,10 @@ class MyTask:
             process.wait()
 
         except Exception as e:
-            _logger.exception(f"An error occurred while running the command: {e}")
+            _logger.critical(f"An error occurred while running the command: {e}")
 
         if process.returncode == 0:
-            _logger.success(f"{self.taskname} executed successfully!")
+            _logger.info(f"{self.taskname} executed successfully!")
         else:
             _logger.critical(f"{self.taskname} failed!")
 
