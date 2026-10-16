@@ -200,7 +200,9 @@ class XMMEventList(XMMFits):
                            dt, 
                            time_col='TIME', 
                            ext_name='EVENTS',
-                           gti=None):
+                           gti=None,
+                           **kwargs,
+                           ):
         """
         Reads an XMM-Newton event list, extracts events and GTIs, and bins them.
         XMM-Newton typically stores GTIs in extensions starting with 'STDGTI' or 'GTI'.
@@ -232,7 +234,15 @@ class XMMEventList(XMMFits):
         bins = np.arange(t_start, t_stop + dt, dt)
         counts, edges = np.histogram(event_times, bins=bins)
         time_centers = edges[:-1] + (dt / 2)
+        
+        to_lc = {'time'   : edges[:-1], 
+                 'counts' : counts, 
+                 'dt'     : dt, 
+                 'err'    : None, 
+                 'instr'  : self.instrument}
 
-        self.light_curve = XMMLightCurve(time=edges[:-1], counts=counts, dt=dt, err=None, instr=self.instrument)
+        to_lc.update(kwargs)
+
+        self.light_curve = XMMLightCurve(**to_lc)
 
         return self.light_curve

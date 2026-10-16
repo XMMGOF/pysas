@@ -27,13 +27,8 @@ import os
 from pathlib import Path
 
 # Third party imports
-from loguru import logger
-# This cleans up any loguru loggers that
-# might be hanging around.
-logger.remove()
 
 # Local application imports
-from pysas import sas_cfg
 
 # Define the standard 5 levels explicitly
 LEVELS = {
@@ -135,15 +130,21 @@ def _log_disable_file():
         _file_handler.close()
         _file_handler = None
 
-# Default behavior: Terminal ON, File OFF
-# 98% of the time pysas_verbosity == SAS_VERBOSITY.
-# But for debugging purposes it is convienent to have
-# a separate verbosity for pySAS.
-# This does not affect the verbosity for non-Python
-# based SAS tasks.
-pysas_verbosity = sas_cfg.get_setting('pysas_verbosity')
-_log_enable_terminal(level=pysas_verbosity)
-
+def _log_set_level(level="WARNING"):
+    """
+    Changes the logging level for the global _logger dynamically.
+    This updates the level for any currently active outputs (terminal or file)
+    without turning them on or off.
+    """
+    level_num = LEVELS.get(level.upper(), logging.WARNING)
+    
+    global _terminal_handler
+    if _terminal_handler is not None:
+        _terminal_handler.setLevel(level_num)
+        
+    global _file_handler
+    if _file_handler is not None:
+        _file_handler.setLevel(level_num)
 
 # ---------------------------------------------------------
 # 2. Independent Logger Factory (For Subprocesses)

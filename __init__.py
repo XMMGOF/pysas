@@ -110,12 +110,29 @@ from . import init_sas
 from . import sasutils
 from . import xmmfiles
 from . import lightcurve
+from . import logger
 
 # Classes and functions needed at the top level
 from pysas.obsid import ObsID, PPSFiles
 from pysas.sastask import MyTask
 from pysas.config_pysas import run_config
-from pysas.sasutils import download_data, generate_logger, update_calibration_files
+from pysas.lightcurve import XMMLightCurve
+from pysas.xmmfiles import XMMEventList
+from pysas.sasutils import (download_data, 
+                            generate_logger, 
+                            update_calibration_files,
+                            parse_value,
+                            set_unit,
+                            )
+
+# Default behavior: Terminal ON, File OFF
+# 98% of the time pysas_verbosity == SAS_VERBOSITY.
+# But for debugging purposes it is convienent to have
+# a separate verbosity for pySAS.
+# This does not affect the verbosity for non-Python
+# based SAS tasks.
+pysas_verbosity = sas_cfg.get_setting('pysas_verbosity')
+logger._log_enable_terminal(level=pysas_verbosity)
 
 # API
 __all__ = ['ObsID',

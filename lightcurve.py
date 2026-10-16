@@ -76,6 +76,9 @@ class XMMLightCurve:
 
         self._dt = set_unit(dt, self._xunit)
 
+        self._bin_lo = self._time[0]
+        self._bin_hi = self._time[-1]
+
         if counts is None and rate is None:
             raise ValueError('Either a counts or rate array must be passed in.')
 
@@ -96,8 +99,6 @@ class XMMLightCurve:
 
         self._meanrate = None
         self._meancounts = None
-        self._bin_lo = None
-        self._bin_hi = None
         self._n = None
         
         if self.dt <= 0:
@@ -105,22 +106,31 @@ class XMMLightCurve:
         if len(self._time) != len(self._counts):
             raise ValueError("Time and counts arrays must be the same length.")
             
-        # if gti is None:
-        #     # Default GTI covers the whole observation
-        #     self._gti = np.array([[self._time.min() - self._dt/2, 
-        #                            self._time.max() + self._dt/2]])
-        # else:
-        #     self._gti = np.asarray(gti, dtype=float)
-        #     if self._gti.ndim != 2 or self._gti.shape[1] != 2:
-        #         raise ValueError("GTIs must be a 2D array of shape (N, 2).")
+        if gti is None:
+            # Default GTI covers the whole observation
+            gti = [(self.time[0],self.time[-1])]
+        else:
+            if isinstance(gti, tuple):
+                gti = [gti]
+            if not isinstance(gti, list):
+                raise ValueError("GTIs must be a list of tuples with start and stop times.")
+            for sgti in gti:
+                if len(sgti) != 2:
+                    raise ValueError("GTIs must be a list of tuples with start and stop times.")
+        
+        self._gti = gti
 
         # GTI masking computation
-        # self._gti_mask = self._compute_gti_mask()
+        self._gti_mask = self._compute_gti_mask()
 
     # --- Properties (Read-only to prevent accidental corruption) ---
     @property
     def time(self):
         return self._time.value
+
+    @property
+    def time_relative(self):
+        return (self._time - self._bin_lo).value
 
     @property
     def counts(self):
@@ -142,10 +152,11 @@ class XMMLightCurve:
     
     def _compute_gti_mask(self):
         """Creates a boolean mask for time bins falling within GTIs."""
-        mask = np.zeros_like(self._time, dtype=bool)
-        for start, stop in self._gti:
+        mask = np.zeros_like(self.time, dtype=bool)
+        for sgti in self._gti:
+            start, stop = sgti
             # Check if the bin center falls within the GTI
-            in_gti = (self._time >= start) & (self._time <= stop)
+            in_gti = (self.time >= start) & (self.time <= stop)
             mask |= in_gti
         return mask
 
@@ -167,6 +178,7 @@ class XMMLightCurve:
                          timecolumn='TIME',
                          countcolumn='COUNTS',
                          datahdu=1,
+                         **kwargs,
                         ):
         lcfits = XMMFits(fits_file)
         data   = lcfits._data
@@ -197,10 +209,19 @@ class XMMLightCurve:
         else:
             error = Quantity([0]*len(counts),counts.unit)
 
+        to_cls = {'time'  : time, 
+                  'dt'    : dt, 
+                  'err'   : error, 
+                  'instr' : lcfits.instrument}
+        
         if counts.unit == 'photon':
-            return cls(time=time, counts=counts, dt=dt, err=error, instr=lcfits.instrument)
+            to_cls['counts'] = counts
         else:
-            return cls(time=time, rate=counts, dt=dt, err=error, instr=lcfits.instrument)
+            to_cls['rate']   = counts
+
+        to_cls.update(kwargs)
+
+        return cls(**to_cls)
 
     def rebin(self, new_dt):
         """
@@ -239,7 +260,9 @@ class XMMLightCurve:
              lw=1.5,
              fig=None,
              ax=None,
-             apply_mask=False,
+             apply_mask=True,
+             relative_time=False,
+             title=None,
              **kwargs,):
         """
         Plots the lightcurve using yt's object-oriented Matplotlib philosophy.
@@ -254,6 +277,11 @@ class XMMLightCurve:
             yscale = ax.get_yscale()
         else:
             ax = fig.add_subplot(111)
+
+        if relative_time:
+            x = self.time_relative
+        else:
+            x = self.time
 
         if plot_rate:
             y = self.rate
@@ -270,17 +298,17 @@ class XMMLightCurve:
             label = f'dt = {self._dt}'
 
         # yt-style styling: step plot, distinct colors, tick formatting
-        ax.step(self._time, y, where='mid', color='#1f77b4', 
-                linewidth=lw, label=label)
+        ax.step(x, y, where='mid', color='#1f77b4', linewidth=lw, label=label)
         
         # Axis labeling and styling
         ax.set_xlabel(f"Time ({self._time.unit})", fontsize=fontsize-2, fontweight='bold')
         ax.set_ylabel(ylabel, fontsize=fontsize-2, fontweight='bold')
-        if self.instrument is not None:
-            tinst = f' {self.instrument}'
-        else:
-            tinst = ''
-        ax.set_title(f"XMM-Newton{tinst} Light Curve", fontsize=fontsize, fontweight='bold')
+        if title is None:
+            if self.instrument is not None:
+                title = f"XMM-Newton {self.instrument} Light Curve"
+            else:
+                tinst = f"XMM-Newton Light Curve"
+        ax.set_title(title, fontsize=fontsize, fontweight='bold')
         
         # Tick parameters
         ax.minorticks_on()
@@ -288,7 +316,7 @@ class XMMLightCurve:
         ax.tick_params(which='minor', length=3, width=1, direction='in')
         ax.grid(True, linestyle=':', alpha=0.6)
         
-        ax.legend(loc='upper right')
+        ax.legend()
         
         # Adjust layout tightly, standard in yt
         fig.tight_layout()

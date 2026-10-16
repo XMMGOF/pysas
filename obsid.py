@@ -43,7 +43,8 @@ from pysas.logger import (_logger,
                           _log_enable_terminal, 
                           _log_disable_terminal, 
                           _log_enable_file, 
-                          _log_disable_file,)
+                          _log_disable_file,
+                          _log_set_level,)
 
 repo_opts = ['esa','xsa','heasarc','nasa','sciserver','fornax','aws']
 
@@ -93,6 +94,8 @@ class ObsID:
         pysas_verbosity = sas_cfg.get_setting('pysas_verbosity')
         if output_to_terminal:
             _log_enable_terminal(level=pysas_verbosity)
+        else:
+            _log_disable_terminal()
         self._output_to_terminal = output_to_terminal
         if output_to_file:
             # Set the directory for log files.
@@ -115,6 +118,8 @@ class ObsID:
                 logfilename = 'ObsID_' + self._obsid + '.log'
             self._logfilename = logfilename
             _log_enable_file(os.path.join(tasklogdir,logfilename), level=pysas_verbosity)
+        else:
+            _log_disable_file()
         self._output_to_file = output_to_file
         self._set_obsid()
 

@@ -26,10 +26,15 @@ import os, glob, time, subprocess
 # Third party imports
 
 # Local application imports
-# from pysas import sas_cfg
 from pysas.init_sas import initializesas
 from configparser import ConfigParser
 from pathlib import Path
+from pysas.logger import (_logger, 
+                          _log_enable_terminal, 
+                          _log_disable_terminal, 
+                          _log_enable_file, 
+                          _log_disable_file,
+                          _log_set_level,)
 
 # Config class
 class sas_config:
@@ -122,6 +127,8 @@ class sas_config:
         """
         if not self.config.has_section(section):
             self.config.add_section(section)
+        if option == 'pysas_verbosity':
+            _log_set_level(level=value)
         self.config.set(section, option, value)
 
     def set_setting_and_save(self, option: str, value: str, section: str = 'sas'):
@@ -138,9 +145,7 @@ class sas_config:
         section : str, optional
             Which section in the configuration has the option, by default 'sas'.
         """
-        if not self.config.has_section(section):
-            self.config.add_section(section)
-        self.config.set(section, option, value)
+        self.set_setting(option, value, section)
         self.save_config()
 
     def save_config(self, config_file_path: str = None):
