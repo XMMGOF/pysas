@@ -29,7 +29,6 @@ from warnings import warn
 
 # Third party imports
 from astropy.io import fits
-from astroquery.heasarc import Heasarc
 
 # Local application imports
 from pysas import sas_cfg
@@ -2104,6 +2103,7 @@ class ObsID:
             Astropy table containing the observation information from the 
             HEASARC TAP service.
         """
+        from astroquery.heasarc import Heasarc
 
         query = """SELECT * FROM xmmmaster WHERE obsid='{0}'""".format(self._obsid)
         tab = Heasarc.query_tap(query).to_table()
