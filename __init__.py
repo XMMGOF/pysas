@@ -115,6 +115,7 @@ from .obsid import ObsID, PPSFiles
 from .sastask import MyTask
 from .config_pysas import run_config
 from .sasutils import download_data, generate_logger, update_calibration_files
+from .xmmfiles import XMMFits, XMMEventList
 from .lightcurve import XMMLightCurve
 
 # API

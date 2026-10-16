@@ -33,6 +33,11 @@ from pathlib import Path
 
 from pysas.xmmfiles import XMMFits
 from pysas.sasutils import parse_value, set_unit
+from pysas.logger import (_logger, 
+                          _log_enable_terminal, 
+                          _log_disable_terminal, 
+                          _log_enable_file, 
+                          _log_disable_file,)
 
 class XMMLightCurve:
     """

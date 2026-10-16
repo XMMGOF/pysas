@@ -34,8 +34,7 @@ from collections import UserDict
 from beautifultable import BeautifulTable
 
 # Local application imports
-from pysas.logger import get_logger
-
+from pysas.logger import _logger
 
 class paramXmlInfoReader:
     """
@@ -46,7 +45,7 @@ class paramXmlInfoReader:
     from the command line or through an argument list.
     """
 
-    def __init__(self, taskname: str, logger = None):
+    def __init__(self, taskname: str):
         """
         Class constructor for ParseArgs.
 
@@ -54,8 +53,6 @@ class paramXmlInfoReader:
         ----------
         taskname : str
             Name of SAS task.
-        logger : _type_, optional
-            Logger object, by default None.
 
         Raises
         ------
@@ -65,22 +62,16 @@ class paramXmlInfoReader:
 
         self.taskname = taskname
         self.xmlFile = ''
-        if logger is None:
-            # By default will only output to terminal
-            self.logger = get_logger('paramXmlInfoReader')
-        else:
-            # Use logger that was passed in
-            self.logger = logger
 
         sas_dir = os.environ['SAS_DIR']
-        self.logger.debug(f'SAS_DIR: {sas_dir}')
+        _logger.debug(f'SAS_DIR: {sas_dir}')
         parfile = self.taskname + '.par'
-        self.logger.debug(f'Parfile name: {parfile}')
+        _logger.debug(f'Parfile name: {parfile}')
         files = glob.glob(os.path.join(sas_dir, 'config', parfile))
-        self.logger.debug(f'Parfile location: {files}')
+        _logger.debug(f'Parfile location: {files}')
         if files:
             self.xmlFile = files[0]
-            self.logger.debug(f'xmlFile: {self.xmlFile}')
+            _logger.debug(f'xmlFile: {self.xmlFile}')
 
         if self.xmlFile == '':
             raise FileNotFoundError(f'Parameter file for {taskname} not found.')
