@@ -20,7 +20,7 @@
 # version.py
 
 # pySAS version
-VERSION = '2.5.2'
+VERSION = '2.5.3'
 
 import subprocess, os, sys
 

@@ -108,6 +108,8 @@ from . import parser
 from . import param
 from . import init_sas
 from . import sasutils
+from . import xmmfiles
+from . import lightcurve
 
 # Classes and functions needed at the top level
 from pysas.obsid import ObsID, PPSFiles

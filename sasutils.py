@@ -22,7 +22,8 @@ Utility functions specific to SAS or pySAS.
 """
 
 # Standard library imports
-import os, sys, subprocess, shutil, glob, tarfile, gzip, time, platform, re
+import os, sys, subprocess, shutil, tarfile, gzip, time, platform
+import operator, re, glob
 from shutil import copytree
 import json
 import importlib.resources as resources
@@ -31,18 +32,18 @@ import importlib.resources as resources
 # Third party imports
 from astroquery.esa.xmm_newton import XMMNewton
 from astroquery.heasarc import Heasarc
+from astropy.units import Quantity
 
 # Local application imports
-from pysas.logger import get_logger
 from .logger import TaskLogger as TL
 from pysas import sas_cfg
+from pysas.logger import _logger
 
 def download_data(obsid: str,
                   data_dir: str,
                   level: str = 'ODF',
                   repo: str  = 'esa',
                   overwrite: bool = True,
-                  logger = None,
                   encryption_key: str   = None,
                   proprietary: bool     = False,
                   credentials_file: str = None,
@@ -84,8 +85,6 @@ def download_data(obsid: str,
         or 'aws', by default 'esa'.
     overwrite : bool, optional
         Will only check if obs_dir exists, by default True.
-    logger : logger, optional
-        logger object, by default None
     encryption_key : str, optional
         Encryption key for proprietary data, a string 32 characters long. 
         -OR- path to file containing ONLY the encryption key, by default None.
@@ -149,28 +148,25 @@ def download_data(obsid: str,
         File decryption failed.
     """
 
-    if not logger:
-        logger = get_logger(f'download_{obsid}')
-
     # Set directories for the observation, odf, and working
     obs_dir = os.path.join(data_dir,obsid)
     odf_dir = os.path.join(obs_dir,'ODF')
     pps_dir = os.path.join(obs_dir,'PPS')
-    logger.debug(f'obs_dir: {obs_dir}')
-    logger.debug(f'odf_dir: {odf_dir}')
-    logger.debug(f'pps_dir: {pps_dir}')
+    _logger.debug(f'obs_dir: {obs_dir}')
+    _logger.debug(f'odf_dir: {odf_dir}')
+    _logger.debug(f'pps_dir: {pps_dir}')
     # work_dir_name = sas_cfg.get_setting('work_dir_name')
     # work_dir = os.path.join(obs_dir,work_dir_name)
 
     # Checks if obs_dir exists. Removes it if overwrite=True.
     if os.path.exists(obs_dir) and overwrite:
-        logger.info(f'Removing existing directory {obs_dir} ...')
+        _logger.info(f'Removing existing directory {obs_dir} ...')
         shutil.rmtree(obs_dir)
     
     # Creates subdirectory obsid to move or unpack observation files
     # and makes subdirectories.
     if not os.path.exists(obs_dir):
-        logger.info(f'Creating observation directory {obs_dir} ...')
+        _logger.info(f'Creating observation directory {obs_dir} ...')
         os.mkdir(obs_dir)
 
     if filename:
@@ -180,17 +176,17 @@ def download_data(obsid: str,
 
     repo = repo.lower()
 
-    logger.debug(f'repo: {repo}')
+    _logger.debug(f'repo: {repo}')
 
     match repo:
         case 'esa' | 'xsa':
-            logger.info(f'Requesting Obs ID = {obsid} from ESA XMM-Newton Science Archive\n')
-            logger.info(f'Changed directory to {obs_dir}')
+            _logger.info(f'Requesting Obs ID = {obsid} from ESA XMM-Newton Science Archive\n')
+            _logger.info(f'Changed directory to {obs_dir}')
             os.chdir(obs_dir)
             # If a filename was provided then convert it into inputs for astroquery.
             if filename:
                 if not os.path.exists(pps_dir): os.mkdir(pps_dir)
-                logger.info(f'Changed directory to {pps_dir}')
+                _logger.info(f'Changed directory to {pps_dir}')
                 os.chdir(pps_dir)
                 for file in filename:
                     kwargs['instname']     = file[11:13]
@@ -200,15 +196,15 @@ def download_data(obsid: str,
                     kwargs['datasubsetno'] = file[23]
                     kwargs['sourceno']     = file[24:27]
                     kwargs['extension']    = file[-3:]
-                    logger.debug(f'Requesting file: {file}')
-                    if proprietary: logger.debug('Requesting proprietary data.')
+                    _logger.debug(f'Requesting file: {file}')
+                    if proprietary: _logger.debug('Requesting proprietary data.')
                     XMMNewton.download_data(obsid, level='PPS',
                                             prop=proprietary,
                                             credentials_file=credentials_file,
                                             **kwargs)
             elif PPS_subset:
                 if not os.path.exists(pps_dir): os.mkdir(pps_dir)
-                logger.info(f'Changed directory to {pps_dir}')
+                _logger.info(f'Changed directory to {pps_dir}')
                 os.chdir(pps_dir)
                 # Take care of the optional inputs.
                 if instname:     kwargs['instname']     = instname
@@ -219,21 +215,21 @@ def download_data(obsid: str,
                 if sourceno:     kwargs['sourceno']     = sourceno
                 if extension:    kwargs['extension']    = extension
                 
-                logger.debug(f'Requesting subset of PPS data.')
-                logger.debug(f'instname     : {instname}')
-                logger.debug(f'expflag      : {expflag}')
-                logger.debug(f'expno        : {expno}')
-                logger.debug(f'product_type : {product_type}')
-                logger.debug(f'datasubsetno : {datasubsetno}')
-                logger.debug(f'sourceno     : {sourceno}')
-                logger.debug(f'extension    : {extension}')
-                if proprietary: logger.debug('Requesting proprietary data.')
+                _logger.debug(f'Requesting subset of PPS data.')
+                _logger.debug(f'instname     : {instname}')
+                _logger.debug(f'expflag      : {expflag}')
+                _logger.debug(f'expno        : {expno}')
+                _logger.debug(f'product_type : {product_type}')
+                _logger.debug(f'datasubsetno : {datasubsetno}')
+                _logger.debug(f'sourceno     : {sourceno}')
+                _logger.debug(f'extension    : {extension}')
+                if proprietary: _logger.debug('Requesting proprietary data.')
                 XMMNewton.download_data(obsid, level='PPS',
                                         prop=proprietary,
                                         credentials_file=credentials_file,
                                         **kwargs)
                 # if PPS_subset:
-                #     logger.debug('PPS subset, moving files into PPS directory.')
+                #     _logger.debug('PPS subset, moving files into PPS directory.')
                 #     if not os.path.exists(pps_dir): os.mkdir(pps_dir)
                 #     files = glob.glob(obs_dir+'/*.*')
                 #     for file in files:
@@ -246,10 +242,10 @@ def download_data(obsid: str,
                     level = [level]
                 for levl in level:
                     os.chdir(obs_dir)
-                    logger.debug(f'Changed directory to {obs_dir}')
+                    _logger.debug(f'Changed directory to {obs_dir}')
                     # Download the obsid from ESA, using astroquery
-                    logger.info(f'Downloading {obsid}, level {levl} into {obs_dir}')
-                    if proprietary: logger.debug('Requesting proprietary data.')
+                    _logger.info(f'Downloading {obsid}, level {levl} into {obs_dir}')
+                    if proprietary: _logger.debug('Requesting proprietary data.')
                     XMMNewton.download_data(obsid,
                                             level = levl,
                                             prop  = proprietary,
@@ -261,26 +257,26 @@ def download_data(obsid: str,
                     odftar = glob.glob(obs_dir+f'/{obsid}'+'*')[0]
                     try:
                         os.path.exists(odftar)
-                        logger.info(f'{odftar} found.') 
+                        _logger.info(f'{odftar} found.') 
                     except FileExistsError:
-                        logger.error(f'File {odftar} is not present. Not downloaded?')
+                        _logger.error(f'File {odftar} is not present. Not downloaded?')
                         sys.exit(1)
 
                     tarextension = os.path.splitext(odftar)[1]
                     if tarextension == '.gz': tar_mode = 'r:gz'
                     elif tarextension == '.tar': tar_mode = 'r'
                     else:
-                        logger.error(f'File {odftar} extension not recognized.')
+                        _logger.error(f'File {odftar} extension not recognized.')
                         raise Exception(f'File {odftar} extension not recognized.')
 
                     # Untars the obsid.tar.gz file
-                    logger.info(f'Unpacking {odftar} ...')
+                    _logger.info(f'Unpacking {odftar} ...')
 
                     try:
                         with tarfile.open(odftar,tar_mode) as tar:
                             if levl == 'ODF':
                                 os.chdir(odf_dir)
-                                logger.debug(f'Changed directory to {odf_dir}')
+                                _logger.debug(f'Changed directory to {odf_dir}')
                                 tar.extractall(path=odf_dir)
                             elif levl == 'PPS':
                                 tar.extractall(path=data_dir)
@@ -289,14 +285,14 @@ def download_data(obsid: str,
                                     shutil.rmtree('pps')
                                 else:
                                     os.chdir(obs_dir)
-                                    logger.debug(f'Changed directory to {obs_dir}')
+                                    _logger.debug(f'Changed directory to {obs_dir}')
                                     if os.path.exists('pps'):
                                         os.rename('pps','PPS')
                         os.remove(odftar)
-                        logger.info(f'{odftar} extracted successfully!')
-                        logger.info(f'{odftar} removed')
+                        _logger.info(f'{odftar} extracted successfully!')
+                        _logger.info(f'{odftar} removed')
                     except tarfile.ExtractError:
-                        logger.error('tar file extraction failed.')
+                        _logger.error('tar file extraction failed.')
                         raise Exception('tar file extraction failed.')
         case 'heasarc' | 'nasa' | 'sciserver' | 'fornax' | 'aws':
             download_location = obs_dir
@@ -311,29 +307,29 @@ def download_data(obsid: str,
             if repo == 'fornax':
                 on_host = 'on Fornax ...'
                 repo = 'aws'
-                logger.debug(f'repo changed to {repo}.')
+                _logger.debug(f'repo changed to {repo}.')
                 data_source_key = 'aws'
             if repo == 'nasa':
                 repo = 'heasarc'
-                logger.debug(f'repo changed to {repo}.')
+                _logger.debug(f'repo changed to {repo}.')
 
             # This is to fix a bug between how astroquery requests data from 
             # the HEASARC vs. AWS (Fornax)
             if repo == 'heasarc':
-                logger.debug(f'Setting download location to: {data_dir}')
+                _logger.debug(f'Setting download location to: {data_dir}')
                 download_location = data_dir
             
             # Copies data into personal storage space.
-            logger.info(f'Requesting XMM-Newton Obs ID = {obsid} from the HEASARC {on_host}\n')
-            logger.info(f'Changed directory to {obs_dir}')
+            _logger.info(f'Requesting XMM-Newton Obs ID = {obsid} from the HEASARC {on_host}\n')
+            _logger.info(f'Changed directory to {obs_dir}')
             os.chdir(obs_dir)
         
             if level in ['ALL','ODF','PPS','4XMM','om_mosaic'] and not PPS_subset:
-                logger.info(f'Downloading {obsid}, level {level}')
+                _logger.info(f'Downloading {obsid}, level {level}')
                 query = """SELECT * FROM xmmmaster WHERE obsid='{0}'""".format(obsid)
                 tab = Heasarc.query_tap(query).to_table()
                 if len(tab) == 0:
-                    logger.error(f'Obs ID {obsid} not found in the XMM archive!')
+                    _logger.error(f'Obs ID {obsid} not found in the XMM archive!')
                     raise Exception(f'Obs ID {obsid} not found in the XMM archive!')
                 if level == 'ALL':
                     for lvl in ['ODF','PPS']:
@@ -348,9 +344,9 @@ def download_data(obsid: str,
             if PPS_subset or filename:
                 # Only if PPS_subset = True or a single file name is passed in.
                 if not os.path.exists(pps_dir):
-                    logger.debug('Creating PPS sub-directory.')
+                    _logger.debug('Creating PPS sub-directory.')
                     os.mkdir(pps_dir)
-                logger.info(f'Changed directory to {pps_dir}')
+                _logger.info(f'Changed directory to {pps_dir}')
                 os.chdir(pps_dir)
                 match repo:
                 # If downloading a subset of PPS files instead of *all* PPS files for now
@@ -366,40 +362,40 @@ def download_data(obsid: str,
                         if filename:
                             for file in filename:
                                 # Single file, known name
-                                logger.info(f'Downloading {obsid}, level {level}, file {file}')
+                                _logger.info(f'Downloading {obsid}, level {level}, file {file}')
                                 cmd = f'wget -nH -e robots=off --cut-dirs=6 -np -nc https://heasarc.gsfc.nasa.gov/FTP/xmm/data/rev0/{obsid}/PPS/{file}'
-                                logger.info(f'Using the command:\n{cmd}')
+                                _logger.info(f'Using the command:\n{cmd}')
                                 result = subprocess.run(cmd, shell=True, capture_output=True)
                                 if result.returncode != 0:
                                     print(f'Problem downloading data!')
                                     print('Tried using the command:')
                                     print(cmd)
-                                    logger.error(f'File download failed!')
+                                    _logger.error(f'File download failed!')
                                     raise Exception('File download failed!')
                         else:
                             # One or more files, unknown name(s)
-                            logger.debug('Generating PPS file name pattern.')
+                            _logger.debug('Generating PPS file name pattern.')
                             file_pattern = generate_PPS_pattern(obsid=obsid,instname=instname,
                                                                 expflag=expflag,expno=expno,
                                                                 product_type=product_type,
                                                                 datasubsetno=datasubsetno,
                                                                 sourceno=sourceno,extension=extension)
-                            logger.debug(f'PPS file name pattern: {file_pattern}')
+                            _logger.debug(f'PPS file name pattern: {file_pattern}')
                             # Replace "*" with ".*"
                             file_pattern = re.sub(r'\*', '.*', file_pattern)
-                            logger.info(f'Downloading {obsid}, level {level} using file pattern {file_pattern}')
+                            _logger.info(f'Downloading {obsid}, level {level} using file pattern {file_pattern}')
                             cmd = f'wget -nH -e robots=off --cut-dirs=6 -np -r --accept-regex "{file_pattern}" https://heasarc.gsfc.nasa.gov/FTP/xmm/data/rev0/{obsid}/PPS/'
-                            logger.info(f'Using the command:\n{cmd}')
+                            _logger.info(f'Using the command:\n{cmd}')
                             result = subprocess.run(cmd, shell=True, capture_output=True)
                             if result.returncode != 0:
                                 error_message = """An error was encountered when downloading your data.
                                 There are some known instances where wget returns an error, but all files have actually been downloaded.
                                 Check to make sure all files have been downloaded."""
-                                logger.warning(error_message)
+                                _logger.warning(error_message)
                                 #print(f'Problem downloading data!')
                                 #print('Tried using the command:')
                                 #print(cmd)
-                                #logger.error(f'File download failed!')
+                                #_logger.error(f'File download failed!')
                                 #raise Exception('File download failed!')
                     case 'sciserver':
                         archive_data = f'/home/idies/workspace/headata/FTP/xmm/data/rev0//{obsid}/PPS'
@@ -413,15 +409,15 @@ def download_data(obsid: str,
                                                                 product_type=product_type,
                                                                 datasubsetno=datasubsetno,
                                                                 sourceno=sourceno,extension=extension)
-                            logger.debug(f'PPS file name pattern: {file_pattern}')
+                            _logger.debug(f'PPS file name pattern: {file_pattern}')
                             file_pattern = archive_data + f'/**/{file_pattern}'
-                            logger.debug(f'NEW PPS file name pattern: {file_pattern}')
+                            _logger.debug(f'NEW PPS file name pattern: {file_pattern}')
                             archive_files = glob.glob(file_pattern, recursive=True)
                             if len(archive_files) == 0:
-                                logger.warning(f'No files of the pattern {file_pattern} found!')
+                                _logger.warning(f'No files of the pattern {file_pattern} found!')
                             for archive_file in archive_files:
                                 file_name = os.path.basename(archive_file)
-                                logger.info(f'Copying file {file_name} from {archive_data} ...')
+                                _logger.info(f'Copying file {file_name} from {archive_data} ...')
                                 shutil.copy(archive_file, os.path.join(pps_dir,file_name))
                     #case 'fornax' | 'aws':
                         # current_s3 = S3FileSystem(anon=True)
@@ -431,12 +427,12 @@ def download_data(obsid: str,
                         # for file_path in all_files:
                         #     file_names.append(os.path.basename(file_path))
                         # filtered_list = fnmatch.filter(file_names, PPSfile)
-                        #logger.error(f'Downloading individual PPS files not supported yet {on_host}. You must download all PPS files.')
+                        #_logger.error(f'Downloading individual PPS files not supported yet {on_host}. You must download all PPS files.')
         case _:
-            logger.error(f'Repo {repo} not recognized!')
+            _logger.error(f'Repo {repo} not recognized!')
         
         # else:
-        #     logger.info(f'Copying data from {archive_data} ...')
+        #     _logger.info(f'Copying data from {archive_data} ...')
         #     print(f'\nCopying data from {archive_data} ...')
         #     if levl == 'ODF':
         #         # Check if ALL ODF files already exist, if not copy the missing ones
@@ -459,7 +455,7 @@ def download_data(obsid: str,
         #                         missing_files.append(file)
         #             for file in missing_files:
         #                 file_name = os.path.basename(file)
-        #                 logger.info(f'Copying file {file_name} from {archive_data} ...')
+        #                 _logger.info(f'Copying file {file_name} from {archive_data} ...')
         #                 print(f'\nCopying file {file_name} from {archive_data} ...')
         #                 shutil.copy(file, os.path.join(odf_dir,file_name))
         #         else:
@@ -471,7 +467,7 @@ def download_data(obsid: str,
     # Check if data is encrypted. Decrypt the data.
     encrypted = glob.glob('**/*.gpg', recursive=True)
     if len(encrypted) > 0:
-        logger.info(f'Encrypted files found! Decrypting files!')
+        _logger.info(f'Encrypted files found! Decrypting files!')
 
         # Checks for encryption key or file with key.
         # If no encryption key is given then go looking for a file.
@@ -481,86 +477,86 @@ def download_data(obsid: str,
             if len(encryption_file) == 0:
                 encryption_file = glob.glob(os.path.join(data_dir,'*key*'))
             if len(encryption_file) > 1:
-                logger.error('Multiple possible encryption key files. Specify encryption key file.')
+                _logger.error('Multiple possible encryption key files. Specify encryption key file.')
                 raise Exception('Multiple possible encryption key files.')
             if len(encryption_file) == 0:
                 encryption_file = 'None'
             if os.path.isfile(encryption_file[0]):
-                logger.info(f'File with encryption key found: {encryption_file}')
+                _logger.info(f'File with encryption key found: {encryption_file}')
             else:
-                logger.error('File decryption failed. No encryption key found.')
-                logger.error(f'Regular file with the encryption key needs to be placed in: {data_dir}')
+                _logger.error('File decryption failed. No encryption key found.')
+                _logger.error(f'Regular file with the encryption key needs to be placed in: {data_dir}')
                 raise Exception('File decryption failed. No encryption file found.')
         elif os.path.isfile(encryption_key):
-            logger.info(f'Ecryption key is in file: {encryption_key}')
+            _logger.info(f'Ecryption key is in file: {encryption_key}')
             encryption_file = encryption_key
         if encryption_file is not None:
-            logger.info(f'Reading ecryption key from: {encryption_file}')
+            _logger.info(f'Reading ecryption key from: {encryption_file}')
             with open(encryption_file) as f:
                 lines = f.readlines()
                 encryption_key = lines[0]
         if encryption_key == None:
-            logger.error('File decryption failed. No encryption key found.')
-            logger.error(f'No encryption key found in {encryption_file}')
-            logger.error(f'Regular file with the encryption key needs to be placed in: {data_dir}')
+            _logger.error('File decryption failed. No encryption key found.')
+            _logger.error(f'No encryption key found in {encryption_file}')
+            _logger.error(f'Regular file with the encryption key needs to be placed in: {data_dir}')
             raise Exception('File decryption failed. No encryption key found.')
         
             
         for file in encrypted:
             out_file = file[:-4]
             if os.path.exists(out_file):
-                logger.info(f'Already decrypted file found: {out_file}')
+                _logger.info(f'Already decrypted file found: {out_file}')
             else:
-                logger.info(f'Decrypting {file}')
+                _logger.info(f'Decrypting {file}')
                 cmd = 'echo {0} | gpg --batch -o {1} --passphrase-fd 0 -d {2}'.format(encryption_key,out_file,file)
                 result = subprocess.run(cmd, shell=True)
                 if result.returncode != 0:
-                    logger.error(f'Problem decrypting {file}')
-                    logger.error(f'File decryption failed, key used {encryption_key}')
+                    _logger.error(f'Problem decrypting {file}')
+                    _logger.error(f'File decryption failed, key used {encryption_key}')
                     raise Exception('File decryption failed.')
                 os.remove(file)
-                logger.info(f'{file} removed')
+                _logger.info(f'{file} removed')
     else:
-        logger.info('No encrypted files found.')
+        _logger.info('No encrypted files found.')
 
     gzipfiles = glob.glob(odf_dir + f'/**/*.gz', recursive=True)
     if len(gzipfiles) > 0:
-        logger.info('Unpacking .gz files.')
+        _logger.info('Unpacking .gz files.')
         for file in gzipfiles:
-            logger.debug(f'Unpacking {file} ...')
+            _logger.debug(f'Unpacking {file} ...')
             with gzip.open(f'{file}', 'rb') as f_in:
                 out_file = file[:-3]
                 with open(out_file, 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
             os.remove(file)
-            logger.debug(f'{file} removed')
+            _logger.debug(f'{file} removed')
 
     tarfiles = glob.glob(odf_dir + f'/**/*.tar', recursive=True)
     if len(tarfiles):
-        logger.info('Unpacking .tar files.')
+        _logger.info('Unpacking .tar files.')
         for file in glob.glob(odf_dir + f'/**/*.tar', recursive=True):
-            logger.debug(f'Unpacking {file} ...')
+            _logger.debug(f'Unpacking {file} ...')
             with tarfile.open(file,"r") as tar:
                 tar.extractall(path=odf_dir)
             os.remove(file)
-            logger.debug(f'{file} removed')
+            _logger.debug(f'{file} removed')
 
     tar2files = glob.glob(odf_dir + f'/**/*.TAR', recursive=True)
     if len(tar2files):
-        logger.info('Unpacking .TAR files.')
+        _logger.info('Unpacking .TAR files.')
         for file in tar2files:
-            logger.debug(f'Unpacking {file} ...')
+            _logger.debug(f'Unpacking {file} ...')
             with tarfile.open(file,"r") as tar:
                 tar.extractall(path=odf_dir)
             os.remove(file)
-            logger.debug(f'{file} removed')
+            _logger.debug(f'{file} removed')
 
     ppssumhtml = 'P' + obsid + 'OBX000SUMMAR0000.HTM'
     ppssumhtmlfull = os.path.join(pps_dir, ppssumhtml)
 
     if os.path.exists(ppssumhtmlfull):
         ppssumhtmllink = 'file://' + ppssumhtmlfull
-        logger.info(f'PPS products can be found in {pps_dir}')
+        _logger.info(f'PPS products can be found in {pps_dir}')
         print(f'\nPPS products can be found in {pps_dir}\n\nLink to Observation Summary html: {ppssumhtmllink}')
 
     return
@@ -834,3 +830,250 @@ def load_json_from_package(filename: str):
     except Exception as e:
         print(f"Unexpected error: {e}")
     
+def parse_odf_filename(filepath):
+    """
+    Separates the filename from the path and parses the ODF/SDF filename
+    according to the RRRR_obsidentif_IIUEEECCMMF.ZZZ convention.
+
+    Parameters
+    ----------
+    filepath : str | Path
+        ODF filename (+path, optional)
+
+    Returns
+    -------
+    parsed_info : dict
+        Dictionary with information parsed from the filename.
+    """
+    # 1. Separate filename from the path
+    filename = os.path.basename(filepath)
+    
+    # 2. Define the regex pattern for RRRR_obsidentif_IIUEEECCMMF.ZZZ
+    # Breaking down the pattern:
+    # RRRR (4) _ PPPPPPOOLL (10) _ II (2) U (1) EEE (3) CC (2) MM (2) F (1) \. ZZZ (3)
+    pattern = r'^([A-Z0-9]{4})_([A-Z0-9]{10})_([A-Z0-9]{2})([A-Z0-9])([A-Z0-9]{3})([A-Z0-9]{2})([A-Z0-9]{2})([A-Z0-9])\.([A-Z0-9]{3})$'
+    
+    # Use re.IGNORECASE to ensure it handles lower case gracefully, though spec says all upper
+    match = re.match(pattern, filename.upper())
+    
+    if not match:
+        raise ValueError(f"Filename '{filename}' does not match the expected ODF/SDF format (RRRR_obsidentif_IIUEEECCMMF.ZZZ).")
+        
+    # Extract the matched groups
+    rrrr, obsidentif, ii, u, eee, cc, mm, f, zzz = match.groups()
+    
+    # --- Look-up Dictionaries for descriptive output ---
+    
+    instruments = {
+        'OM': 'OM', 
+        'R1': 'RGS1', 
+        'R2': 'RGS2',
+        'M1': 'EMOS1', 
+        'M2': 'EMOS2', 
+        'PN': 'EPN',
+        'RM': 'ERM', 
+        'SC': 'SC'
+    }
+    
+    file_types = {
+        'E': 'EventList', 'I': 'Image', 'X': 'Auxiliary',
+        'H': 'Housekeeping', 'S': 'Spacecraft', 'M': 'Summary'
+    }
+    
+    # Default data content (MM) map. Overlaps/Exceptions handled below.
+    data_content = {
+        'AT': 'Spacecraft attitude', 'AU': 'EPIC or RGS auxiliary', 'BU': 'EPIC PN burst',
+        'CC': 'EPIC counting cycle report', 'CI': 'EPIC MOS compressed timing',
+        'D1': 'DPP non-periodic Housekeeping', 'D2': 'DPP non-periodic Housekeeping',
+        'DI': 'EPIC MOS or RGS diagnostic', 'DL': 'EPIC PN discarded lines data',
+        'DP': 'RGS Digital Pre-Processor non periodic housekeeping',
+        'ES': 'EPIC Radiation Monitor (ERC) spectra', 'FA': 'OM fast',
+        'HB': 'EPIC high bit rate interface buffer size non-periodic housekeeping',
+        'HC': 'EPIC high bit rate interface configuration non-periodic housekeeping',
+        'IM': 'EPIC or OM imaging', 'NO': 'EPIC PN noise data',
+        'NP': 'OM non-periodic housekeeping', 'OF': 'RGS offset file',
+        'OD': 'EPIC PN offset data', 'OV': 'EPIC MOS offset / variance',
+        'P1': 'Spacecraft housekeeping 1 periodic housekeeping',
+        'P2': 'Spacecraft housekeeping 2 periodic housekeeping',
+        'P3': 'Spacecraft Attitude 1 periodic housekeeping',
+        'P4': 'Spacecraft Attitude 2 periodic housekeeping',
+        'P5': 'Spacecraft SYS_HK_SID0 periodic housekeeping',
+        'P6': 'Spacecraft SYS_HK_SID1 periodic housekeeping',
+        'P7': 'Spacecraft SYS_HK_SID4 periodic housekeeping',
+        'P8': 'Spacecraft SYS_HK_SID5 periodic housekeeping',
+        'P9': 'Spacecraft SYS_HK_SID6 periodic housekeeping',
+        'PC': 'RGS CCD temperature periodic housekeeping',
+        'PM': 'EPIC PN main periodic housekeeping',
+        'PT': 'EPIC MOS bright pixel table non-periodic housekeeping',
+        'PE': 'EPIC MOS or OM periodic housekeeping', 'RA': 'Raw Attitude file',
+        'RF': 'OM reference frame (auxiliary file)', 'RI': 'EPIC MOS reduced imaging',
+        'RO': 'Spacecraft reconstructed orbit', 'SP': 'RGS spectroscopy',
+        'SU': 'Summary information', 'TC': 'Spacecraft time correlation',
+        'TH': 'OM tracking history (auxiliary file)', 'TI': 'EPIC timing',
+        'TM': 'EPIC thermal monitoring limits non-periodic housekeeping',
+        'WD': 'OM priority window data (auxiliary file)'
+    }
+    
+    # Handle Data Content (MM) Context/Overlaps
+    mm_desc = data_content.get(mm)
+    
+    if mm == 'EC':
+        mm_desc = "EPIC MOS extra heating config non-periodic housekeeping" if ii in ['M1', 'M2'] else "EPIC Radiation Monitor (ERC) count rate" if ii == 'RM' else "Unknown 'EC'"
+    elif mm == 'HT':
+        mm_desc = "EPIC MOS high bit rate interface threshold values" if ii in ['M1', 'M2'] else "RGS high time resolution" if ii in ['R1', 'R2'] else "Unknown 'HT'"
+    elif mm == 'PA':
+        mm_desc = "EPIC PN additional periodic housekeeping" if ii == 'PN' else "OM priority field acquisition (auxiliary file)" if ii == 'OM' else "Unknown 'PA'"
+    elif mm == 'PF':
+        mm_desc = "RGS full periodic housekeeping" if ii in ['R1', 'R2'] else "OM priority fast (auxiliary file)" if ii == 'OM' else "Unknown 'PF'"
+    elif mm.startswith('E') and mm[1].isdigit() and 1 <= int(mm[1]) <= 7:
+        mm_desc = f"OM engineering (window {mm[1]})"
+
+    # --- Construct Results Dictionary ---
+    parsed_info = {
+        'filename' : filename,
+        'REVOLUT'  : rrrr,
+        'OBS_ID'   : obsidentif,
+        'INSTRUME' : instruments[ii],
+        'EXP_ID'   : obsidentif+eee,
+        'EXPIDSTR' : u+eee,
+        'obs_type' : u,
+        'exposure' : eee,
+        'format'   : zzz,
+        'file_type': f,
+        'ftype_des': file_types[f],
+        'content'  : mm, 
+        'cont_des' : mm_desc,
+    }
+
+    if cc == '00':
+        if parsed_info['INSTRUME'] == 'OM':
+            parsed_info['SCIWIN'] = int(cc)
+        else:
+            parsed_info['CCDID'] = 0
+    else:
+        if 'EMOS' in parsed_info['INSTRUME']:
+            parsed_info['CCDID']  = int(cc[0])
+            parsed_info['mode']   = int(cc[1])
+        elif parsed_info['INSTRUME'] == 'EPN':
+            parsed_info['CCDID']  = int(cc)
+        elif 'RGS' in parsed_info['INSTRUME']:
+            parsed_info['CCDID']  = int(cc)
+        elif parsed_info['INSTRUME'] == 'OM':
+            parsed_info['SCIWIN'] = int(cc)
+
+    return parsed_info
+
+def validate_event_list_pattern(pattern: int | str, instrument: str):
+    """
+    Validates pattern value or string for filtering by PATTERN 
+    events in an event list.
+
+    Parameters
+    ----------
+    pattern : int | str
+        Event list pattern value or string.
+    instrument : str
+        Which EPIC camera ('EMOS' or 'EPN')
+
+    Returns
+    -------
+    tuple
+        Tuple of operations and values.
+
+    Raises
+    ------
+    ValueError
+        Invalid max pattern value.
+    ValueError
+        Pattern must be a str or int.
+    ValueError
+        Invalid interval range.
+    SyntaxError
+        Invalid pattern function.
+    """
+    max_patt = {'EMOS':12,'EPN':4}
+    OPS = {'==': operator.eq, '!=': operator.ne,
+           '<=': operator.le, '>=': operator.ge,
+           '<':  operator.lt, '>':  operator.gt}
+    if 'EMOS' in instrument: instrument = 'EMOS'
+    max_val = max_patt[instrument]
+    og_pat = pattern
+
+    # 1. Handle Integer Input directly (Guard Clause)
+    if isinstance(pattern, int):
+        if pattern > max_val:
+            raise ValueError(f'Invalid max pattern value ({pattern}) for {instrument}.')
+        return ((operator.eq, pattern),)
+
+    # 2. Type Check
+    if not isinstance(pattern, str):
+        raise ValueError('Pattern must be a str or int.')
+
+    # 3. Clean the string (Remove spaces, "PATTERN", and "in" case-insensitively)
+    # \b ensures we only match the whole words "PATTERN" or "in"
+    pat_str = re.sub(r'(?i)\b(PATTERN|in)\b|\s+', '', pattern)
+
+    # 4. Match Exact Values (e.g., "4", "[4]", "(4)")
+    m_exact = re.match(r'^[\(\[]?(\d+)[\)\]]?$', pat_str)
+    if m_exact:
+        val = int(m_exact.group(1))
+        if val > max_val:
+            raise ValueError(f'Invalid max pattern value ({val}) for {instrument}.')
+        return ((operator.eq, val),)
+
+    # 5. Match Relational Operators (e.g., "<=4", ">2", "==12", "4:", ":4")
+    # Pre-process "4:" to ">=4" and ":4" to "<=4"
+    m_lo_open = re.match(r'^(\d+):$', pat_str)
+    if m_lo_open: pat_str = f">={m_lo_open.group(1)}"
+    
+    m_hi_open = re.match(r'^:(\d+)$', pat_str)
+    if m_hi_open: pat_str = f"<={m_hi_open.group(1)}"
+
+    m_rel = re.match(r'^(==|!=|<=|>=|<|>)(\d+)$', pat_str)
+    if m_rel:
+        op_str, val_str = m_rel.groups()
+        val = int(val_str)
+        if val > max_val:
+            raise ValueError(f'Invalid max pattern value ({val}) for {instrument}.')
+        return ((OPS[op_str], val),)
+
+    # 6. Match Intervals (e.g., "[0:4]", "0:4", "(1:4]")
+    m_range = re.match(r'^([\[\(]?)(\d*):(\d*)([\]\)]?)$', pat_str)
+    if m_range:
+        left_b, lo_str, hi_str, right_b = m_range.groups()
+        
+        # Fill defaults if lo/hi are missing
+        lo = int(lo_str) if lo_str else 0
+        hi = int(hi_str) if hi_str else max_val
+        
+        if lo >= hi:
+            raise ValueError(f'Invalid interval range ({lo}:{hi}) for {instrument}.')
+        if hi > max_val:
+            raise ValueError(f'Invalid max pattern value ({hi}) for {instrument}.')
+        
+        # Determine operator bounds (Assume inclusive '>=' / '<=' if no bracket provided)
+        op_lo = OPS['>='] if left_b in ('[', '') else OPS['>']
+        op_hi = OPS['<='] if right_b in (']', '') else OPS['<']
+        
+        return ((op_lo, lo), (op_hi, hi))
+
+    # If it reaches here, the syntax didn't match any known formats
+    raise SyntaxError(f'Invalid pattern function: {og_pat}')
+
+def parse_value(value, default_units, equivalence=None):
+    if hasattr(value, "to_astropy"):
+        value = value.to_astropy()
+    if isinstance(value, Quantity):
+        q = Quantity(value.value, value.unit)
+    else:
+        q = Quantity(value, default_units)
+    return q.to(default_units, equivalencies=equivalence).value
+
+def set_unit(value, default_units, equivalence=None):
+    if hasattr(value, "to_astropy"):
+        value = value.to_astropy()
+    if isinstance(value, Quantity):
+        q = Quantity(value.value, value.unit)
+    else:
+        q = Quantity(value, default_units)
+    return q.to(default_units, equivalencies=equivalence)

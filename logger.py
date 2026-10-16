@@ -21,10 +21,9 @@ Module for logging pySAS output.
 """
 
 # Standard library imports
-import copy
 import logging
-import os
 import sys
+import os
 from pathlib import Path
 
 # Third party imports
@@ -36,153 +35,149 @@ logger.remove()
 # Local application imports
 from pysas import sas_cfg
 
-# Functions
+# Define the standard 5 levels explicitly
+LEVELS = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL
+}
 
-def get_logger(taskname: str, 
-               toterminal: bool = True, 
-               tofile: bool     = False, 
-               logfilename: str = None, 
-               tasklogdir: str  = None,
-               pylogger: bool   = True):
+class LoggerStyleFormatter(logging.Formatter):
     """
-    Function to get a logger object. Uses the package 'loguru'.
-
-    Parameters
-    ----------
-    taskname : str
-        Name of the task to be run. By default will name log file 
-        "{taskname}.log".
-    toterminal : bool, optional
-        Output will be written to the terminal, by default True.
-    tofile : bool, optional
-        Output will be written to a log file, by default False.
-    logfilename : str, optional
-        Designated log file name. Will be used instead of "{taskname}.log". 
-        Useful for putting all output from multiple tasks into the same file, 
-        by default "{taskname}.log".
-    tasklogdir : str, optional
-        Directory where to write the log file. Priority of defaults for 
-        task_logdir are; tasklogdir (passed in to function), 
-        SAS_TASKLOGDIR (envirnment variable), then cwd (final default).
-    pylogger : bool, optional
-        True: Use logger settings for Python logging 
-        False: Use logger settings for subprocess logging Only set to 'False' 
-        in sastask.py -> MyTask.run() when running a non Python SAS task using 
-        subprocess, by default True.
-
-    Returns
-    -------
-    logger
-        Logger instance.
-    """    
+    A custom formatter that provides ANSI colors for terminal output, 
+    but plain text for file output.
+    """
+    RESET = "\x1b[0m"
+    GREEN = "\x1b[32m"
+    CYAN = "\x1b[36m"
+    BOLD = "\x1b[1m"
     
-    # This cleans up any loguru loggers that
-    # might be hanging around.
-    logger.remove()
-    
-    # SAS_TASKLOGDIR allows to set the directory for the logging file
-    # Priority of defaults for task_logdir
-    #   1. tasklogdir (passed in to function)
-    #   2. SAS_TASKLOGDIR (envirnment variable)
-    #   3. cwd (final default)
-    sas_tasklogdir = os.getenv('SAS_TASKLOGDIR')
+    LEVEL_COLORS = {
+        logging.DEBUG: "\x1b[34m",           # Blue
+        logging.INFO: BOLD,                  # Bold White
+        logging.WARNING: "\x1b[33m",         # Yellow
+        logging.ERROR: "\x1b[31m",           # Red
+        logging.CRITICAL: "\x1b[41m\x1b[37m" # White on Red background
+    }
 
-    if (tasklogdir and os.path.isdir(tasklogdir)):
-        task_logdir = Path(tasklogdir)
-    else:
-        if(sas_tasklogdir and os.path.isdir(sas_tasklogdir)):
-            task_logdir = Path(sas_tasklogdir)
+    def __init__(self, use_color=True):
+        super().__init__()
+        self.use_color = use_color
+
+    def format(self, record):
+        # Format: 2023-10-24 15:30:00 | INFO     | module:func:line - message
+        time_str = self.formatTime(record, "%Y-%m-%d %H:%M:%S")
+        level_name = f"{record.levelname:<8}"
+        location = f"{record.module}:{record.funcName}:{record.lineno}"
+        
+        if self.use_color:
+            color = self.LEVEL_COLORS.get(record.levelno, self.RESET)
+            time_part = f"{self.GREEN}{time_str}{self.RESET}"
+            level_part = f"{color}{level_name}{self.RESET}"
+            loc_part = f"{self.CYAN}{location}{self.RESET}"
+            msg_part = f"{color}{record.getMessage()}{self.RESET}"
+            return f"{time_part} | {level_part} | {loc_part} - {msg_part}"
         else:
-            task_logdir = Path.cwd()
+            return f"{time_str} | {level_name} | {location} - {record.getMessage()}"
 
-    if logfilename:
-        task_logfile = task_logdir / logfilename
-    else:
-        task_logfile = task_logdir / f"{taskname}.log"
 
-    # SAS_TASKLOGFMODE allows to set the write mode for the logging file
-    # Allowed modes are : w (new file each invocation of logger),
-    # a (append to any existing file)A That is the default mode.
-    sastasklogfmode = os.getenv("SAS_TASKLOGFMODE", "a")
-    if sastasklogfmode != 'a' and sastasklogfmode != 'w':
-        sastasklogfmode = 'a'
+# ---------------------------------------------------------
+# 1. Package-Wide Global Logger (_logger)
+# ---------------------------------------------------------
+PKG_LOGGER_NAME = "pysas_logger"
+_logger = logging.getLogger(PKG_LOGGER_NAME)
+_logger.setLevel(logging.DEBUG) # Let handlers filter the exact levels
+_logger.propagate = False       # Prevent duplicate logging to root
 
-    if pylogger:
-        # For Python based logging
-        # Set verbosity
-        verbosity = int(os.getenv('SAS_VERBOSITY'))
-        match(verbosity):
-            case 1:
-                level = "CRITICAL"
-            case 2 | 3:
-                level = "ERROR"
-            case 4 | 5:
-                level = "WARNING"
-            case 6 | 7:
-                level = "INFO"
-            case 8 | 9 | 10:
-                level = "DEBUG"
-            case _:
-                level = "INFO"
+# Internal variables to track active global handlers
+_terminal_handler = None
+_file_handler = None
+
+def _log_enable_terminal(level="WARNING"):
+    """Turns ON terminal output for the global _logger."""
+    global _terminal_handler
+    if _terminal_handler is None:
+        _terminal_handler = logging.StreamHandler(sys.stdout)
+        _terminal_handler.setFormatter(LoggerStyleFormatter(use_color=True))
+        _logger.addHandler(_terminal_handler)
+    
+    _terminal_handler.setLevel(LEVELS.get(level.upper(), logging.WARNING))
+
+def _log_disable_terminal():
+    """Turns OFF terminal output for the global _logger."""
+    global _terminal_handler
+    if _terminal_handler is not None:
+        _logger.removeHandler(_terminal_handler)
+        _terminal_handler.close()
+        _terminal_handler = None
+
+def _log_enable_file(filepath, level="WARNING"):
+    """Turns ON file output for the global _logger, routing it to 'filepath'."""
+    global _file_handler
+    
+    # If a file is already open, close it before opening a new one
+    if _file_handler is not None:
+        _log_disable_file()
         
-        # 98% of the time pysas_verbosity == SAS_VERBOSITY.
-        # But for debugging purposes it is convienent to have
-        # a separate verbosity for pySAS.
-        # This does not affect the verbosity for non-Python
-        # based SAS tasks.
-        pysas_verbosity = sas_cfg.get_setting('pysas_verbosity')
+    os.makedirs(os.path.dirname(os.path.abspath(filepath)) or ".", exist_ok=True)
+    _file_handler = logging.FileHandler(filepath)
+    _file_handler.setFormatter(LoggerStyleFormatter(use_color=False))
+    _file_handler.setLevel(LEVELS.get(level.upper(), logging.WARNING))
+    _logger.addHandler(_file_handler)
 
-        # Take the lower of sas_level or pysas_level
-        sas_level   = logger.level(level).no
-        pysas_level = logger.level(pysas_verbosity).no
-        if sas_level < pysas_level: pysas_verbosity = level
+def _log_disable_file():
+    """Turns OFF file output for the global _logger."""
+    global _file_handler
+    if _file_handler is not None:
+        _logger.removeHandler(_file_handler)
+        _file_handler.close()
+        _file_handler = None
 
-        level = pysas_verbosity
+# Default behavior: Terminal ON, File OFF
+# 98% of the time pysas_verbosity == SAS_VERBOSITY.
+# But for debugging purposes it is convienent to have
+# a separate verbosity for pySAS.
+# This does not affect the verbosity for non-Python
+# based SAS tasks.
+pysas_verbosity = sas_cfg.get_setting('pysas_verbosity')
+_log_enable_terminal(level=pysas_verbosity)
+
+
+# ---------------------------------------------------------
+# 2. Independent Logger Factory (For Subprocesses)
+# ---------------------------------------------------------
+def _create_independent_logger(name, terminal=False, log_file=None, level="DEBUG"):
+    """
+    Creates an isolated logger instance for tracking subprocesses/tasks.
+    """
+    indep_logger = logging.getLogger(name)
+    indep_logger.setLevel(LEVELS.get(level.upper(), logging.DEBUG))
+    
+    # Clear any existing handlers (if calling this multiple times for the same name)
+    if indep_logger.hasHandlers():
+        indep_logger.handlers.clear()
         
-        # Add file sink
-        if tofile:
-            logger.add(
-                sink=task_logfile,
-                level=level,
-                mode=sastasklogfmode,
-                enqueue=True,
-                format="{time:DD-MM-YYYY HH:mm:ss.SSS Z} - {name} - {level: <8} - {message}"
-            )
+    indep_logger.propagate = False # Crucial: Don't bubble up to _logger
 
-        # Add console sink
-        if toterminal:
-            logger.add(
-                sink=sys.stdout,
-                level=level,
-                enqueue=True,
-                format="<g>{name}</g> - <level>{level: <8}</level> - <level>{message}</level>"
-            )
-    else:
-        # For non-Python based logging (i.e. subprocess)
-        # Set verbosity
-        # For non-Python SAS tasks the verbosity is set separately
-        level = "INFO"
+    if terminal:
+        term_h = logging.StreamHandler(sys.stdout)
+        term_h.setFormatter(logging.Formatter("%(message)s"))
+        term_h.setLevel(LEVELS.get(level.upper(), logging.DEBUG))
+        indep_logger.addHandler(term_h)
         
-        # Add file sink
-        if tofile:
-            logger.add(
-                sink=task_logfile,
-                level=level,
-                mode=sastasklogfmode,
-                enqueue=True,
-                format="<green>{time:DD-MM-YYYY HH:mm:ss.SSS Z}</green> - {message}"
-            )
+    if log_file:
+        os.makedirs(os.path.dirname(os.path.abspath(log_file)) or ".", exist_ok=True)
+        file_h = logging.FileHandler(log_file)
+        file_h.setFormatter(logging.Formatter("%(message)s"))
+        file_h.setLevel(LEVELS.get(level.upper(), logging.DEBUG))
+        indep_logger.addHandler(file_h)
+        
+    return indep_logger
 
-        # Add console sink
-        if toterminal:
-            logger.add(
-                sink=sys.stdout,
-                level=level,
-                enqueue=True,
-                format="{message}",
-            )
 
-    return logger
+# Old Logger
 
 class TaskLogger:
     """

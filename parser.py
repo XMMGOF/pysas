@@ -40,7 +40,7 @@ import importlib.resources
 
 # Local application imports
 from pysas.param import paramXmlInfoReader
-from pysas.logger import get_logger
+from pysas.logger import _logger
 from pysas import sas_cfg
 
 class ParseArgs:
@@ -50,8 +50,7 @@ class ParseArgs:
     """
     
     def __init__(self, taskname: str, 
-                 argdict: dict, 
-                 logger = None):
+                 argdict: dict):
         """
         Class constructor for ParseArgs.
 
@@ -61,8 +60,6 @@ class ParseArgs:
             The name of the SAS task.
         argdict : dict
             Input argument dictionary.
-        logger : logger, optional
-            Logger object, by default None.
 
         Raises
         ------
@@ -71,12 +68,6 @@ class ParseArgs:
         """
         self.taskname = taskname
         self.argdict = argdict
-        if logger is None:
-            # By default will only output to terminal
-            self.logger = get_logger('ParseArgs')
-        else:
-            # Use logger that was passed in
-            self.logger = logger
 
         # Before any further processing check that SAS_PATH is defined
         sas_path = os.environ.get('SAS_PATH')
@@ -301,12 +292,12 @@ class ParseArgs:
         # Help:
         if self.parsedargs.help:
             print(usage)
-            pf = paramXmlInfoReader(self.taskname, logger = self.logger)
+            pf = paramXmlInfoReader(self.taskname)
             pf.xmlParser()
             pf.printHelp()
             Exit  = True
         if self.parsedargs.param:
-            pf = paramXmlInfoReader(self.taskname, logger = self.logger)
+            pf = paramXmlInfoReader(self.taskname)
             pf.xmlParser()
             pf.printHelp()
             Exit = True
@@ -366,49 +357,49 @@ class ParseArgs:
             envar_val = str(self.parsedargs.sas_ccfpath[0])
             env_options_list.append(f'-a {envar_val}')
             return_options['SAS_CCFPATH'] = envar_val
-            self.logger.info(f'SAS_CCFPATH = {envar_val}')
+            _logger.info(f'SAS_CCFPATH = {envar_val}')
         # noclobber
         if self.parsedargs.noclobber:
             envar_val = False
             env_options_list.append('-c')
             return_options['SAS_CLOBBER'] = envar_val
-            self.logger.info(f'SAS_CLOBBER = {envar_val}')
+            _logger.info(f'SAS_CLOBBER = {envar_val}')
         # sas_ccf
         if self.parsedargs.sas_ccf:
             envar_val = str(self.parsedargs.sas_ccf[0])
             env_options_list.append(f'-i {envar_val}')
             return_options['SAS_CCF'] = envar_val
-            self.logger.info(f'SAS_CCF = {envar_val}')
+            _logger.info(f'SAS_CCF = {envar_val}')
         # sas_odf
         if self.parsedargs.sas_odf:
             envar_val = str(self.parsedargs.sas_odf[0])
             env_options_list.append(f'-o {envar_val}')
             return_options['SAS_ODF'] = envar_val
-            self.logger.info(f'SAS_ODF = {envar_val}')
+            _logger.info(f'SAS_ODF = {envar_val}')
         # ccffiles
         if self.parsedargs.ccffiles:
             envar_val = str(self.parsedargs.sas_odf[0])
             env_options_list.append(f'-f {envar_val}')
             return_options['CCF_files'] = envar_val
-            self.logger.info(f'CCF files = {envar_val}')
+            _logger.info(f'CCF files = {envar_val}')
         # warning
         if self.parsedargs.warning:
             envar_val = str(self.parsedargs.warning[0])
             env_options_list.append(f'-w {envar_val}')
             return_options['WARNING'] = envar_val
-            self.logger.info(f'WARNING = {envar_val}')
+            _logger.info(f'WARNING = {envar_val}')
         # trace
         if self.parsedargs.trace:
             envar_val = True
             env_options_list.append('-t')
             return_options['TRACE'] = envar_val
-            self.logger.info(f'Trace = {envar_val}')
+            _logger.info(f'Trace = {envar_val}')
         # verbosity
         if self.parsedargs.verbosity:
             envar_val = str(self.parsedargs.verbosity[0])
             env_options_list.append(f'-V {envar_val}')
             return_options['SAS_VERBOSITY'] = envar_val
-            self.logger.info(f'SAS_VERBOSITY = {envar_val}')
+            _logger.info(f'SAS_VERBOSITY = {envar_val}')
 
         # Add the list of all options to return_options
         return_options['env_options'] = " ".join(env_options_list)
