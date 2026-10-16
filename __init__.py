@@ -63,7 +63,7 @@ else:
 
 ## For initialization of pySAS from configuration file.
 #from .configutils import sas_cfg
-from .init_sas import initializesas
+from pysas.init_sas import initializesas
 
 # Initializes SAS if needed.
 if sas_initialize:
@@ -83,7 +83,7 @@ SAS_COMPILATION_USER = ''
 SAS_PLATFORM         = ''
 SAS_COMMIT_ID        = ''
 
-from .version import get_sas_version
+from pysas.version import get_sas_version
 
 # Get SAS version information
 if sas_ready:
@@ -97,11 +97,12 @@ if sas_ready:
     SAS_COMMIT_ID        = sas_info['COMMIT_ID']
     del sas_info
 
-from .version import VERSION, print_sas_version
+from pysas.version import VERSION, print_sas_version
 
 __version__ = f'pysas - (pysas-{VERSION}) [SAS-{SAS_RELEASE}]'
 
 # Import pySAS modules
+from . import obsid
 from . import sastask
 from . import parser
 from . import param
@@ -115,8 +116,6 @@ from pysas.obsid import ObsID, PPSFiles
 from pysas.sastask import MyTask
 from pysas.config_pysas import run_config
 from pysas.sasutils import download_data, generate_logger, update_calibration_files
-from pysas.xmmfiles import XMMFits, XMMEventList
-from pysas.lightcurve import XMMLightCurve
 
 # API
 __all__ = ['ObsID',
