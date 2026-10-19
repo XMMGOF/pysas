@@ -251,7 +251,6 @@ class ObsID:
             self._data_dir = os.getcwd()
             _logger.info(f'Resetting data_dir to the current directory: "{self._data_dir}".')
             _logger.debug(f'Exiting _set_obsid, no data_dir found.')
-            return
             
         # data_dir is set.
         # Setting other directory paths.
