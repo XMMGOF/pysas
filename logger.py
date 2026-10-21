@@ -39,7 +39,7 @@ LEVELS = {
     "CRITICAL": logging.CRITICAL
 }
 
-class LoggerStyleFormatter(logging.Formatter):
+class LoggerStyler(logging.Formatter):
     """
     A custom formatter that provides ANSI colors for terminal output, 
     but plain text for file output.
@@ -95,7 +95,7 @@ def _log_enable_terminal(level="WARNING"):
     global _terminal_handler
     if _terminal_handler is None:
         _terminal_handler = logging.StreamHandler(sys.stdout)
-        _terminal_handler.setFormatter(LoggerStyleFormatter(use_color=True))
+        _terminal_handler.setFormatter(LoggerStyler(use_color=True))
         _logger.addHandler(_terminal_handler)
     
     _terminal_handler.setLevel(LEVELS.get(level.upper(), logging.WARNING))
@@ -118,7 +118,7 @@ def _log_enable_file(filepath, level="WARNING"):
         
     os.makedirs(os.path.dirname(os.path.abspath(filepath)) or ".", exist_ok=True)
     _file_handler = logging.FileHandler(filepath)
-    _file_handler.setFormatter(LoggerStyleFormatter(use_color=False))
+    _file_handler.setFormatter(LoggerStyler(use_color=False))
     _file_handler.setLevel(LEVELS.get(level.upper(), logging.WARNING))
     _logger.addHandler(_file_handler)
 

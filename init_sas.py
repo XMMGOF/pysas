@@ -31,6 +31,7 @@ from pathlib import Path
 # Third party imports
 
 # Local application imports
+from pysas.logger import _logger
 
 # Function to initialize SAS
 
@@ -104,11 +105,11 @@ def overwrite_environ_variable(variable: str,
     
     os.environ[variable] = os.pathsep.join(listvalue)
 
-def initializesas(sas_dir: str | Path, 
-                  sas_ccfpath: str | Path , 
-                  verbosity: int = 4, 
-                  suppress_warning: int = 1, 
-                  image_viewer: str = 'ds9'):
+def _initializesas(sas_dir: str | Path, 
+                   sas_ccfpath: str | Path , 
+                   verbosity: int = 4, 
+                   suppress_warning: int = 1, 
+                   image_viewer: str = 'ds9'):
     """
     Initializes SAS. Heasoft must be initialized first, separately.
 
@@ -141,10 +142,11 @@ def initializesas(sas_dir: str | Path,
     NotADirectoryError
         sas_ccfpath must be provided to initialize SAS.
     """
-
+    _logger.debug('Entering _initializesas.')
     ######
     # Checking LHEASOFT and inputs
 
+    _logger.debug('Checking for LHEASOFT.')
     lheasoft = os.environ.get('LHEASOFT')
     if not lheasoft:
         raise EnvironmentError('LHEASOFT is not set. Please initialise HEASOFT.')
@@ -156,6 +158,7 @@ def initializesas(sas_dir: str | Path,
     # add_environ_variable('HEADASPROMPT','/dev/null')
 
     # Checks if a basic call to HEASOFT works.
+    _logger.debug('Checking if HEASOFT works.')
     try:
         heasoft_test = subprocess.run(["fversion"],stdout = subprocess.DEVNULL)
     except FileNotFoundError:
@@ -172,6 +175,9 @@ def initializesas(sas_dir: str | Path,
     overwrite_environ_variable('SAS_DIR',sas_dir)
     overwrite_environ_variable('SAS_CCFPATH',sas_ccfpath)
     overwrite_environ_variable('SAS_PATH',[sas_dir])
+    _logger.debug(f'SAS_DIR set to {sas_dir}')
+    _logger.debug(f'SAS_CCFPATH set to {sas_ccfpath}')
+    _logger.debug(f'SAS_PATH set to {sas_dir}')
     
     binpath = [os.path.join(sas_dir,'bin'), os.path.join(sas_dir,'bin','devel')]
     libpath = [os.path.join(sas_dir,'lib'),os.path.join(sas_dir,'libextra'),os.path.join(sas_dir,'libsys')]
@@ -185,6 +191,12 @@ def initializesas(sas_dir: str | Path,
     add_environ_variable('LD_LIBRARY_PATH',libpath,prepend=False)
     add_environ_variable('PERL5LIB',perlpath)
     add_environ_variable('PYTHONPATH',pythonpath)
+    _logger.debug(f'SAS_PATH set to {binpath+libpath+perlpath+pythonpath}')
+    _logger.debug(f'{binpath} added to PATH')
+    _logger.debug(f'{libpath} added to LIBRARY_PATH')
+    _logger.debug(f'{libpath} added to LD_LIBRARY_PATH')
+    _logger.debug(f'{perlpath} added to PERL5LIB')
+    _logger.debug(f'{pythonpath} added to PYTHONPATH')
 
     perllib = os.environ.get('PERLLIB')
     if perllib:
@@ -194,6 +206,9 @@ def initializesas(sas_dir: str | Path,
     os.environ['SAS_VERBOSITY'] = '{}'.format(verbosity)
     os.environ['SAS_SUPPRESS_WARNING'] = '{}'.format(suppress_warning)
     os.environ['SAS_IMAGEVIEWER'] = '{}'.format(image_viewer)
+    _logger.debug(f'SAS_VERBOSITY set to {verbosity}')
+    _logger.debug(f'SAS_SUPPRESS_WARNING set to {suppress_warning}')
+    _logger.debug(f'SAS_IMAGEVIEWER set to {image_viewer}')
 
     sas_path = os.environ.get('SAS_PATH')
 
@@ -214,5 +229,7 @@ def initializesas(sas_dir: str | Path,
     SAS_VERBOSITY set to {verbosity}
     SAS_SUPPRESS_WARNING set to {suppress_warning}
     """
+
+    _logger.debug('Exiting _initializesas.')
 
     return return_info

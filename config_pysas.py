@@ -26,15 +26,8 @@ import os, glob, time, subprocess
 # Third party imports
 
 # Local application imports
-from pysas.init_sas import initializesas
 from configparser import ConfigParser
 from pathlib import Path
-from pysas.logger import (_logger, 
-                          _log_enable_terminal, 
-                          _log_disable_terminal, 
-                          _log_enable_file, 
-                          _log_disable_file,
-                          _log_set_level,)
 
 # Config class
 class sas_config:
@@ -87,6 +80,8 @@ class sas_config:
         if self.absolute_config_path.exists():
             # Read the configuration file
             self.config.read(self.absolute_config_path)
+            # Paranoid check
+            if not self.config.has_section('sas'): self.config.add_section('sas')
         else:
             self.config = ConfigParser(self.sas_cfg_defaults)
             if not self.config.has_section('sas'): self.config.add_section('sas')
@@ -109,6 +104,8 @@ class sas_config:
         str
             The returned setting.
         """
+        # if not self.config.has_option(section, option):
+
         return self.config.get(section, option)
 
     def set_setting(self, option: str, value: str, section: str = 'sas'):
@@ -128,6 +125,8 @@ class sas_config:
         if not self.config.has_section(section):
             self.config.add_section(section)
         if option == 'pysas_verbosity':
+            # VERY lazy import
+            from pysas.logger import _log_set_level
             _log_set_level(level=value)
         self.config.set(section, option, value)
 
@@ -262,6 +261,34 @@ class sas_config:
         self.set_setting('data_dir', str(data_dir))
         self.save_config()
 
+    def _check_sas_paths(self):
+        sas_initialize = True
+        # Get configuration settings
+        # Checks if defaults from config file exist.
+        if self.config.has_option('sas','sas_dir'):
+            sas_dir_config = self.get_setting("sas_dir")
+            if not os.path.exists(sas_dir_config):
+                print('There is a problem with SAS_DIR in the config file!')
+                print(f'{sas_dir_config} does not exist!')
+                print('Please set manually to initialize SAS.')
+                sas_initialize = False
+        else:
+            sas_initialize = False
+
+        if self.config.has_option('sas','sas_ccfpath'):
+            sas_ccfpath_config = self.get_setting("sas_ccfpath")
+            if not os.path.exists(sas_ccfpath_config):
+                print('There is a problem with SAS_CCFPATH in the config file!')
+                print(f'{sas_ccfpath_config} does not exist!')
+                print('Please set manually to initialize SAS.')
+                sas_initialize = False
+        else:
+            sas_initialize = False
+
+        return sas_initialize
+
+sas_cfg = sas_config()
+
 def run_config():
     """
     The purpose of this script is so that the user can set the pySAS
@@ -298,6 +325,8 @@ def run_config():
         import pysas
         pysas.sas_cfg.reset_to_defaults()
     """
+
+    from pysas.init_sas import _initializesas
 
     outcomment = """
 
@@ -486,7 +515,7 @@ def run_config():
         print('SAS_DIR and SAS_CCFPATH exist. Will use the following to initialize SAS:')
         print(f'     SAS_DIR = {sas_dir}')
         print(f'     SAS_CCFPATH = {sas_ccfpath}')
-        initializesas(sas_dir, sas_ccfpath)
+        _initializesas(sas_dir, sas_ccfpath)
 
     if not os.path.exists(sas_dir):
         print(f'There is a problem with SAS_DIR {sas_dir}. Please check and try again.')

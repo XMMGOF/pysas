@@ -1,7 +1,20 @@
 # __init__.py for pysas
-#
-#
+# 
+###########################################################
+# Several things need to be done in this order:
+# 
+#   1. Check the initialization status of SAS.
+#   2. Configure pySAS and SAS.
+#   3. Generate the logger.
+#   4. Initialize SAS.
+#   5. Get VERSION.
+#   6. Import modules.
+#   7. Clean up.
+# 
+###########################################################
 
+# 1. Check the initialization status of SAS.
+# 
 import os
 
 # Check if SAS_DIR, SAS_PATH, and SAS_CCFPATH are already set.
@@ -32,49 +45,50 @@ if sas_dir and \
         if value is None:
             os.environ['SAS_SUPPRESS_WARNING'] = '1'
 
+# 2. Configure pySAS and SAS.
+# 
 # If SAS environment variables are not set look in the config file
-# from .config_pysas import sas_config
-from . import config_pysas
+from pysas.config_pysas import sas_cfg
+good_paths = sas_cfg._check_sas_paths()
 
-# Create config object
-sas_cfg = config_pysas.sas_config()
+# 3. Generate the logger.
+# 
+from pysas import logger
+# Default behavior: Terminal ON, File OFF
+# 98% of the time pysas_verbosity == SAS_VERBOSITY.
+# But for debugging purposes it is convienent to have
+# a separate verbosity for pySAS.
+# This does not affect the verbosity for non-Python
+# based SAS tasks.
+pysas_verbosity = sas_cfg.get_setting('pysas_verbosity')
+logger._log_enable_terminal(level=pysas_verbosity)
 
-# Get configuration settings
-# Checks if defaults from config file exist.
-if sas_cfg.config.has_option('sas','sas_dir'):
-    sas_dir_config = sas_cfg.get_setting("sas_dir")
-    if not os.path.exists(sas_dir_config):
-        print('There is a problem with SAS_DIR in the config file!')
-        print(f'{sas_dir_config} does not exist!')
-        print('Please set manually to initialize SAS.')
-        sas_initialize = False
-else:
-    sas_initialize = False
+# 4. Initialize SAS.
+# 
 
-if sas_cfg.config.has_option('sas','sas_ccfpath'):
-    sas_ccfpath_config = sas_cfg.get_setting("sas_ccfpath")
-    if not os.path.exists(sas_ccfpath_config):
-        print('There is a problem with SAS_CCFPATH in the config file!')
-        print(f'{sas_ccfpath_config} does not exist!')
-        print('Please set manually to initialize SAS.')
-        sas_initialize = False
-else:
-    sas_initialize = False
+# Only affects extreme debugging.
+if sas_cfg.config.getboolean('sas','quiet_start',fallback=True):
+    logger._log_set_level()
 
-## For initialization of pySAS from configuration file.
-#from .configutils import sas_cfg
-from pysas.init_sas import initializesas
+# For initialization of pySAS from configuration file.
+from pysas.init_sas import _initializesas
 
 # Initializes SAS if needed.
-if sas_initialize:
+if sas_initialize and good_paths:
+    sas_dir_config       = sas_cfg.get_setting("sas_dir")
+    sas_ccfpath_config   = sas_cfg.get_setting("sas_ccfpath")
     sas_verbosity        = sas_cfg.get_setting("verbosity")
     sas_suppress_warning = sas_cfg.get_setting("suppress_warning")
-    sas_init_info = initializesas(sas_dir_config,
-                                  sas_ccfpath_config,
-                                  verbosity = sas_verbosity,
-                                  suppress_warning = sas_suppress_warning)
+    sas_init_info = _initializesas(sas_dir_config,
+                                   sas_ccfpath_config,
+                                   verbosity = sas_verbosity,
+                                   suppress_warning = sas_suppress_warning)
     sas_ready = True
 
+logger._log_set_level(level=pysas_verbosity)
+
+# 5. Get VERSION.
+# 
 SAS_RELEASE          = 'NOT INITIALIZED'
 SAS_AKA              = ''
 SAS_COMPILATION_DATE = ''
@@ -101,16 +115,17 @@ from pysas.version import VERSION, print_sas_version
 
 __version__ = f'pysas - (pysas-{VERSION}) [SAS-{SAS_RELEASE}]'
 
+# 6. Import modules.
+# 
 # Import pySAS modules
-from . import obsid
-from . import sastask
-from . import parser
-from . import param
-from . import init_sas
-from . import sasutils
-from . import xmmfiles
-from . import lightcurve
-from . import logger
+from pysas import obsid
+from pysas import sastask
+from pysas import parser
+from pysas import param
+from pysas import init_sas
+from pysas import sasutils
+from pysas import xmmfiles
+from pysas import lightcurve
 
 # Classes and functions needed at the top level
 from pysas.obsid import ObsID, PPSFiles
@@ -125,26 +140,20 @@ from pysas.sasutils import (download_data,
                             set_unit,
                             )
 
-# Default behavior: Terminal ON, File OFF
-# 98% of the time pysas_verbosity == SAS_VERBOSITY.
-# But for debugging purposes it is convienent to have
-# a separate verbosity for pySAS.
-# This does not affect the verbosity for non-Python
-# based SAS tasks.
-pysas_verbosity = sas_cfg.get_setting('pysas_verbosity')
-logger._log_enable_terminal(level=pysas_verbosity)
-
 # API
 __all__ = ['ObsID',
-           'PPSFiles',
            'MyTask',
+           'XMMEventList',
+           'XMMLightCurve',
            'sas_cfg',
            'get_sas_version',
            'update_calibration_files']
 
+# 7. Clean up.
+# 
 # Get rid of temporary variables to prevent possible conflicts.
 if sas_initialize:
     del sas_dir_config, sas_ccfpath_config, sas_verbosity, sas_suppress_warning
-del sas_initialize, sas_ready
+del sas_initialize, good_paths, sas_ready, pysas_verbosity
 del sas_dir, sas_path, sas_ccfpath
 del value
