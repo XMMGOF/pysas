@@ -28,10 +28,10 @@ from xml.dom import minidom as md
 import os
 import sys
 import glob
+import textwrap
 from collections import UserDict
 
 # Third party imports
-from beautifultable import BeautifulTable
 
 # Local application imports
 from pysas.logger import _logger
@@ -310,16 +310,70 @@ class paramXmlInfoReader:
     def printHelp(self):
         """
         Prints a table with the parameters read from xmlFile.
+        Native Python implementation replacing BeautifulTable.
+        Text is centered and separated by horizontal lines between each row.
         """
-        table = BeautifulTable()
-        table.columns.header = ['name', 'mandatory', 'type', 'default', 'description']
-        table.columns.width = [50, 15, 10, 30, 50]
-        table.maxwidth = 160
-        for a in self.allparams.values():
-            table.rows.append([a['id'], a['mandatory'], a['type'], 
-                              a.get('default', None), a['description']])
-        print(table)
+        headers = ['name', 'mandatory', 'type', 'default', 'description']
+        desired_widths = [30, 12, 10, 20, 50]
+        maxwidth = 160
 
+        # 1. Calculate the scaled widths to respect maxwidth=160
+        overhead = 1 + (len(desired_widths) * 3)
+        available_width = maxwidth - overhead
+
+        total_desired = sum(desired_widths)
+        if total_desired > available_width:
+            scale = available_width / total_desired
+            widths = [max(1, int(w * scale)) for w in desired_widths]
+            widths[-1] += available_width - sum(widths)
+        else:
+            widths = desired_widths
+
+        # 2. Helper function to print the table separators (+---+---+...)
+        def print_separator():
+            parts = ['-' * (w + 2) for w in widths]
+            print('+' + '+'.join(parts) + '+')
+
+        # 3. Helper function to print a row, handling multi-line wrapped text
+        def print_row(row_data):
+            wrapped_cells = []
+            for i, cell in enumerate(row_data):
+                text = str(cell) if cell is not None else "None"
+                lines = textwrap.wrap(text, widths[i], break_long_words=True)
+                if not lines:
+                    lines = [""]
+                wrapped_cells.append(lines)
+
+            max_lines = max(len(cell) for cell in wrapped_cells)
+
+            for line_idx in range(max_lines):
+                row_str = "|"
+                for col_idx, width in enumerate(widths):
+                    cell_lines = wrapped_cells[col_idx]
+                    text = cell_lines[line_idx] if line_idx < len(cell_lines) else ""
+                    
+                    # Center the text within the column width
+                    row_str += f" {text.center(width)} |"
+                print(row_str)
+
+        # 4. Construct and print the actual table
+        
+        print_separator()   # Top border
+        print_row(headers)  # Headers
+        print_separator()   # Header separator
+
+        # Data rows
+        for a in self.allparams.values():
+            row = [
+                a.get('id', ''),
+                a.get('mandatory', ''),
+                a.get('type', ''),
+                a.get('default', None),
+                a.get('description', '')
+            ]
+            print_row(row)
+            print_separator() # Separator between EVERY row
+    
     # method defaultValues - Returns defaults
     def defaultValues(self):
         """
