@@ -112,13 +112,13 @@ class ObsID:
                     tasklogdir = data_dir
                 else:
                     tasklogdir = Path.cwd()
-            self._tasklogdir = tasklogdir
             if logfilename is None:
                 logfilename = 'ObsID_' + self._obsid + '.log'
-            self._logfilename = logfilename
             _log_enable_file(os.path.join(tasklogdir,logfilename), level=pysas_verbosity)
         else:
             _log_disable_file()
+        self._logfilename = logfilename
+        self._tasklogdir = tasklogdir
         self._output_to_file = output_to_file
 
         _logger.info(f'Creating ObsID instance for Obs ID: {obsid}.')
@@ -527,6 +527,9 @@ class ObsID:
                                proprietary      = kwargs.get('proprietary', False),
                                credentials_file = kwargs.get('credentials_file', None),
                                encryption_key   = kwargs.get('encryption_key', None))
+
+        # Clean up if overwrite=True
+        self._set_data_sub_dirs(create=True)
 
         verbosity     = kwargs.get('verbosity', None)
         old_verbosity = None
