@@ -420,13 +420,12 @@ class MyTask:
             print(f'Executing: \n{cmd}')
 
         try:
-            # Create an independent logger that ONLY writes to a specific task file
-            # and doesn't print to the terminal.
+            # Create an independent logger that catches the output from SAS tasks.
             log_file = None
-            if self.logfilename is not None:
+            if not self.logfilename:
                 log_file = self.logfilename
             task_logger = _create_independent_logger(
-                            name=self.taskname, 
+                            name='i'+self.taskname, 
                             terminal=self.output_to_terminal, 
                             log_file=log_file, 
                             level="DEBUG"

@@ -79,7 +79,7 @@ class LoggerStyler(logging.Formatter):
 
 
 # ---------------------------------------------------------
-# 1. Package-Wide Global Logger (_logger)
+# pySAS-Wide Global Logger (_logger)
 # ---------------------------------------------------------
 PKG_LOGGER_NAME = "pysas_logger"
 _logger = logging.getLogger(PKG_LOGGER_NAME)
@@ -147,7 +147,7 @@ def _log_set_level(level="WARNING"):
         _file_handler.setLevel(level_num)
 
 # ---------------------------------------------------------
-# 2. Independent Logger Factory (For Subprocesses)
+# Independent Logger Factory (For Subprocesses)
 # ---------------------------------------------------------
 def _create_independent_logger(name, terminal=False, log_file=None, level="DEBUG"):
     """
@@ -178,17 +178,20 @@ def _create_independent_logger(name, terminal=False, log_file=None, level="DEBUG
     return indep_logger
 
 
-# Old Logger
+# Logger used internally by Python code called from inside individual SAS tasks.
+# This class is used nowhere inside of pySAS. It is *only* used inside of 
+# independent Python scripts called from SAS tasks.
 
 class TaskLogger:
     """
-    This is only here for legacy reasons. This was the original logger class for 
-    pySAS.
+    Logger used internally by Python code called from inside individual SAS 
+    tasks.
 
-    TaskLogger creates a logger for Python tasks. The name of the logger is the 
-    name of the task. Such logger is known as saslogger. It includes two 
-    handlers, one console handler and one file handler. The file handler will 
-    put all logging messages in a file named <taskname>.log.
+    TaskLogger creates a logger for Python code called from inside SAS tasks. 
+    The name of the logger is the name of the task. Such logger is known as 
+    saslogger. It includes two handlers, one console handler and one file 
+    handler. The file handler will put all logging messages in a file named 
+    <taskname>.log.
     
     This file is by default written in the starting directory of the task 
     (os.getcwd()). However, for each task we can set that directory by taking 
@@ -223,7 +226,7 @@ class TaskLogger:
         self.saslogger = logging.getLogger(self.taskname)
         self.saslogger.setLevel('DEBUG')
 
-        # SAS_TASKLOGDIR allows to set the directory for tyhe logging file
+        # SAS_TASKLOGDIR allows to set the directory for the logging file
         sastasklogdir = os.getenv('SAS_TASKLOGDIR')
         startdir = os.getcwd()
         #print(f'{self.taskname} was initiated from {startdir}')

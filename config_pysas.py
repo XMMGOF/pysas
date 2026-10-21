@@ -21,7 +21,7 @@
 # config_pysas.py
 
 # Standard library imports
-import os, glob, time, subprocess
+import os, time, subprocess
 
 # Third party imports
 
@@ -47,11 +47,15 @@ class sas_config:
 
         # Raw defaults
         self.sas_cfg_defaults = {
-            "suppress_warning" : 1,
+            "sas_dir"          : "",
+            "sas_ccfpath"      : "",
+            "data_dir"         : "./",
+            "log_dir"          : "",
             "verbosity"        : 4,
-            "pysas_verbosity"  : "WARNING",
+            "suppress_warning" : 1,
             "repo"             : "ESA",
-            "work_dir_name"    : "work"
+            "pysas_verbosity"  : "WARNING",
+            "work_dir_name"    : "work",
         }
         
         # Resolve the full path to the configuration file
@@ -87,7 +91,7 @@ class sas_config:
             if not self.config.has_section('sas'): self.config.add_section('sas')
             self.save_config()
 
-    def get_setting(self, option: str, section: str = 'sas'):
+    def get_setting(self, option: str, section: str = 'sas', fallback: str = ''):
         """
         Retrieves a setting from the current session configuration (not from 
         the config file).
@@ -104,9 +108,9 @@ class sas_config:
         str
             The returned setting.
         """
-        # if not self.config.has_option(section, option):
-
-        return self.config.get(section, option)
+        if not self.config.has_option(section, option):
+            print(f'Config file does not have the item: {option}')
+        return self.config.get(section, option, fallback=fallback)
 
     def set_setting(self, option: str, value: str, section: str = 'sas'):
         """
@@ -262,30 +266,21 @@ class sas_config:
         self.save_config()
 
     def _check_sas_paths(self):
-        sas_initialize = True
+        can_initialize_sas = True
         # Get configuration settings
         # Checks if defaults from config file exist.
-        if self.config.has_option('sas','sas_dir'):
-            sas_dir_config = self.get_setting("sas_dir")
-            if not os.path.exists(sas_dir_config):
-                print('There is a problem with SAS_DIR in the config file!')
-                print(f'{sas_dir_config} does not exist!')
-                print('Please set manually to initialize SAS.')
-                sas_initialize = False
+        sdir = self.get_setting("sas_dir")
+        sccf = self.get_setting("sas_ccfpath")
+        if not (os.path.exists(sdir) and os.path.exists(sccf)):
+            if len(sdir) > 0 or len(sccf) > 0:
+                print('There is a problem with SAS directories in the config file!')
+                print('Could not find:')
+                print(f'     SAS Directory: {sdir}')
+                print(f'     CCF Directory: {sccf}')
+                print('Please reset values in the config file to initialize SAS.')
+            return False
         else:
-            sas_initialize = False
-
-        if self.config.has_option('sas','sas_ccfpath'):
-            sas_ccfpath_config = self.get_setting("sas_ccfpath")
-            if not os.path.exists(sas_ccfpath_config):
-                print('There is a problem with SAS_CCFPATH in the config file!')
-                print(f'{sas_ccfpath_config} does not exist!')
-                print('Please set manually to initialize SAS.')
-                sas_initialize = False
-        else:
-            sas_initialize = False
-
-        return sas_initialize
+            return True
 
 sas_cfg = sas_config()
 
@@ -547,7 +542,7 @@ def run_config():
             cmd = f'wget -nH --no-remove-listing -N -np -r --cut-dirs=4 -e robots=off -l 1 -R "index.html*" https://heasarc.gsfc.nasa.gov/FTP/xmm/data/CCF/ -P {sas_ccfpath}'
         print(f'Downloading calibration data using the command:\n{cmd}')
         print('This may take a while...')
-        time.sleep(3)
+        time.sleep(2)
         result = subprocess.run(cmd, shell=True)
 
     scomment = f"""

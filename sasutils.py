@@ -35,7 +35,6 @@ from astroquery.heasarc import Heasarc
 from astropy.units import Quantity
 
 # Local application imports
-from .logger import TaskLogger as TL
 from pysas import sas_cfg
 from pysas.logger import _logger
 
@@ -560,48 +559,6 @@ def download_data(obsid: str,
         print(f'\nPPS products can be found in {pps_dir}\n\nLink to Observation Summary html: {ppssumhtmllink}')
 
     return
-
-def generate_logger(logname: str = 'general_sas',
-                    log_dir: str = None):
-    """
-    Function to generate a Task Logger. Note: For the _old_ task logger.
-
-    Parameters
-    ----------
-    logname : str, optional
-        Filename for log file, by default general_sas.
-    log_dir : str, optional
-        Directory for the log file, by default current directory or environment 
-        variable 'SAS_TASKLOGDIR'.
-
-    Returns
-    -------
-    logger
-        File logger object.
-    """
-
-    sastasklogdir = os.environ.get('SAS_TASKLOGDIR')
-
-    # Where are we?
-    startdir = os.getcwd()
-
-    # Check where the logger should go.
-    if log_dir:
-        sastasklogdir = log_dir
-
-    if not sastasklogdir:
-        sastasklogdir = startdir
-
-    if not os.path.isdir(sastasklogdir):
-        sastasklogdir = startdir
-
-    # This will put the log files in data_dir.
-    os.environ['SAS_TASKLOGDIR'] = sastasklogdir
-
-    # Create the logger
-    logger = TL(logname)
-
-    return logger
 
 def update_calibration_files(repo='NASA'):
     """

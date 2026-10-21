@@ -4,17 +4,18 @@
 # Several things need to be done in this order:
 # 
 #   1. Check the initialization status of SAS.
-#   2. Configure pySAS and SAS.
+#   2. Configure and Initialize SAS.
 #   3. Generate the logger.
-#   4. Initialize SAS.
-#   5. Get VERSION.
-#   6. Import modules.
-#   7. Clean up.
+#   4. Get VERSION.
+#   5. Import modules.
+#   6. Clean up.
 # 
 ###########################################################
 
+
+# ---------------------------------------------------------
 # 1. Check the initialization status of SAS.
-# 
+# ---------------------------------------------------------
 import os
 
 # Check if SAS_DIR, SAS_PATH, and SAS_CCFPATH are already set.
@@ -45,50 +46,39 @@ if sas_dir and \
         if value is None:
             os.environ['SAS_SUPPRESS_WARNING'] = '1'
 
-# 2. Configure pySAS and SAS.
-# 
-# If SAS environment variables are not set look in the config file
+# ---------------------------------------------------------
+# 2. Configure and Initialize SAS.
+# ---------------------------------------------------------
 from pysas.config_pysas import sas_cfg
-good_paths = sas_cfg._check_sas_paths()
-
-# 3. Generate the logger.
-# 
-from pysas import logger
-# Default behavior: Terminal ON, File OFF
-# 98% of the time pysas_verbosity == SAS_VERBOSITY.
-# But for debugging purposes it is convienent to have
-# a separate verbosity for pySAS.
-# This does not affect the verbosity for non-Python
-# based SAS tasks.
-pysas_verbosity = sas_cfg.get_setting('pysas_verbosity')
-logger._log_enable_terminal(level=pysas_verbosity)
-
-# 4. Initialize SAS.
-# 
-
-# Only affects extreme debugging.
-if sas_cfg.config.getboolean('sas','quiet_start',fallback=True):
-    logger._log_set_level()
-
-# For initialization of pySAS from configuration file.
 from pysas.init_sas import _initializesas
 
 # Initializes SAS if needed.
+# If SAS environment variables are not set look in the config file
+good_paths = sas_cfg._check_sas_paths()
 if sas_initialize and good_paths:
     sas_dir_config       = sas_cfg.get_setting("sas_dir")
     sas_ccfpath_config   = sas_cfg.get_setting("sas_ccfpath")
-    sas_verbosity        = sas_cfg.get_setting("verbosity")
-    sas_suppress_warning = sas_cfg.get_setting("suppress_warning")
+    sas_verbosity        = sas_cfg.get_setting("verbosity",fallback=4)
+    sas_suppress_warning = sas_cfg.get_setting("suppress_warning",fallback=1)
     sas_init_info = _initializesas(sas_dir_config,
                                    sas_ccfpath_config,
                                    verbosity = sas_verbosity,
                                    suppress_warning = sas_suppress_warning)
+    if sas_cfg.config.getboolean('sas','print_initialization_info',fallback=False):
+        print(sas_init_info)
     sas_ready = True
 
-logger._log_set_level(level=pysas_verbosity)
+# ---------------------------------------------------------
+# 3. Generate the logger.
+# ---------------------------------------------------------
+from pysas import logger
+# Default behavior: Terminal ON, File OFF
+pysas_verbosity = sas_cfg.get_setting('pysas_verbosity')
+logger._log_enable_terminal(level=pysas_verbosity)
 
-# 5. Get VERSION.
-# 
+# ---------------------------------------------------------
+# 4. Get VERSION.
+# ---------------------------------------------------------
 SAS_RELEASE          = 'NOT INITIALIZED'
 SAS_AKA              = ''
 SAS_COMPILATION_DATE = ''
@@ -115,8 +105,9 @@ from pysas.version import VERSION, print_sas_version
 
 __version__ = f'pysas - (pysas-{VERSION}) [SAS-{SAS_RELEASE}]'
 
-# 6. Import modules.
-# 
+# ---------------------------------------------------------
+# 5. Import modules.
+# ---------------------------------------------------------
 # Import pySAS modules
 from pysas import obsid
 from pysas import sastask
@@ -149,9 +140,10 @@ __all__ = ['ObsID',
            'get_sas_version',
            'update_calibration_files']
 
-# 7. Clean up.
-# 
+# ---------------------------------------------------------
+# 6. Clean up.
 # Get rid of temporary variables to prevent possible conflicts.
+# ---------------------------------------------------------
 if sas_initialize:
     del sas_dir_config, sas_ccfpath_config, sas_verbosity, sas_suppress_warning
 del sas_initialize, good_paths, sas_ready, pysas_verbosity
