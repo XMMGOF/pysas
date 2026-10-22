@@ -22,12 +22,13 @@
 
 # Standard library imports
 import os, time, subprocess
+from configparser import ConfigParser
+from pathlib import Path
 
 # Third party imports
 
 # Local application imports
-from configparser import ConfigParser
-from pathlib import Path
+from pysas.init_sas import _initializesas
 
 # Config class
 class sas_config:
@@ -266,7 +267,6 @@ class sas_config:
         self.save_config()
 
     def _check_sas_paths(self):
-        can_initialize_sas = True
         # Get configuration settings
         # Checks if defaults from config file exist.
         sdir = self.get_setting("sas_dir")
@@ -281,6 +281,58 @@ class sas_config:
             return False
         else:
             return True
+
+    def _set_sas_dirs(self):
+        """
+        Will check config file for SAS directories. Then will check if SAS 
+        environment variables are set.
+
+        SAS will be initialized by the following heirarchy:
+            1. Config file values.
+            2. Environment variable values.
+            3. No initialization.
+        """
+        def _validate(test_str):
+            if test_str and os.path.isdir(test_str):
+                return os.path.abspath(test_str)
+            else:
+                return ''
+
+        sdir = _validate(self.get_setting('sas_dir'))
+        sccf = _validate(self.get_setting('sas_ccfpath'))
+        sas_dir     = _validate(os.environ.get('SAS_DIR'))
+        sas_ccfpath = _validate(os.environ.get('SAS_CCFPATH'))
+
+        init_sas_dir = sdir or sas_dir
+        init_ccf_dir = sccf or sas_ccfpath
+
+        if init_sas_dir and init_ccf_dir:
+            cveb = self.get_setting('verbosity',fallback='4')
+            cspw = self.get_setting('suppress_warning',fallback='1')
+            eveb = os.environ.get('SAS_VERBOSITY','4')
+            espw = os.environ.get('SAS_SUPPRESS_WARNING','1')
+            if cveb != eveb and cveb != '4': 
+                sveb = eveb
+            else:
+                sveb = eveb
+            if cspw != espw and cspw != '1': 
+                sspw = espw
+            else:
+                sspw = espw
+            sas_init_info = _initializesas(init_sas_dir,
+                                        init_ccf_dir,
+                                        verbosity = sveb,
+                                        suppress_warning = sspw)
+            if self.config.getboolean('sas','print_initialization_info',fallback=False):
+                print(sas_init_info)
+            # SAS Ready
+            return True
+        else:
+            # SAS Not Ready
+            # This checks if there is a problem with the config file
+            if not sas_ready:
+                self._check_sas_paths()
+            return False
 
 sas_cfg = sas_config()
 

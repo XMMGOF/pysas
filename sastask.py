@@ -380,7 +380,7 @@ class MyTask:
         self.processargs()
         if self.Exit:
             _logger.debug(f'Exit called by processargs')
-            return self.Exit
+            return #self.Exit
         sas_path = os.environ.get('SAS_PATH')
 
         if not sas_path:

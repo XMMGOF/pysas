@@ -3,73 +3,23 @@
 ###########################################################
 # Several things need to be done in this order:
 # 
-#   1. Check the initialization status of SAS.
-#   2. Configure and Initialize SAS.
-#   3. Generate the logger.
-#   4. Get VERSION.
-#   5. Import modules.
-#   6. Clean up.
+#   1. Load config file and initialize SAS if necessary
+#   2. Generate the logger
+#   3. Get VERSION
+#   4. Import modules
+#   5. Clean up
 # 
 ###########################################################
 
-
 # ---------------------------------------------------------
-# 1. Check the initialization status of SAS.
+# 1. Load config file and initialize SAS if necessary
 # ---------------------------------------------------------
-import os
 
-# Check if SAS_DIR, SAS_PATH, and SAS_CCFPATH are already set.
-sas_initialize = True
-sas_ready      = False 
-sas_dir        = os.environ.get('SAS_DIR')
-sas_path       = os.environ.get('SAS_PATH')
-sas_ccfpath    = os.environ.get('SAS_CCFPATH')
-
-value = None
-
-if sas_dir and \
-   sas_ccfpath and \
-   sas_path:
-    if os.path.exists(sas_dir) and \
-       os.path.exists(sas_ccfpath) and \
-       os.path.exists(sas_path):
-        # SAS_DIR, SAS_PATH, and SAS_CCFPATH enviroment variables already set.
-        # SAS already initialized.
-        sas_initialize = False
-        sas_ready      = True
-        # Check for SAS_VERBOSITY and SAS_SUPPRESS_WARNING
-        # Set to default values if not present
-        value = os.environ.get("SAS_VERBOSITY")
-        if value is None:
-            os.environ['SAS_VERBOSITY'] = '4'
-        value = os.environ.get("SAS_SUPPRESS_WARNING")
-        if value is None:
-            os.environ['SAS_SUPPRESS_WARNING'] = '1'
-
-# ---------------------------------------------------------
-# 2. Configure and Initialize SAS.
-# ---------------------------------------------------------
 from pysas.config_pysas import sas_cfg
-from pysas.init_sas import _initializesas
-
-# Initializes SAS if needed.
-# If SAS environment variables are not set look in the config file
-good_paths = sas_cfg._check_sas_paths()
-if sas_initialize and good_paths:
-    sas_dir_config       = sas_cfg.get_setting("sas_dir")
-    sas_ccfpath_config   = sas_cfg.get_setting("sas_ccfpath")
-    sas_verbosity        = sas_cfg.get_setting("verbosity",fallback=4)
-    sas_suppress_warning = sas_cfg.get_setting("suppress_warning",fallback=1)
-    sas_init_info = _initializesas(sas_dir_config,
-                                   sas_ccfpath_config,
-                                   verbosity = sas_verbosity,
-                                   suppress_warning = sas_suppress_warning)
-    if sas_cfg.config.getboolean('sas','print_initialization_info',fallback=False):
-        print(sas_init_info)
-    sas_ready = True
+sas_ready = sas_cfg._set_sas_dirs()
 
 # ---------------------------------------------------------
-# 3. Generate the logger.
+# 2. Generate the logger
 # ---------------------------------------------------------
 from pysas import logger
 # Default behavior: Terminal ON, File OFF
@@ -77,7 +27,7 @@ pysas_verbosity = sas_cfg.get_setting('pysas_verbosity')
 logger._log_enable_terminal(level=pysas_verbosity)
 
 # ---------------------------------------------------------
-# 4. Get VERSION.
+# 3. Get VERSION.
 # ---------------------------------------------------------
 SAS_RELEASE          = 'NOT INITIALIZED'
 SAS_AKA              = ''
@@ -106,7 +56,7 @@ from pysas.version import VERSION, print_sas_version
 __version__ = f'pysas - (pysas-{VERSION}) [SAS-{SAS_RELEASE}]'
 
 # ---------------------------------------------------------
-# 5. Import modules.
+# 4. Import modules
 # ---------------------------------------------------------
 # Import pySAS modules
 from pysas import obsid
@@ -124,13 +74,11 @@ from pysas.sastask import MyTask
 from pysas.config_pysas import run_config
 from pysas.lightcurve import XMMLightCurve
 from pysas.xmmfiles import XMMEventList
-from pysas.sasutils import (download_data, 
-                            generate_logger, 
+from pysas.sasutils import (download_data,
                             update_calibration_files,
                             parse_value,
                             set_unit,
                             )
-
 # API
 __all__ = ['ObsID',
            'MyTask',
@@ -141,11 +89,7 @@ __all__ = ['ObsID',
            'update_calibration_files']
 
 # ---------------------------------------------------------
-# 6. Clean up.
+# 5. Clean up
 # Get rid of temporary variables to prevent possible conflicts.
 # ---------------------------------------------------------
-if sas_initialize:
-    del sas_dir_config, sas_ccfpath_config, sas_verbosity, sas_suppress_warning
-del sas_initialize, good_paths, sas_ready, pysas_verbosity
-del sas_dir, sas_path, sas_ccfpath
-del value
+del sas_ready, pysas_verbosity

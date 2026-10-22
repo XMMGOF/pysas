@@ -26,7 +26,6 @@ For auto initializing SAS on import of pySAS.
 
 # Standard library imports
 import os, subprocess
-from pathlib import Path
 
 # Third party imports
 
@@ -104,19 +103,21 @@ def overwrite_environ_variable(variable: str,
     
     os.environ[variable] = os.pathsep.join(listvalue)
 
-def _initializesas(sas_dir: str | Path, 
-                   sas_ccfpath: str | Path , 
+def _initializesas(sas_dir: str, 
+                   sas_ccfpath: str, 
                    verbosity: int = 4, 
                    suppress_warning: int = 1, 
                    image_viewer: str = 'ds9'):
     """
     Initializes SAS. Heasoft must be initialized first, separately.
 
+    Makes no checks. Assumes sas_dir and sas_ccfpath have been checked.
+
     Parameters
     ----------
-    sas_dir : str | Path
+    sas_dir : str
         Directory where SAS is installed.
-    sas_ccfpath : str | Path
+    sas_ccfpath : str
         Directory where calibration files are located.
     verbosity : int, optional
         SAS verbosity, by default 4.
