@@ -65,15 +65,13 @@ from pysas import parser
 from pysas import param
 from pysas import init_sas
 from pysas import sasutils
-from pysas import xmmfiles
-from pysas import lightcurve
+from pysas import xmmio
 
 # Classes and functions needed at the top level
 from pysas.obsid import ObsID, PPSFiles
 from pysas.sastask import MyTask
 from pysas.config_pysas import run_config
-from pysas.lightcurve import XMMLightCurve
-from pysas.xmmfiles import XMMEventList
+from pysas.xmmio import XMMEventList, XMMLightCurve
 from pysas.sasutils import (download_data,
                             update_calibration_files,
                             parse_value,

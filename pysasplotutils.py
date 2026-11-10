@@ -117,7 +117,8 @@ def quick_image_plot(image_file: str,
                      vmax: float | int = 1e2,
                      grid: bool      = True,
                      save_file: bool = False,
-                     out_fname: str  = 'image.png'):
+                     out_fname: str  = 'image.png',
+                     ax = None,):
     """
     Displays a FITS image file. Returns the axis handle.
 
@@ -151,23 +152,30 @@ def quick_image_plot(image_file: str,
     hdu = fits.open(image_file)[0]
     wcs = WCS(hdu.header)
 
-    ax = plt.subplot(projection=wcs)
-    plt.imshow(hdu.data, origin='lower', norm='log', vmin=vmin, vmax=vmax)
+    is_new_ax = False
+    if ax is None:
+        ax = plt.subplot(projection=wcs)
+        is_new_ax = True
+
+    im = ax.imshow(hdu.data, origin='lower', norm='log', vmin=vmin, vmax=vmax)
     ax.set_facecolor("black")
     if grid:
-        plt.grid(color='blue', ls='solid')
+        ax.grid(color='blue', ls='solid')
     else:
         ax.grid(False)
-    if not xlabel is None:
-        plt.xlabel(xlabel)
-    if not ylabel is None:
-        plt.ylabel(ylabel)
-    plt.title(title)
-    
-    plt.colorbar()
-    plt.show()
+    if xlabel is not None:
+        ax.set_xlabel(xlabel)
+    if ylabel is not None:
+        ax.set_ylabel(ylabel)
+
+    ax.set_title(title)
+    plt.colorbar(im, ax=ax)
+
+    if is_new_ax:
+        plt.show()
+
     if save_file:
-        plt.savefig(out_fname)
+        ax.figure.savefig(out_fname)
 
     return ax
 

@@ -373,8 +373,6 @@ def run_config():
         pysas.sas_cfg.reset_to_defaults()
     """
 
-    from pysas.init_sas import _initializesas
-
     outcomment = """
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

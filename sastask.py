@@ -31,6 +31,7 @@ from warnings import warn
 # Third party imports
 
 # Local application imports
+from pysas import sas_cfg
 from pysas.param import paramXmlInfoReader, SASParams
 from pysas.parser import ParseArgs
 from pysas.logger import (_logger, 
@@ -348,8 +349,9 @@ class MyTask:
         # from self.argsdic, will overwrite the defaults obtained from the par file, 
         # from parsdic. The resulting dictionary, self.iparsdic, is what we will 
         # pass to method runtask.
-
-        self.iparsdic = {**defaults, **self.argsdic}
+        self.iparsdic = {**self.argsdic}
+        if sas_cfg.config.getboolean('sas','merge_par_dicts',fallback=False):
+            self.iparsdic = {**defaults,**self.argsdic}
 
     def printHelp(self):
         """
@@ -357,7 +359,7 @@ class MyTask:
         """
         self.paramXmlInfo.printHelp()
     
-    def run(self):
+    def run(self, return_output=False):
         """
         Runs the SAS task with the inputs stored in the dictionary iparsdic. 
 
@@ -442,8 +444,10 @@ class MyTask:
 
             # Log stdout and stderr in real-time
             # Pipe the subprocess output directly into our independent logger
+            if return_output: output = []
             for line in process.stdout:
                 task_logger.info(line.strip())
+                if return_output: output.append(line)
 
             # Wait for the process to complete and get the return code
             process.wait()
@@ -455,6 +459,11 @@ class MyTask:
             _logger.info(f"{self.taskname} executed successfully!")
         else:
             _logger.critical(f"{self.taskname} failed!")
+
+        if return_output:
+            return output
+        else:
+            return
 
     def runtask(self):
         """

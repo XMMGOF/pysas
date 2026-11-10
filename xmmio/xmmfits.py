@@ -3,7 +3,7 @@
 # Written by: Ryan Tanner
 # email: ryan.tanner@nasa.gov
 #
-# ESA (C) 2000-2020
+# ESA (C) 2000-2026
 # 
 # This file is part of ESA's XMM-Newton Scientific Analysis System (SAS).
 #
@@ -24,15 +24,25 @@
 # 
 # Contains classes for different files used by SAS and pySAS.
 
-import os
+# Standard library imports
+import os, warnings
+from pathlib import Path
+
+# Third party imports
 import numpy as np
-import matplotlib.pyplot as plt
+from numpy.typing import NDArray
 from astropy.io import fits
 from astropy.table import Table
 from astropy.units import Quantity
-from pathlib import Path
+from astropy import units as u
+from astropy.wcs import WCS
+from astropy.coordinates import SkyCoord
+from astropy.utils.exceptions import AstropyWarning
 
-from pysas.sasutils import parse_value, set_unit
+# Local application imports
+from pysas.sasutils import (parse_value, 
+                            set_unit,
+                            validate_event_list_pattern,)
 from pysas.logger import (_logger, 
                           _log_enable_terminal, 
                           _log_disable_terminal, 
@@ -46,10 +56,21 @@ class XMMFits:
     
     def __init__(self, filename):
 
+        self._remote  = False
+        self._xmmhdul = None
+
         if isinstance(filename, str):
-            fits_file = Path(filename)
+            if self._check_if_aws_s3(filename):
+                self._remote = True
+                # If the file is remote we have to keep 
+                # the path and name literal because pathlib
+                # will mess it up.
+                fits_file = filename
+            else:
+                fits_file = Path(filename)
         elif isinstance(filename, fits.hdu.hdulist.HDUList):
             fits_file = Path(filename.filename())
+            self._xmmhdul = filename
         elif isinstance(filename, pathlib.PosixPath):
             fits_file = filename
         else:
@@ -57,15 +78,15 @@ class XMMFits:
                 raise FileNotFoundError(f"File not found: {filename}")
 
         self._fits_file = fits_file
-        self._filename  = fits_file.name
-        self._file_dir  = fits_file.parent
-        self._extension = fits_file.suffix
         
-        if not self._fits_file.exists():
+        if not self._remote and not os.path.exists(self.filename):
             raise FileNotFoundError(f"File not found: {self._fits_file}")
 
         try:
-            self._xmmhdul = fits.open(self._fits_file)
+            if self._xmmhdul is None:
+                self._xmmhdul = fits.open(self._fits_file, 
+                                          use_fsspec=True, 
+                                          fsspec_kwargs={"anon": True})
         except Exception as e:
             raise ValueError(f"{self._filename} not recognized as a FITS file: {e}")
 
@@ -87,7 +108,31 @@ class XMMFits:
             if not self.has_keyword(keyword, ext=1): keyword = 'EXPOSURE'
             et = self.get_keyword(keyword, ext=1, default=0.0)
             self._exposure_time = set_unit(et,'s')
-            self._data          = self.get_data()
+            ext = ''
+            ext_names = ['EVENTS','RATE','COUNTS','SPECTRUM','SPECRESP',
+                         'BADPIX','STDGTI','ATTHK','CALINDEX','MATRIX',
+                         'EBOUNDS',
+                         ]
+            for extnm in ext_names:
+                if extnm in self._xmmhdul:
+                    ext = extnm
+                    break
+            if ext:
+                self._data      = self.get_data(ext=ext)
+                self._data_head = self.get_header(ext=ext)
+                with warnings.catch_warnings():
+                    warnings.simplefilter('ignore', AstropyWarning)
+                    self._wcs       = WCS(self._data_head, keysel=['pixel'])
+            else:
+                self._data      = self.get_data(ext=0)
+                if self._data is not None:
+                    self._data_head = self.get_header(ext=0)
+                    with warnings.catch_warnings():
+                        warnings.simplefilter('ignore', AstropyWarning)
+                        self._wcs   = WCS(self._data_head)
+                else:
+                    self._data_head = None
+                    self._wcs = None
 
     # ---------------------------------------------------------
     # Properties (Quick access to common XMM metadata)
@@ -115,7 +160,51 @@ class XMMFits:
     @property
     def filename(self):
         """Returns the filename (and path if included)."""
-        return str(self._fits_file)
+        if isinstance(self._fits_file, str):
+            return self._fits_file
+        else:
+            return str(self._fits_file)
+
+    @property
+    def _filepath(self):
+        """Returns the file path."""
+        if isinstance(self._fits_file, str):
+            return os.path.dirname(self._fits_file)
+        else:
+            return self._fits_file.parent
+
+    @property
+    def _filename(self):
+        """Returns *just* the filename (no path)."""
+        if isinstance(self._fits_file, str):
+            return os.path.basename(self._fits_file)
+        else:
+            return self._fits_file.name
+
+    @property
+    def _extension(self):
+        """Returns the file extension."""
+        if isinstance(self._fits_file, str):
+            _, extension = os.path.splitext(self._fits_file)
+            return extension
+        else:
+            return self._fits_file.suffix
+
+    @property
+    def primary_header(self):
+        return self._primary_head
+
+    @property
+    def data(self):
+        return self._data
+
+    @property
+    def data_header(self):
+        return self._data_head
+
+    @property
+    def wcs(self):
+        return self._wcs
 
     # ---------------------------------------------------------
     # Header Methods
@@ -125,7 +214,7 @@ class XMMFits:
         Checks if a keyword exists in the header of a specific extension.
         'ext' can be an integer (0 for primary) or a string (e.g., 'EVENTS').
         """
-        with fits.open(self._fits_file) as hdul:
+        with fits.open(self._fits_file,use_fsspec=True,fsspec_kwargs={"anon": True}) as hdul:
             try:
                 header = hdul[ext].header
                 return keyword in header
@@ -137,7 +226,7 @@ class XMMFits:
         Retrieves the value of a header keyword. 
         Returns 'default' if the keyword doesn't exist.
         """
-        with fits.open(self._fits_file) as hdul:
+        with fits.open(self._fits_file,use_fsspec=True,fsspec_kwargs={"anon": True}) as hdul:
             try:
                 header = hdul[ext].header
                 return header.get(keyword, default)
@@ -148,7 +237,7 @@ class XMMFits:
         """
         Returns the entire header for a given extension as an astropy Header object.
         """
-        with fits.open(self._fits_file) as hdul:
+        with fits.open(self._fits_file,use_fsspec=True,fsspec_kwargs={"anon": True}) as hdul:
             return hdul[ext].header.copy()
 
     # ---------------------------------------------------------
@@ -159,19 +248,22 @@ class XMMFits:
         """
         Extracts data by default from the first extension.
         """
-        with fits.open(self._fits_file) as hdul:
+        with fits.open(self._fits_file,use_fsspec=True,fsspec_kwargs={"anon": True}) as hdul:
             data = hdul[ext].data
             if data is None:
                 raise ValueError(f"No data found in extension {ext}.")
             # Return a copy so the array remains accessible after the file closes
-            return data.copy()
+            if isinstance(hdul[ext], fits.BinTableHDU):
+                return Table(data.copy())
+            else:
+                return data.copy()
 
     def get_column(self, col_name, ext=1):
         """
         Shortcut to extract a single column of data (e.g., 'TIME', 'PI', 'RAWX') 
         as a numpy array.
         """
-        with fits.open(self._fits_file) as hdul:
+        with fits.open(self._fits_file,use_fsspec=True,fsspec_kwargs={"anon": True}) as hdul:
             try:
                 data = hdul[ext].data
                 return np.array(data[col_name])
@@ -188,61 +280,10 @@ class XMMFits:
         print(f"Obs ID     : {self.obs_id}")
         print("-" * 40)
         # astropy has a built-in info method that prints HDU structure
-        with fits.open(self._fits_file) as hdul:
+        with fits.open(self._fits_file,use_fsspec=True,fsspec_kwargs={"anon": True}) as hdul:
             hdul.info()
 
-class XMMEventList(XMMFits):
+    def _check_if_aws_s3(self,filename):
+        return filename[:32] == 's3://nasa-heasarc/xmm/data/rev0/'
 
-    def __init__(self,fits_file):
-        super().__init__(fits_file)
 
-    def create_light_curve(self,
-                           dt, 
-                           time_col='TIME', 
-                           ext_name='EVENTS',
-                           gti=None,
-                           **kwargs,
-                           ):
-        """
-        Reads an XMM-Newton event list, extracts events and GTIs, and bins them.
-        XMM-Newton typically stores GTIs in extensions starting with 'STDGTI' or 'GTI'.
-        """
-
-        from pysas.lightcurve import XMMLightCurve
-
-        event_times = self._data[time_col]
-        
-        # 2. Search for XMM-Newton GTI extensions
-        # gti_list = []
-        # for hdu in self._xmmhdul:
-        #     if 'GTI' in hdu.name: # Catches STDGTI, GTI, STDGTI04, etc.
-        #         gti_list.append(np.column_stack((hdu.data['START'], hdu.data['STOP'])))
-        
-        # if gti_list:
-        #     # If multiple GTI extensions exist (e.g., different CCDs), 
-        #     # we stack and use the bounding boxes, or simply take the first one.
-        #     # For a basic class, we take the primary/first GTI extension.
-        #     gti = gti_list[0] 
-        # else:
-
-        # 3. Bin the events into a lightcurve
-        if gti is not None:
-            t_start, t_stop = gti[:, 0].min(), gti[:, 1].max()
-        else:
-            t_start, t_stop = event_times.min(), event_times.max()
-
-        bins = np.arange(t_start, t_stop + dt, dt)
-        counts, edges = np.histogram(event_times, bins=bins)
-        time_centers = edges[:-1] + (dt / 2)
-        
-        to_lc = {'time'   : edges[:-1], 
-                 'counts' : counts, 
-                 'dt'     : dt, 
-                 'err'    : None, 
-                 'instr'  : self.instrument}
-
-        to_lc.update(kwargs)
-
-        self.light_curve = XMMLightCurve(**to_lc)
-
-        return self.light_curve

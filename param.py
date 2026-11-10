@@ -176,6 +176,8 @@ class paramXmlInfoReader:
         #     - children (list)
         #     - cond_mand (boolean) "conditionally mandatory"
         #     - cond_par_val (string/None) "conditional parent value"
+        #     - constraints (str)
+        #     - allowed_vals (list)
 
         self.allparams = {}
         for p in self.params:
@@ -187,15 +189,16 @@ class paramXmlInfoReader:
             self.allparams[pname]['children'] = []
             self.allparams[pname]['cond_mand'] = False
             self.allparams[pname]['cond_par_val'] = None
+            self.allparams[pname]['allowed_vals'] = []
 
-        # pels dictionary
+        # pels ("parameter element") dictionary
 
         self.pels = {}
         for p in self.params:
             pname = self.att(p)['id']
             self.pels[p] = pname
 
-        # reverse pels dictionary
+        # reverse pels ("parameter element") dictionary
         self.rev_pels = {v: k for k, v in self.pels.items()}
 
         # parmap
@@ -275,6 +278,7 @@ class paramXmlInfoReader:
         #     - cond_mand (boolean) "conditionally mandatory"
         #     - cond_par_val (string) "conditional parent value"
         #     - constraints (string)
+        #     - allowed_vals (list)
 
         # Adding the constraints attribute to the parameters attributes in parmap
         for p in self.params:
@@ -285,6 +289,13 @@ class paramXmlInfoReader:
                     constraints = constraints.strip('\n')
                     constraints = constraints.strip()
                     self.allparams[pname]['constraints'] = constraints
+                if k.nodeName == 'CASE' and self.allparams[pname]['type'] != 'bool':
+                    alternatives = []
+                    for i in range(k.childNodes.length):
+                        if k.childNodes.item(i).nodeName == 'ITEM':
+                            a = k.childNodes.item(i).attributes['value'].value
+                            alternatives.append(a)
+                    self.allparams[pname]['allowed_vals'] = alternatives
         
         # Adding list of children and parent value
         for d in self.parmap:
@@ -305,6 +316,10 @@ class paramXmlInfoReader:
 
         # Clean up and close file
         doc.unlink()
+        # Remove links to parameter file now that the doc is unlinked.
+        delattr(self, 'params')
+        delattr(self, 'pels')
+        delattr(self, 'rev_pels')
 
     # Print table of all parameters
     def printHelp(self):

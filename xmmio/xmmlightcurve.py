@@ -1,9 +1,9 @@
-# lightcurve.py
+# xmmlightcurve.py
 #
 # Written by: Ryan Tanner
 # email: ryan.tanner@nasa.gov
 #
-# ESA (C) 2000-2020
+# ESA (C) 2000-2026
 # 
 # This file is part of ESA's XMM-Newton Scientific Analysis System (SAS).
 #
@@ -20,19 +20,25 @@
 #    You should have received a copy of the GNU General Public License
 #    along with SAS.  If not, see <http://www.gnu.org/licenses/>.
 # 
-# lightcurve.py
+# xmmlightcurve.py
+# 
+# Contains a class and methods for working with an XMM Light Curve.
 
+# Standard library imports
+
+# Third party imports
+import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NDArray
-import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy.table import Table
 from astropy.units import Quantity
 from astropy import units as u
-from pathlib import Path
 
-from pysas.xmmfiles import XMMFits
-from pysas.sasutils import parse_value, set_unit
+# Local application imports
+from pysas.sasutils import (parse_value, 
+                            set_unit,
+                            validate_event_list_pattern,)
 from pysas.logger import (_logger, 
                           _log_enable_terminal, 
                           _log_disable_terminal, 
@@ -44,7 +50,7 @@ class XMMLightCurve:
     A class to generate, store, and manipulate XMM-Newton X-ray light curves.
     """
 
-    ######
+    ###########################################################################
     # This class was created after looking at how other analysis codes 
     # handle light curves. Codes consulted include: SAS, Stingray, XGA, 
     # CIAO, HEASoft, and HENDRICS.
@@ -330,3 +336,7 @@ class XMMLightCurve:
         lc_table = Table([self._time, self._counts], names=('TIME', 'COUNTS'))
         lc_table.meta['DT'] = self._dt
         lc_table.write(filename, format='fits', overwrite=True)
+
+
+
+
