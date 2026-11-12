@@ -30,9 +30,11 @@ import importlib.resources as resources
 #from s3fs import S3FileSystem
 
 # Third party imports
+import numpy as np
 from astroquery.esa.xmm_newton import XMMNewton
 from astroquery.heasarc import Heasarc
 from astropy.units import Quantity
+from astropy.table import Table
 
 # Local application imports
 from pysas import sas_cfg
@@ -1034,3 +1036,460 @@ def set_unit(value, default_units, equivalence=None):
     else:
         q = Quantity(value, default_units)
     return q.to(default_units, equivalencies=equivalence)
+
+class XMMFilterExpression:
+
+    def __init__(self,
+                 expr: str,
+                 data: Table,
+                 data_header,):
+
+        self.inexpr = expr
+        self.expr_tree = self.parse_filter_string(expr)
+        self.mask = self.apply_filter_tree(self.expr_tree,data,data_header)
+        self.expression = self.rebuild_expression_string(self.expr_tree)
+
+    def parse_filter_string(self, expr: str, force_negate: bool = False):
+        """Recursively parses a boolean filtering string.
+
+        Warning: This will most likely fail if you try to get too fancy with 
+                the expression str. Just save everyone some grief and keep
+                it simple.
+        
+        """
+        expr = expr.strip()
+        if not expr: return None
+            
+        while expr.startswith('(') and expr.endswith(')'):
+            depth = 0; is_matched = True
+            for i, char in enumerate(expr):
+                if char in '([': depth += 1
+                elif char in ')]': depth -= 1
+                if depth == 0 and i < len(expr) - 1:
+                    is_matched = False; break
+            if is_matched: expr = expr[1:-1].strip()
+            else: break
+                
+        tokens, current, depth, i = [], [], 0, 0
+        while i < len(expr):
+            char = expr[i]
+            if char in '([':
+                depth += 1; current.append(char); i += 1
+            elif char in ')]':
+                depth -= 1; current.append(char); i += 1
+            elif depth == 0 and expr[i:i+3] in ('!&&', '!||'):
+                if current: tokens.append(''.join(current).strip()); current = []
+                tokens.append(expr[i:i+3]); i += 3
+            elif depth == 0 and expr[i:i+2] in ('&&', '||'):
+                if current: tokens.append(''.join(current).strip()); current = []
+                tokens.append(expr[i:i+2]); i += 2
+            else:
+                current.append(char); i += 1
+                
+        if current: tokens.append(''.join(current).strip())
+            
+        if len(tokens) > 1:
+            parsed_tree = []
+            
+            # Keep track of inherited negations
+            negate_next = force_negate
+            
+            for t in tokens:
+                if t in ('!&&', '!||'):
+                    # 1. Strip the '!' and append standard operator
+                    parsed_tree.append(t[1:]) 
+                    # 2. Instruct parser to force 'negated': True on the next set of nodes
+                    negate_next = True
+                    
+                elif t in ('&&', '||'):
+                    parsed_tree.append(t)
+                    negate_next = force_negate # restore contextual baseline
+                    
+                else:
+                    # 3. Propagate the 'negate_next' rule down to the child
+                    parsed_tree.append(self.parse_filter_string(t, force_negate=negate_next))
+                    negate_next = force_negate # restore contextual baseline
+                    
+            return parsed_tree
+            
+        return self.classify_node(expr, force_negate)
+    
+    def apply_filter_tree(self, tree: list | dict, data: Table, data_header) -> np.ndarray:
+        """
+        Recursively navigates the parsed syntax tree, routes nodes to their 
+        respective filtering functions, and combines them using boolean logic.
+        """
+        # BASE CASE: It's a single Node (a dictionary)
+        if isinstance(tree, dict):
+            node_type = tree.get('type')
+            
+            # Route to the correct function based on type
+            if node_type == 'relational':
+                mask = self.filter_on_relational(tree,data)
+            elif node_type == 'range':
+                mask = self.filter_on_range(tree,data)
+            elif node_type == 'other':
+                mask = self.filter_on_other(tree,data,data_header)
+            else:
+                raise ValueError(f"Unknown node type: {node_type}")
+                
+            # Automatically handle the negation if '!&&' or '!||' was used upstream
+            if tree.get('negated', False):
+                mask = ~mask
+                
+            return mask
+            
+        # RECURSIVE CASE: It's a list containing sub-trees and string operators
+        if isinstance(tree, list):
+            if not tree:
+                return None
+                
+            # 1. Evaluate the very first node in the list
+            current_mask = self.apply_filter_tree(tree[0], data, data_header)
+            
+            # 2. Iterate through the rest of the list in pairs (Operator, Next_Node)
+            for i in range(1, len(tree), 2):
+                operator_str = tree[i]
+                next_node = tree[i+1]
+                
+                # Evaluate the next node
+                next_mask = self.apply_filter_tree(next_node, data, data_header)
+                
+                # 3. Combine the masks using bitwise array logic
+                if operator_str == '&&':
+                    current_mask = current_mask & next_mask
+                elif operator_str == '||':
+                    current_mask = current_mask | next_mask
+                else:
+                    raise ValueError(f"Unknown logical operator: {operator_str}")
+                    
+            return current_mask
+    
+    def evaluate_range_node(self, range_str: str):
+        """Validates and evaluates a single range string."""
+        OPS = {'==': operator.eq, '!=': operator.ne,
+               '<=': operator.le, '>=': operator.ge,
+               '<':  operator.lt, '>':  operator.gt}
+        
+        pat_str = re.sub(r'\s+', '', range_str)
+        F = r"[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?"
+
+        if re.match(r'^[\(\[]?:[\)\]]?$', pat_str):
+            return ()
+
+        m_exact = re.match(rf'^[\(\[]?({F})[\)\]]?$', pat_str)
+        if m_exact:
+            val = float(m_exact.group(1))
+            val = int(val) if val.is_integer() else val
+            return ((operator.eq, val),)
+
+        m_lo_open = re.match(rf'^([\[\(]?)({F}):([\]\)]?)$', pat_str)
+        if m_lo_open:
+            left_b, val_str, right_b = m_lo_open.groups()
+            val = float(val_str)
+            val = int(val) if val.is_integer() else val
+            op = OPS['>'] if left_b == '(' else OPS['>=']
+            return ((op, val),)
+        
+        m_hi_open = re.match(rf'^([\[\(]?):({F})([\]\)]?)$', pat_str)
+        if m_hi_open:
+            left_b, val_str, right_b = m_hi_open.groups()
+            val = float(val_str)
+            val = int(val) if val.is_integer() else val
+            op = OPS['<'] if right_b == ')' else OPS['<=']
+            return ((op, val),)
+
+        m_range = re.match(rf'^([\[\(]?)({F}):({F})([\]\)]?)$', pat_str)
+        if m_range:
+            left_b, lo_str, hi_str, right_b = m_range.groups()
+            lo = float(lo_str)
+            lo = int(lo) if lo.is_integer() else lo
+            hi = float(hi_str)
+            hi = int(hi) if hi.is_integer() else hi
+            
+            if lo >= hi:
+                raise ValueError(f'Invalid interval range ({lo}:{hi}).')
+            
+            op_lo = OPS['>='] if left_b in ('[', '') else OPS['>']
+            op_hi = OPS['<='] if right_b in (']', '') else OPS['<']
+            return ((op_lo, lo), (op_hi, hi))
+
+        raise SyntaxError(f'Invalid range string: {range_str}')
+
+    def classify_node(self, node_str: str, force_negate: bool = False) -> dict:
+        """Classifies base nodes and applies evaluation to Range nodes."""
+        KEYWORDS = [
+            'TIME', 'RAWX', 'RAWY', 'DETX', 'DETY', 'X', 'Y', 'PHA', 'PI', 'FLAG',
+            'PATTERN', 'PAT_ID', 'PAT_SEQ', 'CCDNR', 'TIME_RAW', 'ENERGY', 'GTI'
+        ]
+        OPS = {'==': operator.eq, '!=': operator.ne,
+               '<=': operator.le, '>=': operator.ge,
+               '<':  operator.lt, '>':  operator.gt}
+        node_str = node_str.strip()
+        is_negated = force_negate
+        
+        # Handle Unary Negation safely (e.g. !(TIME in 100:200))
+        if node_str.startswith('!'):
+            # Toggles negation, ensuring double-negatives (!(!X)) cancel out natively
+            is_negated = not is_negated 
+            node_str = node_str[1:].strip()
+            
+            # Unwrap again in case stripping '!' exposed outer parens
+            while node_str.startswith('(') and node_str.endswith(')'):
+                depth = 0; is_matched = True
+                for i, char in enumerate(node_str):
+                    if char in '([': depth += 1
+                    elif char in ')]': depth -= 1
+                    if depth == 0 and i < len(node_str) - 1:
+                        is_matched = False; break
+                if is_matched: node_str = node_str[1:-1].strip()
+                else: break
+
+        kw_group = r"(" + "|".join(KEYWORDS) + r")"
+        
+        # Check for Relational Node
+        rel_pattern = rf"^\s*{kw_group}\s*(==|!=|<=|>=|<|>)\s*(.+)\s*$"
+        m_rel = re.match(rel_pattern, node_str, re.IGNORECASE)
+        if m_rel:
+            val = float(m_rel.group(3).strip())
+            val = int(val) if val.is_integer() else val
+            return {
+                'type': 'relational',
+                'keyword': m_rel.group(1).upper(),
+                'operator': OPS[m_rel.group(2)],
+                'value': val,
+                'negated': is_negated
+            }
+            
+        # Check for Range Node 
+        range_pattern = rf"^\s*{kw_group}\s+in\s+(.+)\s*$"
+        m_range = re.match(range_pattern, node_str, re.IGNORECASE)
+        if m_range:
+            keyword = m_range.group(1).upper()
+            intervals_str = m_range.group(2).strip()
+            
+            intervals = [i.strip() for i in intervals_str.split(',')]
+            evaluated_intervals = []
+            for interval in intervals:
+                ops_tuple = self.evaluate_range_node(interval)
+                if len(ops_tuple) == 1:
+                    return {
+                        'type': 'relational',
+                        'keyword': keyword,
+                        'operator': ops_tuple[0][0],
+                        'value': ops_tuple[0][1],
+                        'negated': is_negated
+                    }
+                evaluated_intervals.append({
+                    'interval_string': interval,
+                    'operations': ops_tuple
+                })
+                
+            return {
+                'type': 'range',
+                'keyword': keyword,
+                'evaluated_intervals': evaluated_intervals,
+                'negated': is_negated
+            }
+            
+        # Otherwise, it's categorized as 'other'
+        return {
+            'type': 'other',
+            'content': node_str,
+            'negated': is_negated
+        }
+
+    def filter_on_relational(self, node: dict, data: Table) -> np.ndarray:
+        """
+        Handles relational filtering (e.g., PATTERN == 0, PI <= 3000).
+        """
+        keyword = node['keyword']
+        op = node['operator']
+        value = node['value']
+        
+        mask = op(data[keyword],value)
+
+        return mask
+
+    def filter_on_range(self, node: dict, data: Table) -> np.ndarray:
+        """
+        Handles range filtering (e.g., PI in [500:2000]).
+        """
+        keyword = node['keyword']
+        intervals = node['evaluated_intervals']
+        mask = np.zeros(len(data), dtype=bool)
+        for interval in intervals:
+            ops_tups = interval['operations']
+            next_mask = ops_tups[0][0](data[keyword],ops_tups[0][1]) & ops_tups[1][0](data[keyword],ops_tups[1][1])
+            mask = mask | next_mask
+
+        return mask
+
+    def filter_on_other(self, node: dict, data: Table, data_header) -> np.ndarray:
+        """
+        Handles specialized fallback filtering (e.g., bitwise flags: (FLAG & 0x766ba000) == 0).
+        """
+        content = node['content']
+
+        mask = np.ones(len(data), dtype=bool)
+
+        if 'FLAG' in content or 'XMMEA_' in content:
+            mask = self.filter_on_flag(content,data,data_header)
+        
+        return mask
+    
+    def filter_on_flag(self, expression: str, data: Table, data_header):
+    
+        flag = None
+        operator = ''
+        bitwise = False
+        
+        # Strip whitespace
+        clean_str = expression.replace(' ','')
+        # First, check if general flag
+        pattern = re.compile(r"^.*(XMMEA_(\d{1,2}|EP|EM|SM)).*$")
+        match = pattern.match(clean_str)
+        if match:
+            try:
+                clean_str = data_header[match.group(1)]
+                clean_str = clean_str.replace(' ','')
+            except KeyError:
+                try:
+                    val = int(match.group(2))
+                    flag = 2**(val)
+                    operator = '!='
+                except ValueError:
+                    pass
+        # Pattern match for standard SAS FLAG expression
+        pattern = re.compile(r"^\(*FLAG&(0x[0-9a-fA-F]+)\)(==|!=)0\)*$")
+        match = pattern.match(clean_str)
+        pattern2 = re.compile(r"^\(*FLAG(==|!=)(\d+|0x[0-9a-fA-F]+)\)*$")
+        match2 = pattern2.match(clean_str)
+        if match:
+            hex_val_str = match.group(1)
+            flag = int(hex_val_str, 16)
+            operator = match.group(2)
+            bitwise = True
+        elif match2:
+            hex_val_str = match2.group(2)
+            flag = int(hex_val_str, 16)
+            operator = match2.group(1)
+        # Check for Hexadecimal
+        elif clean_str.startswith('0x'):
+            flag =  int(clean_str, 16)
+            operator = '=='
+        # Check for Binary 
+        elif clean_str.startswith('0b'):
+            flag =  int(clean_str, 2)
+            operator = '=='
+
+        if flag is None:
+            if 'EMOS' in self.instrument and 'XMMEA_EP' in expression:
+                print(f'The flag {expression} cannot be used with the instrument {self.instrument}.')
+                print(f'Use #XMMEA_EM instead.')
+            elif 'EPN' in self.instrument and 'XMMEA_EM' in expression:
+                print(f'The flag {expression} cannot be used with the instrument {self.instrument}.')
+                print(f'Use #XMMEA_EP instead.')
+            else:
+                print( '-----------------------------')
+                print(f'Flag {expression} not recognized.')
+                print( '-----------------------------')
+            print('')
+            return
+
+        # Set mask to True
+        mask = data['FLAG'] != -1
+        
+        if operator == '==' and bitwise:
+            mask = (data['FLAG'] & flag) == 0
+        elif operator == '==' and not bitwise:
+            mask = data['FLAG'] == flag
+        elif operator == '!=' and bitwise:
+            mask = (data['FLAG'] & flag) != 0
+        elif operator == '!=' and not bitwise:
+            mask = data['FLAG'] != flag
+
+        return mask
+
+    def rebuild_expression_string(self,tree) -> str:
+        """
+        Recursively navigates the parsed syntax tree and rebuilds it into 
+        a clean, standardized boolean expression string.
+        """
+        # ---------------------------------------------------------
+        # BASE CASE: It's a single Leaf Node (Dictionary)
+        # ---------------------------------------------------------
+        op_to_str = {operator.lt: "<",
+                     operator.le: "<=",
+                     operator.eq: "==",
+                     operator.ne: "!=",
+                     operator.ge: ">=",
+                     operator.gt: ">"
+                    }
+
+        if isinstance(tree, dict):
+            node_type = tree.get('type')
+            node_str = ""
+            
+            # 1. Rebuild Relational Nodes
+            if node_type == 'relational':
+                keyword = tree['keyword']
+                op = op_to_str[tree['operator']]
+                value = tree['value']
+                node_str = f"({keyword} {op} {value})"
+                
+            # 2. Rebuild Range Nodes
+            elif node_type == 'range':
+                keyword = tree['keyword']
+                intervals = tree['evaluated_intervals']
+                
+                # Extract just the raw strings (e.g. "100:200") from the evaluated dicts
+                interval_strings = [i['interval_string'] for i in intervals]
+                
+                # Join multiple intervals with commas
+                joined_intervals = ", ".join(interval_strings)
+                node_str = f"({keyword} in {joined_intervals})"
+                
+            # 3. Rebuild Other Nodes
+            elif node_type == 'other':
+                content = tree['content']
+                # Only wrap in parens if it isn't already perfectly wrapped
+                if content.startswith('(') and content.endswith(')'):
+                    node_str = content
+                else:
+                    node_str = f"({content})"
+                    
+            else:
+                raise ValueError(f"Unknown node type: {node_type}")
+                
+            # 4. Apply Unary Negation if the node was flagged as negated
+            if tree.get('negated', False):
+                node_str = f"!{node_str}"
+                
+            return node_str
+
+        # ---------------------------------------------------------
+        # RECURSIVE CASE: It's a list containing sub-trees and operators
+        # ---------------------------------------------------------
+        if isinstance(tree, list):
+            if not tree:
+                return ""
+                
+            rebuilt_parts = []
+            
+            for item in tree:
+                if item in ('&&', '||'):
+                    # It's an operator, just add it with standard spacing
+                    rebuilt_parts.append(item)
+                else:
+                    # It's a sub-tree or node, recurse into it
+                    rebuilt_parts.append(self.rebuild_expression_string(item))
+                    
+            # Join the parts of this level together
+            level_str = " ".join(rebuilt_parts)
+            
+            # Wrap the resolved level in parentheses to preserve order of operations
+            return f"({level_str})"
+
+        return ""
+

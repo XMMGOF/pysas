@@ -25,8 +25,9 @@
 # Contains a class and methods for working with an XMM Event List.
 
 # Standard library imports
-import os, warnings, re
+import os, warnings, re, operator
 from pathlib import Path
+from datetime import datetime
 
 # Third party imports
 import matplotlib.pyplot as plt
@@ -43,7 +44,8 @@ from astropy.utils.exceptions import AstropyWarning
 # Local application imports
 from pysas.sasutils import (parse_value, 
                             set_unit,
-                            validate_event_list_pattern,)
+                            validate_event_list_pattern,
+                            XMMFilterExpression,)
 from pysas.logger import (_logger, 
                           _log_enable_terminal, 
                           _log_disable_terminal, 
@@ -61,147 +63,92 @@ class XMMEventList(XMMFits):
 
         self.light_curve = None
         self.__recalc_light_curve = True
+        self._applied_filters = []
 
-    def filter_on_pattern(self,pattern):
+    def filter_on_pattern(self,expression,return_mask=False,apply_mask=True):
 
-        # Check if PATTERN column exists
-        col_names = [col.upper() for col in self._data.columns]
-        if 'PATTERN' not in col_names:
-            raise KeyError(f"'PATTERN' column not found in extension '{ext_name}'.")
+        if not isinstance(expression,(int,float,list,tuple,str)):
+            print('The expression must be a str, list, tuple, or an int.')
+            return
+        
+        if isinstance(expression,(int,float)):
+            pattern = int(expression)
+            expression = f'PATTERN == {pattern}'
+        elif isinstance(expression,(list,tuple)):
+            if len(expression) > 2:
+                print('The expression must be a list or tuple of length 2.')
+                return
+            lo = expression[0]
+            hi = expression[1]
+            expression = f'PATTERN in [{lo}:{hi}]'
+            
+        
+        mask = self.filter_on_expression(expression,
+                                         return_mask = True,
+                                         apply_mask = False)
+        if apply_mask:
+            self._apply_mask_to_data(mask)
 
-        # np.isin checks if each PATTERN value is in the allowed_patterns list
-        if isinstance(pattern,(list,tuple)) and len(pattern) == 2:
-            allowed_patterns = list(range(pattern[0],pattern[1]+1))
-        elif isinstance(pattern,(int,float,str)):
-            valid_pattern = validate_event_list_pattern(pattern,self.instrument)
-            max_patt      = {'EMOS1':12,'EMOS2':12,'EPN':4}
-            max_val       = max_patt[self.instrument]
-            allowed_patterns = []
-            for p in range(max_val + 1):
-                is_valid = all(op(p, val) for op, val in valid_pattern)
-                if is_valid:
-                    allowed_patterns.append(p)
-        else:
-            raise ValueError(f'Pattern {pattern} not recognized.')
-
-        mask = np.isin(self._data['PATTERN'], allowed_patterns)
-
-        self._apply_mask_to_data(mask)
+        if return_mask:
+            return mask
 
         return
     
-    def filter_on_flag(self,expression):
+    def filter_on_flag(self,expression,return_mask=False,apply_mask=True):
     
         if not isinstance(expression,(int, float, str)):
             print('The expression must be a str or an int.')
             return
-
-        flag = None
-        operator = ''
-        bitwise = False
         
         if isinstance(expression,(int,float)):
             flag = int(expression)
-            operator = '=='
-        elif isinstance(expression, str):
-            # Strip whitespace
-            clean_str = expression.replace(' ','')
-            # First, check if general flag
-            pattern = re.compile(r"^.*(XMMEA_(\d{1,2}|EP|EM|SM)).*$")
-            match = pattern.match(clean_str)
-            if match:
-                try:
-                    clean_str = self.data_header[match.group(1)]
-                    clean_str = clean_str.replace(' ','')
-                except KeyError:
-                    try:
-                        val = int(match.group(2))
-                        flag = 2**(val)
-                        operator = '!='
-                    except ValueError:
-                        pass
-            # Pattern match for standard SAS FLAG expression
-            pattern = re.compile(r"^\(*FLAG&(0x[0-9a-fA-F]+)\)(==|!=)0\)*$")
-            match = pattern.match(clean_str)
-            pattern2 = re.compile(r"^\(*FLAG(==|!=)(\d+|0x[0-9a-fA-F]+)\)*$")
-            match2 = pattern2.match(clean_str)
-            if match:
-                hex_val_str = match.group(1)
-                flag = int(hex_val_str, 16)
-                operator = match.group(2)
-                bitwise = True
-            elif match2:
-                hex_val_str = match2.group(2)
-                flag = int(hex_val_str, 16)
-                operator = match2.group(1)
-            # Check for Hexadecimal
-            elif clean_str.startswith('0x'):
-                flag =  int(clean_str, 16)
-                operator = '=='
-            # Check for Binary 
-            elif clean_str.startswith('0b'):
-                flag =  int(clean_str, 2)
-                operator = '=='
-
-        if flag is None:
-            if 'EMOS' in self.instrument and 'XMMEA_EP' in expression:
-                print(f'The flag {expression} cannot be used with the instrument {self.instrument}.')
-                print(f'Use #XMMEA_EM instead.')
-            elif 'EPN' in self.instrument and 'XMMEA_EM' in expression:
-                print(f'The flag {expression} cannot be used with the instrument {self.instrument}.')
-                print(f'Use #XMMEA_EP instead.')
-            else:
-                print( '-----------------------------')
-                print(f'Flag {expression} not recognized.')
-                print( '-----------------------------')
-            print('')
-            return
-
-        # Set mask to True
-        mask = self.data['FLAG'] != -1
+            expression = f'FLAG == {flag}'
         
-        if operator == '==' and bitwise:
-            mask = (self.data['FLAG'] & flag) == 0
-        elif operator == '==' and not bitwise:
-            mask = self.data['FLAG'] == flag
-        elif operator == '!=' and bitwise:
-            mask = (self.data['FLAG'] & flag) != 0
-        elif operator == '!=' and not bitwise:
-            mask = self.data['FLAG'] != flag
+        mask = self.filter_on_expression(expression,
+                                         return_mask = True,
+                                         apply_mask = False)
+        if apply_mask:
+            self._apply_mask_to_data(mask)
 
-        self._apply_mask_to_data(mask)
+        if return_mask:
+            return mask
 
         return
     
-    def filter_on_energy(self,energy_range):
+    def filter_on_energy(self,expression,return_mask=False,apply_mask=True):
 
-        if isinstance(energy_range,(int,float)):
-            energy_range = list(energy_range)
+        if isinstance(expression,(int,float)):
+            # If in keV instead of eV
+            if expression < 100: expression *= 1000
+            # Convert to a small range.
+            lo = expression-5
+            hi = expression+5
+            expression = [lo,hi]
             
-        if len(energy_range) > 2:
-            raise ValueError('Input must be a list with only two elements.')
-            
-        # Make sure it is [Elo,Ehi]
-        energy_range.sort()
+        if isinstance(expression,(list,tuple)):
+            if len(expression) > 2:
+                print('The expression must be a list or tuple of length 2.')
+                return
+            # If in keV instead of eV
+            for i, en in enumerate(expression):
+                if en < 100:
+                    expression[i] = en * 1000
+            lo = expression[0]
+            hi = expression[1]
+            expression = f'PI in [{lo}:{hi}]'
 
-        # If in keV instead of eV
-        for i, en in enumerate(energy_range):
-            if en < 100:
-                energy_range[i] = en * 1000
+        mask = self.filter_on_expression(expression,
+                                         return_mask = True,
+                                         apply_mask = False)
+        if apply_mask:
+            self._apply_mask_to_data(mask)
 
-        # If single value, convert to a small range.
-        if len(energy_range) == 1:
-            in_val = energy_range[0]
-            energy_range = [in_val-5,in_val+5]
-            
-                
-        mask = (self.data['PI'] >= energy_range[0]) & (self.data['PI'] <= energy_range[1])
-
-        self._apply_mask_to_data(mask)
+        if return_mask:
+            return mask
 
         return
 
-    def filter_on_gti(self,gti):
+    def filter_on_gti(self,gti,return_mask=False,apply_mask=True):
 
         # Check if file
         if isinstance(gti,str):
@@ -213,14 +160,40 @@ class XMMEventList(XMMFits):
 
         if not self._is_valid_gti_format(gti):
             _logger.error('Not valid GTI format.')
+            return
 
         mask = self._compute_gti_mask(gti)
 
-        self._apply_mask_to_data(mask)
+        expression_list = []
+        for sgti in gti:
+            start, stop = sgti
+            expression_list.append(f'(TIME in [{start}:{stop}])')
+        expression = ' && '.join(expression_list)
+        self._applied_filters.append(expression)
+
+        if apply_mask:
+            self._apply_mask_to_data(mask)
+
+        if return_mask:
+            return mask
 
         return
     
-    def _apply_mask_to_data(self,mask):
+    def filter_on_expression(self, 
+                             expr: str,
+                             return_mask: bool = False,
+                             apply_mask: bool = True):
+
+        expr_obj = XMMFilterExpression(expr,self.data,self.data_header)
+        self._applied_filters.append(expr_obj.expression)
+
+        if apply_mask:
+            self._apply_mask_to_data(expr_obj.mask)
+
+        if return_mask:
+            return expr_obj.mask
+
+    def _apply_mask_to_data(self,mask,add_hist=True):
 
         data = self._data
         original_count = len(data)
@@ -233,6 +206,9 @@ class XMMEventList(XMMFits):
         self.data_header['NAXIS2'] = filtered_count
 
         self.__recalc_light_curve = True
+
+        if add_hist:
+            self._add_history(slctexpr=self._applied_filters)
 
         return
     
@@ -525,6 +501,10 @@ class XMMEventList(XMMFits):
         except Exception as e:
             raise IOError(f"Failed to read file {gti_file} as either FITS or ASCII: {e}")
 
+    def _compute_data_mask(self,keyword,):
+
+        return
+    
     def _compute_gti_mask(self,gti):
         """
         Creates a boolean mask for time bins falling within GTIs.
@@ -585,3 +565,24 @@ class XMMEventList(XMMFits):
 
         # If it passes all checks, it's valid
         return True
+
+    def _add_history(self,hist=None,slctexpr=None):
+
+        from pysas import __version__ as version
+        iso_time = datetime.now().isoformat()
+        pri_hist = f'Modified by {version} at {iso_time}'
+
+        if hist is not None:
+            self.primary_header.add_history(hist)
+
+        self.primary_header.add_history(pri_hist)
+
+        if slctexpr is not None:
+            if isinstance(slctexpr,list):
+                slctexpr = ' && '.join(slctexpr)
+            self.data_header['SLCTEXPR'] = (slctexpr, 'Filtering expression used by pySAS')
+
+
+
+
+
