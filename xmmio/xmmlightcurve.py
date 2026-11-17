@@ -37,8 +37,7 @@ from astropy import units as u
 
 # Local application imports
 from pysas.sasutils import (parse_value, 
-                            set_unit,
-                            validate_event_list_pattern,)
+                            set_unit,)
 from pysas.logger import (_logger, 
                           _log_enable_terminal, 
                           _log_disable_terminal, 

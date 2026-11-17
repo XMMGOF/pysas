@@ -112,15 +112,15 @@ class MyTask:
             if not 'options' in self.inargs.keys():
                 self.inargs['options'] = ''
             for key in self.inargs.keys():
-                # Safety check to see if a number was passed in.
-                if isinstance(self.inargs[key], numbers.Number):
-                        self.inargs[key] = str(self.inargs[key])
                 # Convert booleans to 'yes' and 'no'
-                if self.inargs[key] is bool:
+                if isinstance(self.inargs[key], bool):
                     if self.inargs[key]:
                         self.inargs[key] = 'yes'
                     else:
                         self.inargs[key] = 'no'
+                # Safety check to see if a number was passed in.
+                if isinstance(self.inargs[key], (int,float)):
+                        self.inargs[key] = str(self.inargs[key])
 
         # Check if inargs is a 'SASParams' dict.
         if isinstance(self.inargs, SASParams):

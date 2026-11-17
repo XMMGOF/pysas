@@ -41,8 +41,7 @@ from astropy.utils.exceptions import AstropyWarning
 
 # Local application imports
 from pysas.sasutils import (parse_value, 
-                            set_unit,
-                            validate_event_list_pattern,)
+                            set_unit,)
 from pysas.logger import (_logger, 
                           _log_enable_terminal, 
                           _log_disable_terminal, 
@@ -122,7 +121,12 @@ class XMMFits:
                 self._data_head = self.get_header(ext=ext)
                 with warnings.catch_warnings():
                     warnings.simplefilter('ignore', AstropyWarning)
-                    self._wcs       = WCS(self._data_head, keysel=['pixel'])
+                    _wcs = WCS(self._data_head, keysel=['pixel'])
+                    _wcs.pixel_shape = None
+                    _wcs.pixel_bounds = None
+                    self._wcs = _wcs.celestial
+                    self._wcs.pixel_shape = (51840, 51840)
+
             else:
                 self._data      = self.get_data(ext=0)
                 if self._data is not None:

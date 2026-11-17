@@ -38,14 +38,13 @@ from astropy.table import Table
 from astropy.units import Quantity
 from astropy import units as u
 from astropy.wcs import WCS
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import Angle, SkyCoord
 from astropy.utils.exceptions import AstropyWarning
+from regions import PixCoord
 
 # Local application imports
 from pysas.sasutils import (parse_value, 
-                            set_unit,
-                            validate_event_list_pattern,
-                            XMMFilterExpression,)
+                            set_unit,)
 from pysas.logger import (_logger, 
                           _log_enable_terminal, 
                           _log_disable_terminal, 
@@ -65,6 +64,153 @@ class XMMEventList(XMMFits):
         self.__recalc_light_curve = True
         self._applied_filters = []
 
+    def plot(self, 
+             nbins=(600,600), 
+             binsize=None,
+             squarepixels=True,
+             xlim=None,
+             ylim=None,
+             center=None,
+             ax=None, 
+             title=None,
+             vmin=None,
+             vmax=None,
+             data=None):
+        """
+        Bins the projected sky pixels (X and Y) into a 2D array.
+        """
+
+        if data is None: data = self.data
+        x = data['X']
+        y = data['Y']
+
+        # Get the actual pixel boundaries of the data
+        skyx,skyy = self._get_skyxy_maxmin()
+        xmin, xmax = skyx.min(), skyx.max()
+        ymin, ymax = skyy.min(), skyy.max()
+
+        if xlim is None:
+            xlim = [int(xmin),int(xmax)]
+        else:
+            xmin = xlim[0]
+            xmax = xlim[1]
+            mask = (x >= xmin) & (x <= xmax)
+            x    = x[mask] 
+        if ylim is None:
+            ylim = [int(ymin),int(ymax)]
+        else:
+            ymin = ylim[0]
+            ymax = ylim[1]
+            mask = (y >= ymin) & (y <= ymax)
+            y    = y[mask]
+        
+        if binsize is not None:
+            if isinstance(binsize,(float,int)):
+                binsize = [int(binsize),int(binsize)]
+            elif isinstance(binsize,(list,tuple)) and len(binsize) != 2:
+                _logger.critical('binsize should be a list of size 2.')
+                return
+            xdiff = xmax - xmin
+            ydiff = ymax - ymin
+            xnbins = np.ceil(xdiff/binsize[0])
+            ynbins = np.ceil(ydiff/binsize[1])
+            nbins = (int(xnbins),int(ynbins))
+
+        wcs = self.wcs.copy()
+        wcs.pixel_shape = nbins
+        
+        is_new_ax = False
+        if ax is None:
+            # Create a new axes with the WCS projection if none was provided
+            ax = plt.subplot(projection=wcs)
+            is_new_ax = True
+
+        # Create 2D histogram
+        H, xedges, yedges = self._create_2dhist_from_data(nbins=nbins,x=x,y=y,xlim=xlim,ylim=ylim)
+
+        # Plot the image.
+        if squarepixels:
+            # Define the extent so imshow knows where these pixels are in the WCS
+            extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+            im = ax.imshow(H.T, origin='lower', norm='log', vmin=vmin, vmax=vmax, extent=extent)
+        else:
+            X, Y = np.meshgrid(xedges, yedges)
+            ax.pcolormesh(X, Y, H, origin='lower', norm='log', vmin=vmin, vmax=vmax)
+
+        # Formatting
+        ax.set_xlabel('RA')
+        ax.set_ylabel('DEC')
+        if title is None:
+            ax.set_title(f'{self.instrument} Image')
+        else:
+            ax.set_title(title)
+        ax.set_facecolor("black")
+        ax.grid(color='blue', ls='solid')#, alpha=0.5)
+        plt.colorbar(im, ax=ax)
+
+        if is_new_ax:
+            plt.show()
+
+        return ax
+    
+    def create_light_curve(self,
+                           dt=100, 
+                           time_col='TIME', 
+                           ext_name='EVENTS',
+                           gti=None,
+                           **kwargs,
+                           ):
+        """
+        Reads an XMM-Newton event list, extracts events and GTIs, and bins them.
+        XMM-Newton typically stores GTIs in extensions starting with 'STDGTI' or 'GTI'.
+        """
+        # Only recalculate the light curve if there was a change.
+        if self.__recalc_light_curve:
+            from pysas.lightcurve import XMMLightCurve
+            event_times = self._data[time_col]
+
+            if gti is not None:
+                t_start, t_stop = gti[:, 0].min(), gti[:, 1].max()
+            else:
+                t_start, t_stop = event_times.min(), event_times.max()
+
+            bins = np.arange(t_start, t_stop + dt, dt)
+            counts, edges = np.histogram(event_times, bins=bins)
+            time_centers = edges[:-1] + (dt / 2)
+            
+            to_lc = {'time'   : edges[:-1], 
+                    'counts' : counts, 
+                    'dt'     : dt, 
+                    'err'    : None, 
+                    'instr'  : self.instrument}
+
+            to_lc.update(kwargs)
+
+            self.light_curve = XMMLightCurve(**to_lc)
+
+            self.__recalc_light_curve = False
+
+        return self.light_curve
+    
+    def filter_on_expression(self, 
+                             expr: str,
+                             return_mask: bool = False,
+                             apply_mask: bool = True):
+
+        expr_tree = self._parse_filter_string(expr)
+        filt_mask = self._apply_filter_tree(expr_tree)
+        filt_expr = self._rebuild_expression_string(expr_tree)
+
+        self._applied_filters.append(filt_expr)
+
+        if apply_mask:
+            self._apply_mask_to_data(filt_mask)
+
+        if return_mask:
+            return filt_mask
+
+        return
+    
     def filter_on_pattern(self,expression,return_mask=False,apply_mask=True):
 
         if not isinstance(expression,(int,float,list,tuple,str)):
@@ -179,20 +325,6 @@ class XMMEventList(XMMFits):
 
         return
     
-    def filter_on_expression(self, 
-                             expr: str,
-                             return_mask: bool = False,
-                             apply_mask: bool = True):
-
-        expr_obj = XMMFilterExpression(expr,self.data,self.data_header)
-        self._applied_filters.append(expr_obj.expression)
-
-        if apply_mask:
-            self._apply_mask_to_data(expr_obj.mask)
-
-        if return_mask:
-            return expr_obj.mask
-
     def _apply_mask_to_data(self,mask,add_hist=True):
 
         data = self._data
@@ -212,45 +344,6 @@ class XMMEventList(XMMFits):
 
         return
     
-    def create_light_curve(self,
-                           dt=100, 
-                           time_col='TIME', 
-                           ext_name='EVENTS',
-                           gti=None,
-                           **kwargs,
-                           ):
-        """
-        Reads an XMM-Newton event list, extracts events and GTIs, and bins them.
-        XMM-Newton typically stores GTIs in extensions starting with 'STDGTI' or 'GTI'.
-        """
-        # Only recalculate the light curve if there was a change.
-        if self.__recalc_light_curve:
-            from pysas.lightcurve import XMMLightCurve
-            event_times = self._data[time_col]
-
-            if gti is not None:
-                t_start, t_stop = gti[:, 0].min(), gti[:, 1].max()
-            else:
-                t_start, t_stop = event_times.min(), event_times.max()
-
-            bins = np.arange(t_start, t_stop + dt, dt)
-            counts, edges = np.histogram(event_times, bins=bins)
-            time_centers = edges[:-1] + (dt / 2)
-            
-            to_lc = {'time'   : edges[:-1], 
-                    'counts' : counts, 
-                    'dt'     : dt, 
-                    'err'    : None, 
-                    'instr'  : self.instrument}
-
-            to_lc.update(kwargs)
-
-            self.light_curve = XMMLightCurve(**to_lc)
-
-            self.__recalc_light_curve = False
-
-        return self.light_curve
-
     def _get_skyxy_maxmin(self):
         x = np.array([0,0,0])
         for i,key in enumerate(['REFXLMIN','REFXCRPX','REFXLMAX']):
@@ -262,8 +355,10 @@ class XMMEventList(XMMFits):
     
     def _create_2dhist_from_data(self,
                                  nbins, 
-                                 xlim=None,
-                                 ylim=None,):
+                                 x,
+                                 y,
+                                 xlim,
+                                 ylim):
         """
         Generates a 2D histogram from the event list.
 
@@ -271,10 +366,10 @@ class XMMEventList(XMMFits):
         ----------
         nbins : tuple
             The number of bins in the x and y directions.
-        xlim : list, optional
-            Max/min limits in pixel sky coordinates (X), by default None
-        ylim : list, optional
-            Max/min limits in pixel sky coordinates (Y), by default None
+        x : list
+            List of x values.
+        y : list
+            List of y values.
 
         Returns
         -------
@@ -289,27 +384,12 @@ class XMMEventList(XMMFits):
         
         """
 
-        # Use the X and Y projected sky columns directly
-        x = self.data['X']
-        y = self.data['Y']
+        xmin = xlim[0]
+        xmax = xlim[1]
+        ymin = ylim[0]
+        ymax = ylim[1]
         xnbins = nbins[0]
         ynbins = nbins[1]
-        
-        # Get the actual pixel boundaries of the data
-        skyx,skyy = self._get_skyxy_maxmin()
-        xmin, xmax = skyx.min(), skyx.max()
-        ymin, ymax = skyy.min(), skyy.max()
-
-        if xlim is not None:
-            xmin = xlim[0]
-            xmax = xlim[1]
-            mask = (x >= xmin) & (x <= xmax)
-            x    = x[mask] 
-        if ylim is not None:
-            ymin = ylim[0]
-            ymax = ylim[1]
-            mask = (y >= ymin) & (y <= ymax)
-            y    = y[mask]
 
         # Create the pixel bins
         x_bins = np.linspace(xmin-0.5, xmax+0.5, xnbins + 1)
@@ -320,55 +400,6 @@ class XMMEventList(XMMFits):
 
         return H, xedges, yedges
     
-    def plot(self, 
-             nbins=(600,600), 
-             binsize=None,
-             squarepixels=True,
-             RAlim=None,
-             DEClim=None,
-             center=None,
-             ax=None, 
-             title=None,
-             vmin=None,
-             vmax=None,):
-        """
-        Bins the projected sky pixels (X and Y) into a 2D array.
-        """
-        
-        is_new_ax = False
-        if ax is None:
-            # Create a new axes with the WCS projection if none was provided
-            ax = plt.subplot(projection=self.wcs, slices=(0, 0, 'x', 'y'))
-            is_new_ax = True
-
-        # Create 2D histogram
-        H, xedges, yedges = self._create_2dhist_from_data(nbins=nbins)
-
-        # Plot the image.
-        if squarepixels:
-            # Define the extent so imshow knows where these pixels are in the WCS
-            extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
-            im = ax.imshow(H.T, origin='lower', norm='log', vmin=vmin, vmax=vmax, extent=extent)
-        else:
-            X, Y = np.meshgrid(xedges, yedges)
-            ax.pcolormesh(X, Y, H, origin='lower', norm='log', vmin=vmin, vmax=vmax)
-
-        # Formatting
-        ax.set_xlabel('RA')
-        ax.set_ylabel('DEC')
-        if title is None:
-            ax.set_title(f'{self.instrument} Image')
-        else:
-            ax.set_title(title)
-        ax.set_facecolor("black")
-        ax.grid(color='blue', ls='solid')#, alpha=0.5)
-        plt.colorbar(im, ax=ax)
-
-        if is_new_ax:
-            plt.show()
-
-        return ax
-
     def _get_sky_coords(self,RA,DEC):
         """
         Converts celestial coordinates (RA,DEC) to XMM sky coordinates (X,Y).
@@ -386,18 +417,16 @@ class XMMEventList(XMMFits):
             XMM sky coordinates (X,Y).
         """
 
-        if isinstance(RA, (int,float)): RA  = list(RA)
-        if isinstance(DEC,(int,float)): DEC = list(DEC)
+        if isinstance(RA, (int,float)): RA  = [RA]
+        if isinstance(DEC,(int,float)): DEC = [DEC]
 
         if len(RA) != len(DEC):
             raise ValueError('RA and DEC must be the same size.')
 
-        nevnts = len(RA)
-        zeros  = np.zeros(nevnts)
-        coords = np.column_stack((zeros,zeros,RA,DEC))
+        coords = np.column_stack((RA,DEC))
         sky_coords = self.wcs.all_world2pix(coords, 1)
-        X = [int(round(row[2])) for row in sky_coords]
-        Y = [int(round(row[3])) for row in sky_coords]
+        X = [int(round(row[0])) for row in sky_coords]
+        Y = [int(round(row[1])) for row in sky_coords]
 
         return (X,Y)
     
@@ -427,15 +456,13 @@ class XMMEventList(XMMFits):
         if len(X) != len(Y):
             raise ValueError('X and Y must be the same size.')
 
-        nevnts = len(X)
-        zeros  = np.zeros(nevnts)
-        coords = np.column_stack((zeros,zeros,X,Y))
+        coords = np.column_stack((X,Y))
         world_coords = self.wcs.all_pix2world(coords, 1)
-        ra = set_unit(np.array(world_coords[:,2]), u.deg)
-        dec = set_unit(np.array(world_coords[:,3]), u.deg)
-        evt_coords = SkyCoord(ra=ra, dec=dec, frame='icrs')
+        sky_coords = SkyCoord(ra=world_coords[:, 0] * u.deg,
+                              dec=world_coords[:, 1] * u.deg, 
+                              frame='icrs')
 
-        return evt_coords
+        return sky_coords
 
     def _read_xmm_gti(self,gti_file: str, ext_name: str = None) -> list:
         """
@@ -501,26 +528,6 @@ class XMMEventList(XMMFits):
         except Exception as e:
             raise IOError(f"Failed to read file {gti_file} as either FITS or ASCII: {e}")
 
-    def _compute_data_mask(self,keyword,):
-
-        return
-    
-    def _compute_gti_mask(self,gti):
-        """
-        Creates a boolean mask for time bins falling within GTIs.
-
-        Input must be list of tuples: 
-            [(start_1, stop_1), (start_2, stop_2), ...]
-        
-        """
-        mask = np.zeros_like(self.data['TIME'], dtype=bool)
-        for sgti in gti:
-            start, stop = sgti
-            # Check if the bin center falls within the GTI
-            in_gti = (self.data['TIME'] >= start) & (self.data['TIME'] <= stop)
-            mask |= in_gti
-        return mask
-
     def _is_valid_gti_format(self,gti_var) -> bool:
         """
         Checks if a variable matches the output format of read_xmm_gti:
@@ -582,7 +589,644 @@ class XMMEventList(XMMFits):
                 slctexpr = ' && '.join(slctexpr)
             self.data_header['SLCTEXPR'] = (slctexpr, 'Filtering expression used by pySAS')
 
+        return
 
+    #### Begin expression parsing functions.
+    def _parse_filter_string(self, expr: str, force_negate: bool = False):
+        """Recursively parses a boolean filtering string.
+        
+        Warning: This will most likely fail if you try to get too fancy with 
+                 the expression str. Just save everyone some grief and keep
+                 it simple.
+
+        """
+        expr = expr.strip()
+        if not expr: return None
+            
+        while expr.startswith('(') and expr.endswith(')'):
+            depth = 0; is_matched = True
+            for i, char in enumerate(expr):
+                if char in '([': depth += 1
+                elif char in ')]': depth -= 1
+                if depth == 0 and i < len(expr) - 1:
+                    is_matched = False; break
+            if is_matched: expr = expr[1:-1].strip()
+            else: break
+                
+        tokens, current, depth, i = [], [], 0, 0
+        while i < len(expr):
+            char = expr[i]
+            if char in '([':
+                depth += 1; current.append(char); i += 1
+            elif char in ')]':
+                depth -= 1; current.append(char); i += 1
+            elif depth == 0 and expr[i:i+3] in ('!&&', '!||'):
+                if current: tokens.append(''.join(current).strip()); current = []
+                tokens.append(expr[i:i+3]); i += 3
+            elif depth == 0 and expr[i:i+2] in ('&&', '||'):
+                if current: tokens.append(''.join(current).strip()); current = []
+                tokens.append(expr[i:i+2]); i += 2
+            else:
+                current.append(char); i += 1
+                
+        if current: tokens.append(''.join(current).strip())
+            
+        if len(tokens) > 1:
+            parsed_tree = []
+            negate_next = force_negate
+            
+            for t in tokens:
+                if t in ('!&&', '!||'):
+                    parsed_tree.append(t[1:]) 
+                    negate_next = True
+                elif t in ('&&', '||'):
+                    parsed_tree.append(t)
+                    negate_next = force_negate
+                else:
+                    parsed_tree.append(self._parse_filter_string(t, force_negate=negate_next))
+                    negate_next = force_negate
+                    
+            return parsed_tree
+            
+        return self._classify_node(expr, force_negate)
+    
+    def _apply_filter_tree(self, tree: list | dict) -> np.ndarray:
+        """
+        Recursively navigates the parsed syntax tree, routes nodes to their 
+        respective filtering functions, and combines them using boolean logic.
+        """
+        # BASE CASE: It's a single Node (a dictionary)
+        if isinstance(tree, dict):
+            node_type = tree.get('type')
+            
+            # Route to the correct function based on type
+            if node_type == 'relational':
+                mask = self._filter_on_relational(tree)
+            elif node_type == 'range':
+                mask = self._filter_on_range(tree)
+            elif node_type == 'region':
+                mask = self._filter_on_region(tree)
+            elif node_type == 'other':
+                mask = self._filter_on_other(tree)
+            else:
+                raise ValueError(f"Unknown node type: {node_type}")
+                
+            # Automatically handle the negation if '!&&' or '!||' was used upstream
+            if tree.get('negated', False):
+                mask = ~mask
+                
+            return mask
+            
+        # RECURSIVE CASE: It's a list containing sub-trees and string operators
+        if isinstance(tree, list):
+            if not tree:
+                return None
+                
+            # 1. Evaluate the very first node in the list
+            current_mask = self._apply_filter_tree(tree[0])
+            
+            # 2. Iterate through the rest of the list in pairs (Operator, Next_Node)
+            for i in range(1, len(tree), 2):
+                operator_str = tree[i]
+                next_node = tree[i+1]
+                
+                # Evaluate the next node
+                next_mask = self._apply_filter_tree(next_node)
+                
+                # 3. Combine the masks using bitwise array logic
+                if operator_str == '&&':
+                    current_mask = current_mask & next_mask
+                elif operator_str == '||':
+                    current_mask = current_mask | next_mask
+                else:
+                    raise ValueError(f"Unknown logical operator: {operator_str}")
+                    
+            return current_mask
+    
+    def _evaluate_range_node(self, range_str: str):
+        """Validates and evaluates a single range string."""
+        OPS = {'==': operator.eq, '!=': operator.ne,
+               '<=': operator.le, '>=': operator.ge,
+               '<':  operator.lt, '>':  operator.gt}
+        
+        pat_str = re.sub(r'\s+', '', range_str)
+        F = r"[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?"
+
+        if re.match(r'^[\(\[]?:[\)\]]?$', pat_str):
+            return ()
+
+        m_exact = re.match(rf'^[\(\[]?({F})[\)\]]?$', pat_str)
+        if m_exact:
+            val = float(m_exact.group(1))
+            val = int(val) if val.is_integer() else val
+            return ((operator.eq, val),)
+
+        m_lo_open = re.match(rf'^([\[\(]?)({F}):([\]\)]?)$', pat_str)
+        if m_lo_open:
+            left_b, val_str, right_b = m_lo_open.groups()
+            val = float(val_str)
+            val = int(val) if val.is_integer() else val
+            op = OPS['>'] if left_b == '(' else OPS['>=']
+            return ((op, val),)
+        
+        m_hi_open = re.match(rf'^([\[\(]?):({F})([\]\)]?)$', pat_str)
+        if m_hi_open:
+            left_b, val_str, right_b = m_hi_open.groups()
+            val = float(val_str)
+            val = int(val) if val.is_integer() else val
+            op = OPS['<'] if right_b == ')' else OPS['<=']
+            return ((op, val),)
+
+        m_range = re.match(rf'^([\[\(]?)({F}):({F})([\]\)]?)$', pat_str)
+        if m_range:
+            left_b, lo_str, hi_str, right_b = m_range.groups()
+            lo = float(lo_str)
+            lo = int(lo) if lo.is_integer() else lo
+            hi = float(hi_str)
+            hi = int(hi) if hi.is_integer() else hi
+            
+            if lo >= hi:
+                raise ValueError(f'Invalid interval range ({lo}:{hi}).')
+            
+            op_lo = OPS['>='] if left_b in ('[', '') else OPS['>']
+            op_hi = OPS['<='] if right_b in (']', '') else OPS['<']
+            return ((op_lo, lo), (op_hi, hi))
+
+        raise SyntaxError(f'Invalid range string: {range_str}')
+
+    def _classify_node(self, node_str: str, force_negate: bool = False) -> dict:
+        """Classifies nodes into Region, Relational, Range, or Other."""
+        KEYWORDS = ['TIME', 'RAWX', 'RAWY', 'DETX', 'DETY', 'X', 'Y', 'PHA', 'PI', 'FLAG',
+                    'PATTERN', 'PAT_ID', 'PAT_SEQ', 'CCDNR', 'TIME_RAW', 'ENERGY', 'GTI',
+                    'TELX', 'TELY', 'RA', 'DEC']
+        OPS = {'==': operator.eq, '!=': operator.ne,
+               '<=': operator.le, '>=': operator.ge,
+               '<':  operator.lt, '>':  operator.gt}
+        node_str = node_str.strip()
+        is_negated = force_negate
+        
+        # Handle Unary Negation safely
+        if node_str.startswith('!'):
+            is_negated = not is_negated 
+            node_str = node_str[1:].strip()
+            
+            while node_str.startswith('(') and node_str.endswith(')'):
+                depth = 0; is_matched = True
+                for i, char in enumerate(node_str):
+                    if char in '([': depth += 1
+                    elif char in ')]': depth -= 1
+                    if depth == 0 and i < len(node_str) - 1:
+                        is_matched = False; break
+                if is_matched: node_str = node_str[1:-1].strip()
+                else: break
+
+        # -------------------------------------------------------------
+        # 3a. Check for Region Node (Strictly using commas)
+        # Format: (X,Y) in TYPE(val1, val2, val3...) 
+        # -------------------------------------------------------------
+        region_pattern = r"^\s*\(\s*(RAWX|DETX|X|TELX|RA)\s*,\s*(RAWY|DETY|Y|TELY|DEC)\s*\)\s+IN\s+(CIRCLE|ELLIPSE|ANNULUS|BOX|POLYGON)\s*\(([^)]+)\)\s*$"
+        m_region = re.match(region_pattern, node_str, re.IGNORECASE)
+        
+        if m_region:
+            coord1 = m_region.group(1).upper()
+            coord2 = m_region.group(2).upper()
+            shape = m_region.group(3).upper()
+            values_str = m_region.group(4)
+            
+            # Validate that it's a correct pair (preventing accidental 'RAWX,DEC' typos)
+            valid_pairs = [('RAWX','RAWY'), ('DETX','DETY'), ('X','Y'), ('TELX','TELY'), ('RA','DEC')]
+            if (coord1, coord2) in valid_pairs:
+                try:
+                    # Convert comma-separated string to a list of floats
+                    values = [float(v.strip()) for v in values_str.split(',')]
+                    
+                    # Must have 3 or more values to define a region
+                    if len(values) >= 3:
+                        return {
+                            'type': 'region',
+                            'coords': (coord1, coord2),
+                            'shape': shape,
+                            'values': values,
+                            'negated': is_negated
+                        }
+                except ValueError:
+                    # If values couldn't be parsed as floats, fall through to 'other'
+                    pass
+
+        kw_group = r"(" + "|".join(KEYWORDS) + r")"
+        
+        # -------------------------------------------------------------
+        # 3b. Check for Relational Node
+        # -------------------------------------------------------------
+        rel_pattern = rf"^\s*{kw_group}\s*(==|!=|<=|>=|<|>)\s*(.+)\s*$"
+        m_rel = re.match(rel_pattern, node_str, re.IGNORECASE)
+        if m_rel:
+            val = float(m_rel.group(3).strip())
+            val = int(val) if val.is_integer() else val
+            return {
+                'type': 'relational',
+                'keyword': m_rel.group(1).upper(),
+                'operator': OPS[m_rel.group(2)],
+                'value': val,
+                'negated': is_negated
+            }
+            
+        # -------------------------------------------------------------
+        # 3c. Check for Range Node 
+        # -------------------------------------------------------------
+        range_pattern = rf"^\s*{kw_group}\s+in\s+(.+)\s*$"
+        m_range = re.match(range_pattern, node_str, re.IGNORECASE)
+        if m_range:
+            keyword = m_range.group(1).upper()
+            intervals_str = m_range.group(2).strip()
+            
+            intervals = [i.strip() for i in intervals_str.split(',')]
+            evaluated_intervals = []
+            for interval in intervals:
+                ops_tuple = self._evaluate_range_node(interval)
+                if len(ops_tuple) == 1:
+                    return {
+                        'type': 'relational',
+                        'keyword': keyword,
+                        'operator': ops_tuple[0][0],
+                        'value': ops_tuple[0][1],
+                        'negated': is_negated
+                    }
+                evaluated_intervals.append({
+                    'interval_string': interval,
+                    'operations': ops_tuple
+                })
+                
+            return {
+                'type': 'range',
+                'keyword': keyword,
+                'evaluated_intervals': evaluated_intervals,
+                'negated': is_negated
+            }
+            
+        # -------------------------------------------------------------
+        # 3d. Fallback ('other')
+        # -------------------------------------------------------------
+        return {
+            'type': 'other',
+            'content': node_str,
+            'negated': is_negated
+        }
+    
+    #### The following functions ONLY calculate and return a filtering mask.####
+    #
+    #       _filter_on_relational
+    #       _filter_on_range
+    #       _filter_on_region
+    #       _filter_on_other
+    #       _filter_on_flag
+    #       _compute_gti_mask
+    # 
+    ############################################################################
+    def _filter_on_relational(self, node: dict) -> np.ndarray:
+        """
+        Handles relational filtering (e.g., PATTERN == 0, PI <= 3000).
+        """
+        keyword = node['keyword']
+        op = node['operator']
+        value = node['value']
+        
+        mask = op(self.data[keyword],value)
+
+        return mask
+
+    def _filter_on_range(self, node: dict) -> np.ndarray:
+        """
+        Handles range filtering (e.g., PI in [500:2000]).
+        """
+        keyword = node['keyword']
+        intervals = node['evaluated_intervals']
+        mask = np.zeros(len(self.data), dtype=bool)
+        for interval in intervals:
+            ops_tups = interval['operations']
+            next_mask = ops_tups[0][0](self.data[keyword],ops_tups[0][1]) & ops_tups[1][0](self.data[keyword],ops_tups[1][1])
+            mask = mask | next_mask
+
+        return mask
+
+    def _filter_on_region(self, node: dict) -> np.ndarray:
+
+        coords = node['coords']
+        shape = node['shape']
+        values = node['values']
+        # The "do nothing" mask in case an error was made.
+        mask = np.ones(len(self.data), dtype=bool)
+
+        if (coords[0] == 'DETX' and coords[1] == 'DETY') or (coords[0] == 'RAWX' and coords[1] == 'RAWY'):
+            _logger.critical('DETX/DETY and RAWX/RAWY not supported yet.')
+            return mask
+        elif coords[0] == 'X' and coords[1] == 'Y':
+            data_coords = PixCoord(self.data['X'], self.data['Y'])
+            pixels = True
+        elif coords[0] == 'RA' and coords[1] == 'DEC':
+            data_coords = self._get_celestial_coords()
+            pixels = False
+        
+        if shape == 'CIRCLE':
+            # CIRCLE(xCenter,yCenter,radius)
+            from regions import CircleSkyRegion, CirclePixelRegion
+            if len(values) != 3:
+                _logger.critical(f'A CIRCLE region should have exactly 3 values. Found {len(values)}.')
+                return mask
+            if pixels:
+                center     = PixCoord(x=values[0], y=values[1])
+                radius     = values[2]
+                sky_region = CirclePixelRegion(center = center, 
+                                               radius = radius)
+            else:
+                center     = SkyCoord(values[0], values[1], unit='deg', frame='fk5')
+                radius     = values[2] * u.deg
+                sky_region = CircleSkyRegion(center = center, 
+                                             radius = radius)
+        elif shape == 'ANNULUS':
+            # ANNULUS(xCenter,yCenter,inner radius,outter radius)
+            from regions import CircleAnnulusSkyRegion, CircleAnnulusPixelRegion
+            if len(values) != 4:
+                _logger.critical(f'An ANNULUS region should have exactly 4 values. Found {len(values)}.')
+                return mask
+            if pixels:
+                center     = PixCoord(x=values[0], y=values[1])
+                in_radius  = values[2]
+                out_radius = values[3]
+                sky_region = CircleAnnulusPixelRegion(center = center, 
+                                                      inner_radius = in_radius,
+                                                      outer_radius = out_radius)
+            else:
+                center     = SkyCoord(values[0], values[1], unit='deg', frame='fk5')
+                in_radius  = values[2] * u.deg
+                out_radius = values[3] * u.deg
+                sky_region = CircleAnnulusSkyRegion(center = center, 
+                                                    inner_radius = in_radius,
+                                                    outer_radius = out_radius)
+        elif shape == 'ELLIPSE':
+            # ELLIPSE(xCenter,yCenter,height,width,angle)
+            from regions import EllipseSkyRegion, EllipsePixelRegion
+            if len(values) != 5:
+                _logger.critical(f'An ELLIPSE region should have exactly 5 values. Found {len(values)}.')
+                return mask
+            if pixels:
+                center     = PixCoord(x=values[0], y=values[1])
+                height     = values[2]
+                width      = values[3]
+                angle      = values[4]
+                sky_region = EllipsePixelRegion(center = center, 
+                                                height = height,
+                                                width  = width,
+                                                angle  = angle)
+            else:
+                center     = SkyCoord(values[0], values[1], unit='deg', frame='fk5')
+                height     = values[2] * u.deg
+                width      = values[3] * u.deg
+                angle      = values[4] * u.deg
+                sky_region = EllipseSkyRegion(center = center, 
+                                              height = height,
+                                              width  = width,
+                                              angle  = angle)
+        elif shape == 'BOX':
+            # BOX(xCenter,yCenter,height,width,angle)
+            from regions import RectangleSkyRegion, RectanglePixelRegion
+            if len(values) != 5:
+                _logger.critical(f'A BOX region should have exactly 5 values. Found {len(values)}.')
+                return mask
+            if pixels:
+                center     = PixCoord(x=values[0], y=values[1])
+                height     = values[2]
+                width      = values[3]
+                angle      = values[4]
+                sky_region = RectanglePixelRegion(center = center, 
+                                                  height = height,
+                                                  width  = width,
+                                                  angle  = angle)
+            else:
+                center     = SkyCoord(values[0], values[1], unit='deg', frame='fk5')
+                height     = values[2] * u.deg
+                width      = values[3] * u.deg
+                angle      = values[4] * u.deg
+                sky_region = RectangleSkyRegion(center = center, 
+                                                height = height,
+                                                width  = width,
+                                                angle  = angle)
+        elif shape == 'POLYGON':
+            # POLYGON(x1,y1,x2,y2,x3,y3,x4,y4,...)
+            from regions import PolygonSkyRegion, PolygonPixelRegion
+            if pixels:
+                vertices   = PixCoord(x=values[::2], y=values[1::2])
+                sky_region = PolygonPixelRegion(vertices = vertices)
+            else:
+                vertices   = SkyCoord(values[::2], values[1::2], unit='deg', frame='fk5')
+                sky_region = PolygonSkyRegion(vertices = vertices)
+            
+        if pixels:
+            mask = sky_region.contains(data_coords)
+        else:
+            mask = sky_region.contains(data_coords, self.wcs)
+
+        return mask
+    
+    def _filter_on_other(self, node: dict) -> np.ndarray:
+        """
+        Handles specialized fallback filtering (e.g., bitwise flags: (FLAG & 0x766ba000) == 0).
+        """
+        content = node['content']
+
+        # The "do nothing" mask in case an error was made.
+        mask = np.ones(len(self.data), dtype=bool)
+
+        if 'FLAG' in content or 'XMMEA_' in content:
+            mask = self._filter_on_flag(content)
+        
+        return mask
+    
+    def _filter_on_flag(self, expression: str) -> np.ndarray:
+    
+        flag = None
+        operator = ''
+        bitwise = False
+        
+        # Strip whitespace
+        clean_str = expression.replace(' ','')
+        # First, check if general flag
+        pattern = re.compile(r"^.*(XMMEA_(\d{1,2}|EP|EM|SM)).*$")
+        match = pattern.match(clean_str)
+        if match:
+            try:
+                clean_str = self.data_header[match.group(1)]
+                clean_str = clean_str.replace(' ','')
+            except KeyError:
+                try:
+                    val = int(match.group(2))
+                    flag = 2**(val)
+                    operator = '!='
+                except ValueError:
+                    pass
+        # Pattern match for standard SAS FLAG expression
+        pattern = re.compile(r"^\(*FLAG&(0x[0-9a-fA-F]+)\)(==|!=)0\)*$")
+        match = pattern.match(clean_str)
+        pattern2 = re.compile(r"^\(*FLAG(==|!=)(\d+|0x[0-9a-fA-F]+)\)*$")
+        match2 = pattern2.match(clean_str)
+        if match:
+            hex_val_str = match.group(1)
+            flag = int(hex_val_str, 16)
+            operator = match.group(2)
+            bitwise = True
+        elif match2:
+            hex_val_str = match2.group(2)
+            flag = int(hex_val_str, 16)
+            operator = match2.group(1)
+        # Check for Hexadecimal
+        elif clean_str.startswith('0x'):
+            flag =  int(clean_str, 16)
+            operator = '=='
+        # Check for Binary 
+        elif clean_str.startswith('0b'):
+            flag =  int(clean_str, 2)
+            operator = '=='
+
+        if flag is None:
+            if 'EMOS' in self.instrument and 'XMMEA_EP' in expression:
+                print(f'The flag {expression} cannot be used with the instrument {self.instrument}.')
+                print(f'Use #XMMEA_EM instead.')
+            elif 'EPN' in self.instrument and 'XMMEA_EM' in expression:
+                print(f'The flag {expression} cannot be used with the instrument {self.instrument}.')
+                print(f'Use #XMMEA_EP instead.')
+            else:
+                print( '-----------------------------')
+                print(f'Flag {expression} not recognized.')
+                print( '-----------------------------')
+            print('')
+            return
+
+        # Set mask to True
+        mask = self.data['FLAG'] != -1
+        
+        if operator == '==' and bitwise:
+            mask = (self.data['FLAG'] & flag) == 0
+        elif operator == '==' and not bitwise:
+            mask = self.data['FLAG'] == flag
+        elif operator == '!=' and bitwise:
+            mask = (self.data['FLAG'] & flag) != 0
+        elif operator == '!=' and not bitwise:
+            mask = self.data['FLAG'] != flag
+
+        return mask
+
+    def _compute_gti_mask(self, gti: list) -> np.ndarray:
+        """
+        Creates a boolean mask for time bins falling within GTIs.
+
+        Input must be list of tuples: 
+            [(start_1, stop_1), (start_2, stop_2), ...]
+        
+        """
+        mask = np.zeros_like(self.data['TIME'], dtype=bool)
+        for sgti in gti:
+            start, stop = sgti
+            # Check if the bin center falls within the GTI
+            in_gti = (self.data['TIME'] >= start) & (self.data['TIME'] <= stop)
+            mask |= in_gti
+        return mask
+    
+    def _rebuild_expression_string(self, tree) -> str:
+        """
+        Recursively navigates the parsed syntax tree and rebuilds it into 
+        a clean, standardized boolean expression string.
+        """
+        op_to_str = {operator.lt: "<",
+                     operator.le: "<=",
+                     operator.eq: "==",
+                     operator.ne: "!=",
+                     operator.ge: ">=",
+                     operator.gt: ">"
+                    }
+        # ---------------------------------------------------------
+        # BASE CASE: It's a single Leaf Node (Dictionary)
+        # ---------------------------------------------------------
+        if isinstance(tree, dict):
+            node_type = tree.get('type')
+            node_str = ""
+            
+            # 1. Rebuild Relational Nodes
+            if node_type == 'relational':
+                keyword = tree['keyword']
+                op = op_to_str[tree['operator']]
+                value = tree['value']
+                node_str = f"({keyword} {op} {value})"
+                
+            # 2. Rebuild Range Nodes
+            elif node_type == 'range':
+                keyword = tree['keyword']
+                intervals = tree['evaluated_intervals']
+                
+                # Extract just the raw strings (e.g. "100:200") from the evaluated dicts
+                interval_strings = [i['interval_string'] for i in intervals]
+                
+                # Join multiple intervals with commas
+                joined_intervals = ", ".join(interval_strings)
+                node_str = f"({keyword} in {joined_intervals})"
+                
+            # 3. Rebuild Region Nodes
+            elif node_type == 'region':
+                coords = tree['coords']
+                shape = tree['shape']
+                values = tree['values']
+                
+                # Universal Comma Spacing
+                coord_str = f"{coords[0]},{coords[1]}"
+                    
+                # Convert the list of float values back to a comma-separated string
+                val_str = ", ".join(str(v) for v in values)
+                
+                # Formats beautifully as: ((X,Y) in CIRCLE(100.5, 200.2, 50.0))
+                node_str = f"(({coord_str}) in {shape}({val_str}))"
+
+            # 4. Rebuild Other Nodes
+            elif node_type == 'other':
+                content = tree['content']
+                # Only wrap in parens if it isn't already perfectly wrapped
+                if content.startswith('(') and content.endswith(')'):
+                    node_str = content
+                else:
+                    node_str = f"({content})"
+                    
+            else:
+                raise ValueError(f"Unknown node type: {node_type}")
+                
+            # 5. Apply Unary Negation if the node was flagged as negated
+            if tree.get('negated', False):
+                node_str = f"!{node_str}"
+                
+            return node_str
+
+        # ---------------------------------------------------------
+        # RECURSIVE CASE: It's a list containing sub-trees and operators
+        # ---------------------------------------------------------
+        if isinstance(tree, list):
+            if not tree:
+                return ""
+                
+            rebuilt_parts = []
+            
+            for item in tree:
+                if item in ('&&', '||'):
+                    # It's an operator, just add it with standard spacing
+                    rebuilt_parts.append(item)
+                else:
+                    # It's a sub-tree or node, recurse into it
+                    rebuilt_parts.append(self._rebuild_expression_string(item))
+                    
+            # Join the parts of this level together
+            level_str = " ".join(rebuilt_parts)
+            
+            # Wrap the resolved level in parentheses to preserve order of operations
+            return f"({level_str})"
+
+        return ""
+    #### END expression parsing functions. ####
 
 
 
