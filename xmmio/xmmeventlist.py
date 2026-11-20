@@ -40,11 +40,11 @@ from astropy import units as u
 from astropy.wcs import WCS
 from astropy.coordinates import Angle, SkyCoord
 from astropy.utils.exceptions import AstropyWarning
-from regions import PixCoord
 
 # Local application imports
 from pysas.sasutils import (parse_value, 
-                            set_unit,)
+                            set_unit,
+                            get_region,)
 from pysas.logger import (_logger, 
                           _log_enable_terminal, 
                           _log_disable_terminal, 
@@ -89,21 +89,42 @@ class XMMEventList(XMMFits):
         xmin, xmax = skyx.min(), skyx.max()
         ymin, ymax = skyy.min(), skyy.max()
 
-        if xlim is None:
-            xlim = [int(xmin),int(xmax)]
-        else:
-            xmin = xlim[0]
-            xmax = xlim[1]
-            mask = (x >= xmin) & (x <= xmax)
-            x    = x[mask] 
-        if ylim is None:
-            ylim = [int(ymin),int(ymax)]
-        else:
-            ymin = ylim[0]
-            ymax = ylim[1]
-            mask = (y >= ymin) & (y <= ymax)
-            y    = y[mask]
+        # Override the span if xlim/ylim are provided
+        if xlim is not None:
+            xmin, xmax = xlim[0], xlim[1]
+        if ylim is not None:
+            ymin, ymax = ylim[0], ylim[1]
+
+        # Shift the box to the requested center
+        if center is not None:
+            import astropy.units as u
+            
+            # Parse the input (handles both pure floats and astropy Quantities)
+            ra_val, dec_val = center[0], center[1]
+            ra_deg = set_unit(ra_val,u.deg) 
+            dec_deg = set_unit(dec_val,u.deg)
+            
+            # Safely extract the 2D celestial WCS to calculate the center in X/Y pixels
+            cwcs = getattr(self.wcs, 'celestial', self.wcs)
+            center_x, center_y = cwcs.world_to_pixel_values(ra_deg, dec_deg)
+            
+            # Calculate current span and shift the min/max to perfectly center it
+            x_span = xmax - xmin
+            y_span = ymax - ymin
+            xmin = center_x - (x_span / 2.0)
+            xmax = center_x + (x_span / 2.0)
+            ymin = center_y - (y_span / 2.0)
+            ymax = center_y + (y_span / 2.0)
+
+        # Mask the data to the final view window
+        mask = (x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax)
+        x = x[mask]
+        y = y[mask]
         
+        xlim = [int(xmin), int(xmax)]
+        ylim = [int(ymin), int(ymax)]
+        
+        # Handle binsize
         if binsize is not None:
             if isinstance(binsize,(float,int)):
                 binsize = [int(binsize),int(binsize)]
@@ -116,9 +137,11 @@ class XMMEventList(XMMFits):
             ynbins = np.ceil(ydiff/binsize[1])
             nbins = (int(xnbins),int(ynbins))
 
+        # Get WCS and set nbins
         wcs = self.wcs.copy()
         wcs.pixel_shape = nbins
         
+        # Get current axes
         is_new_ax = False
         if ax is None:
             # Create a new axes with the WCS projection if none was provided
@@ -144,6 +167,7 @@ class XMMEventList(XMMFits):
             ax.set_title(f'{self.instrument} Image')
         else:
             ax.set_title(title)
+        ax.set(xlim=(xmin, xmax), ylim=(ymin, ymax))
         ax.set_facecolor("black")
         ax.grid(color='blue', ls='solid')#, alpha=0.5)
         plt.colorbar(im, ax=ax)
@@ -166,7 +190,7 @@ class XMMEventList(XMMFits):
         """
         # Only recalculate the light curve if there was a change.
         if self.__recalc_light_curve:
-            from pysas.lightcurve import XMMLightCurve
+            from pysas.xmmio import XMMLightCurve
             event_times = self._data[time_col]
 
             if gti is not None:
@@ -201,9 +225,8 @@ class XMMEventList(XMMFits):
         filt_mask = self._apply_filter_tree(expr_tree)
         filt_expr = self._rebuild_expression_string(expr_tree)
 
-        self._applied_filters.append(filt_expr)
-
         if apply_mask:
+            self._applied_filters.append(filt_expr)
             self._apply_mask_to_data(filt_mask)
 
         if return_mask:
@@ -324,6 +347,46 @@ class XMMEventList(XMMFits):
             return mask
 
         return
+    
+    def filter_on_region(self,expression,return_mask=False,apply_mask=True,return_region=False):
+
+        from regions import PixCoord, PixelRegion, SkyRegion
+
+        if isinstance(expression,PixelRegion):
+            data_coords = PixCoord(self.data['X'], self.data['Y'])
+            mask = expression.contains(data_coords)
+            return_region = False
+        elif isinstance(expression,SkyRegion):
+            data_coords = self._get_celestial_coords()
+            mask = expression.contains(data_coords, self.wcs)
+            return_region = False
+        else:
+            expr_tree = self._parse_filter_string(expression)
+            mask = self._filter_on_region(expr_tree)
+            filt_expr = self._rebuild_expression_string(expr_tree)
+
+        if apply_mask:
+            self._applied_filters.append(filt_expr)
+            self._apply_mask_to_data(mask)
+
+        if return_region:
+            coords = expr_tree['coords']
+            shape = expr_tree['shape']
+            values = expr_tree['values']
+            if 'X' in coords[0] and 'Y' in coords[1]:
+                pixels = True
+            else:
+                pixels = False
+            sky_region = get_region(shape,values,pixels)
+            if return_mask:
+                return mask, sky_region
+            else:
+                return sky_region
+        
+        if return_mask:
+            return mask
+        else:
+            return
     
     def _apply_mask_to_data(self,mask,add_hist=True):
 
@@ -911,115 +974,28 @@ class XMMEventList(XMMFits):
 
     def _filter_on_region(self, node: dict) -> np.ndarray:
 
+        from regions import PixCoord
+
         coords = node['coords']
         shape = node['shape']
         values = node['values']
         # The "do nothing" mask in case an error was made.
         mask = np.ones(len(self.data), dtype=bool)
 
-        if (coords[0] == 'DETX' and coords[1] == 'DETY') or (coords[0] == 'RAWX' and coords[1] == 'RAWY'):
-            _logger.critical('DETX/DETY and RAWX/RAWY not supported yet.')
-            return mask
-        elif coords[0] == 'X' and coords[1] == 'Y':
+        if coords[0] == 'X' and coords[1] == 'Y':
             data_coords = PixCoord(self.data['X'], self.data['Y'])
             pixels = True
         elif coords[0] == 'RA' and coords[1] == 'DEC':
             data_coords = self._get_celestial_coords()
             pixels = False
+        elif coords[0] == 'DETX' and coords[1] == 'DETY':
+            data_coords = PixCoord(self.data['DETX'], self.data['DETY'])
+            pixels = True
+        elif coords[0] == 'RAWX' and coords[1] == 'RAWY':
+            data_coords = PixCoord(self.data['RAWX'], self.data['RAWY'])
+            pixels = True
         
-        if shape == 'CIRCLE':
-            # CIRCLE(xCenter,yCenter,radius)
-            from regions import CircleSkyRegion, CirclePixelRegion
-            if len(values) != 3:
-                _logger.critical(f'A CIRCLE region should have exactly 3 values. Found {len(values)}.')
-                return mask
-            if pixels:
-                center     = PixCoord(x=values[0], y=values[1])
-                radius     = values[2]
-                sky_region = CirclePixelRegion(center = center, 
-                                               radius = radius)
-            else:
-                center     = SkyCoord(values[0], values[1], unit='deg', frame='fk5')
-                radius     = values[2] * u.deg
-                sky_region = CircleSkyRegion(center = center, 
-                                             radius = radius)
-        elif shape == 'ANNULUS':
-            # ANNULUS(xCenter,yCenter,inner radius,outter radius)
-            from regions import CircleAnnulusSkyRegion, CircleAnnulusPixelRegion
-            if len(values) != 4:
-                _logger.critical(f'An ANNULUS region should have exactly 4 values. Found {len(values)}.')
-                return mask
-            if pixels:
-                center     = PixCoord(x=values[0], y=values[1])
-                in_radius  = values[2]
-                out_radius = values[3]
-                sky_region = CircleAnnulusPixelRegion(center = center, 
-                                                      inner_radius = in_radius,
-                                                      outer_radius = out_radius)
-            else:
-                center     = SkyCoord(values[0], values[1], unit='deg', frame='fk5')
-                in_radius  = values[2] * u.deg
-                out_radius = values[3] * u.deg
-                sky_region = CircleAnnulusSkyRegion(center = center, 
-                                                    inner_radius = in_radius,
-                                                    outer_radius = out_radius)
-        elif shape == 'ELLIPSE':
-            # ELLIPSE(xCenter,yCenter,height,width,angle)
-            from regions import EllipseSkyRegion, EllipsePixelRegion
-            if len(values) != 5:
-                _logger.critical(f'An ELLIPSE region should have exactly 5 values. Found {len(values)}.')
-                return mask
-            if pixels:
-                center     = PixCoord(x=values[0], y=values[1])
-                height     = values[2]
-                width      = values[3]
-                angle      = values[4]
-                sky_region = EllipsePixelRegion(center = center, 
-                                                height = height,
-                                                width  = width,
-                                                angle  = angle)
-            else:
-                center     = SkyCoord(values[0], values[1], unit='deg', frame='fk5')
-                height     = values[2] * u.deg
-                width      = values[3] * u.deg
-                angle      = values[4] * u.deg
-                sky_region = EllipseSkyRegion(center = center, 
-                                              height = height,
-                                              width  = width,
-                                              angle  = angle)
-        elif shape == 'BOX':
-            # BOX(xCenter,yCenter,height,width,angle)
-            from regions import RectangleSkyRegion, RectanglePixelRegion
-            if len(values) != 5:
-                _logger.critical(f'A BOX region should have exactly 5 values. Found {len(values)}.')
-                return mask
-            if pixels:
-                center     = PixCoord(x=values[0], y=values[1])
-                height     = values[2]
-                width      = values[3]
-                angle      = values[4]
-                sky_region = RectanglePixelRegion(center = center, 
-                                                  height = height,
-                                                  width  = width,
-                                                  angle  = angle)
-            else:
-                center     = SkyCoord(values[0], values[1], unit='deg', frame='fk5')
-                height     = values[2] * u.deg
-                width      = values[3] * u.deg
-                angle      = values[4] * u.deg
-                sky_region = RectangleSkyRegion(center = center, 
-                                                height = height,
-                                                width  = width,
-                                                angle  = angle)
-        elif shape == 'POLYGON':
-            # POLYGON(x1,y1,x2,y2,x3,y3,x4,y4,...)
-            from regions import PolygonSkyRegion, PolygonPixelRegion
-            if pixels:
-                vertices   = PixCoord(x=values[::2], y=values[1::2])
-                sky_region = PolygonPixelRegion(vertices = vertices)
-            else:
-                vertices   = SkyCoord(values[::2], values[1::2], unit='deg', frame='fk5')
-                sky_region = PolygonSkyRegion(vertices = vertices)
+        sky_region = get_region(shape,values,pixels)
             
         if pixels:
             mask = sky_region.contains(data_coords)

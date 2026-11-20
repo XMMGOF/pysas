@@ -43,6 +43,7 @@ from pysas.logger import (_logger,
                           _log_disable_terminal, 
                           _log_enable_file, 
                           _log_disable_file,)
+from .xmmfits import XMMFits
 
 class XMMLightCurve:
     """
@@ -88,13 +89,13 @@ class XMMLightCurve:
             raise ValueError('Either a counts or rate array must be passed in.')
 
         if rate is None:
-            self._yunit = u.photon
+            self._yunit = u.count
             self._counts = set_unit(counts, self._yunit)
             if err is not None:
                 self._counts_err = set_unit(err, self._yunit)
             self._compute_from_counts()
         else:
-            self._yunit = u.photon / u.second
+            self._yunit = u.count / u.second
             self._rate = set_unit(rate, self._yunit)
             if err is not None:
                 self._rate_err = set_unit(err, self._yunit)
@@ -110,10 +111,12 @@ class XMMLightCurve:
             raise ValueError("Time resolution (dt) must be strictly positive.")
         if len(self._time) != len(self._counts):
             raise ValueError("Time and counts arrays must be the same length.")
-            
+
         if gti is None:
             # Default GTI covers the whole observation
-            gti = [(self.time[0],self.time[-1])]
+            start = set_unit(self.time[0], self._xunit)
+            stop  = set_unit(self.time[-1], self._xunit)
+            gti = [(start,stop)]
         else:
             if isinstance(gti, tuple):
                 gti = [gti]
@@ -122,12 +125,12 @@ class XMMLightCurve:
             for sgti in gti:
                 if len(sgti) != 2:
                     raise ValueError("GTIs must be a list of tuples with start and stop times.")
-        
+
         self._gti = gti
 
         # GTI masking computation
         self._gti_mask = self._compute_gti_mask()
-
+        
     # --- Properties (Read-only to prevent accidental corruption) ---
     @property
     def time(self):
@@ -147,7 +150,7 @@ class XMMLightCurve:
 
     @property
     def gti(self):
-        return self._gti.value
+        return self._gti
 
     @property
     def rate(self):
@@ -161,7 +164,7 @@ class XMMLightCurve:
         for sgti in self._gti:
             start, stop = sgti
             # Check if the bin center falls within the GTI
-            in_gti = (self.time >= start) & (self.time <= stop)
+            in_gti = (self.time >= parse_value(start,'s')) & (self.time <= parse_value(stop,'s'))
             mask |= in_gti
         return mask
 
@@ -191,11 +194,19 @@ class XMMLightCurve:
             data = lcfits.get_data(ext=datahdu)
         table = Table(data)
         if countcolumn in table.colnames:
-            counts = Quantity(table[countcolumn],'photon')
+            counts = Quantity(table[countcolumn],u.count)
         elif 'RATE' in table.colnames:
-            counts = Quantity(table['RATE'],'photon/s')
+            counts = Quantity(table['RATE'], u.count / u.second)
         else:
             raise KeyError(f'Count column {countcolumn} not found in {fits_file}.')
+        # Check for NaNs
+        if np.isnan(counts).any():
+            good_mask = np.where(~np.isnan(counts))
+        else:
+            good_mask = np.arange(0, len(counts))
+        # Apply mask
+        counts = counts[good_mask]
+        table  = table[good_mask]
         if timecolumn in table.colnames:
             time    = Quantity(table[timecolumn],'s')
             _dt     = lcfits.get_keyword('TIMEDEL', ext=1)
@@ -219,7 +230,7 @@ class XMMLightCurve:
                   'err'   : error, 
                   'instr' : lcfits.instrument}
         
-        if counts.unit == 'photon':
+        if counts.unit == u.count:
             to_cls['counts'] = counts
         else:
             to_cls['rate']   = counts

@@ -35,7 +35,9 @@ from astroquery.esa.xmm_newton import XMMNewton
 from astroquery.heasarc import Heasarc
 from astropy.units import Quantity
 from astropy import units as u
+from astropy.coordinates import SkyCoord
 from astropy.utils.exceptions import AstropyWarning
+from regions import PixCoord, Region
 
 # Local application imports
 from pysas import sas_cfg
@@ -941,5 +943,128 @@ def set_unit(value, default_units, equivalence=None):
         q = Quantity(value, default_units)
     return q.to(default_units, equivalencies=equivalence)
 
+def get_region(shape,values,is_pixels):
+    """
+    Retruns an astropy Region object. The values are a list of values that 
+    define the region. They are as follows:
 
+    - CIRCLE: [xCenter,yCenter,radius]
+    - ANNULUS: [xCenter,yCenter,inner radius,outter radius]
+    - ELLIPSE: [xCenter,yCenter,height,width,angle]
+    - BOX: [xCenter,yCenter,height,width,angle]
+    - POLYGON: [x1,y1,x2,y2,x3,y3,x4,y4,...]
+
+    Parameters
+    ----------
+    shape : str
+        Type of region. Allowed values are CIRCLE, ANNULUS, ELLIPSE, BOX, 
+        POLYGON.
+    values : list
+        List of values to define the region.
+    is_pixels : bool
+        Whether or not the region is a sky region or a pixel region.
+
+    Returns
+    -------
+    Region
+        Sky or pixel region object.
+    """
+
+    shape = shape.upper()
+
+    if shape == 'CIRCLE':
+        # CIRCLE(xCenter,yCenter,radius)
+        from regions import CircleSkyRegion, CirclePixelRegion
+        if len(values) != 3:
+            _logger.critical(f'A CIRCLE region should have exactly 3 values. Found {len(values)}.')
+            return mask
+        if is_pixels:
+            center     = PixCoord(x=values[0], y=values[1])
+            radius     = values[2]
+            sky_region = CirclePixelRegion(center = center, 
+                                           radius = radius)
+        else:
+            center     = SkyCoord(values[0], values[1], unit='deg', frame='fk5')
+            radius     = values[2] * u.deg
+            sky_region = CircleSkyRegion(center = center, 
+                                         radius = radius)
+    elif shape == 'ANNULUS':
+        # ANNULUS(xCenter,yCenter,inner radius,outter radius)
+        from regions import CircleAnnulusSkyRegion, CircleAnnulusPixelRegion
+        if len(values) != 4:
+            _logger.critical(f'An ANNULUS region should have exactly 4 values. Found {len(values)}.')
+            return mask
+        if is_pixels:
+            center     = PixCoord(x=values[0], y=values[1])
+            in_radius  = values[2]
+            out_radius = values[3]
+            sky_region = CircleAnnulusPixelRegion(center = center, 
+                                                  inner_radius = in_radius,
+                                                  outer_radius = out_radius)
+        else:
+            center     = SkyCoord(values[0], values[1], unit='deg', frame='fk5')
+            in_radius  = values[2] * u.deg
+            out_radius = values[3] * u.deg
+            sky_region = CircleAnnulusSkyRegion(center = center, 
+                                                inner_radius = in_radius,
+                                                outer_radius = out_radius)
+    elif shape == 'ELLIPSE':
+        # ELLIPSE(xCenter,yCenter,height,width,angle)
+        from regions import EllipseSkyRegion, EllipsePixelRegion
+        if len(values) != 5:
+            _logger.critical(f'An ELLIPSE region should have exactly 5 values. Found {len(values)}.')
+            return mask
+        if is_pixels:
+            center     = PixCoord(x=values[0], y=values[1])
+            height     = values[2]
+            width      = values[3]
+            angle      = values[4]
+            sky_region = EllipsePixelRegion(center = center, 
+                                            height = height,
+                                            width  = width,
+                                            angle  = angle)
+        else:
+            center     = SkyCoord(values[0], values[1], unit='deg', frame='fk5')
+            height     = values[2] * u.deg
+            width      = values[3] * u.deg
+            angle      = values[4] * u.deg
+            sky_region = EllipseSkyRegion(center = center, 
+                                          height = height,
+                                          width  = width,
+                                          angle  = angle)
+    elif shape == 'BOX':
+        # BOX(xCenter,yCenter,height,width,angle)
+        from regions import RectangleSkyRegion, RectanglePixelRegion
+        if len(values) != 5:
+            _logger.critical(f'A BOX region should have exactly 5 values. Found {len(values)}.')
+            return mask
+        if is_pixels:
+            center     = PixCoord(x=values[0], y=values[1])
+            height     = values[2]
+            width      = values[3]
+            angle      = values[4]
+            sky_region = RectanglePixelRegion(center = center, 
+                                              height = height,
+                                              width  = width,
+                                              angle  = angle)
+        else:
+            center     = SkyCoord(values[0], values[1], unit='deg', frame='fk5')
+            height     = values[2] * u.deg
+            width      = values[3] * u.deg
+            angle      = values[4] * u.deg
+            sky_region = RectangleSkyRegion(center = center, 
+                                            height = height,
+                                            width  = width,
+                                            angle  = angle)
+    elif shape == 'POLYGON':
+        # POLYGON(x1,y1,x2,y2,x3,y3,x4,y4,...)
+        from regions import PolygonSkyRegion, PolygonPixelRegion
+        if is_pixels:
+            vertices   = PixCoord(x=values[::2], y=values[1::2])
+            sky_region = PolygonPixelRegion(vertices = vertices)
+        else:
+            vertices   = SkyCoord(values[::2], values[1::2], unit='deg', frame='fk5')
+            sky_region = PolygonSkyRegion(vertices = vertices)
+
+    return sky_region
 

@@ -134,11 +134,11 @@ class ObsID:
         # Also, 'return_PPS_filenames' for SUMMAR files 
         # would return a list of multiple files. This allows the 
         # main file to be selected directly.
-        self._file_patterns = {'main_summary'     : '.*OBX.*SUMMAR.*.HTM$',
-                               'RGS_event_lists'  : '.*(R1|R2).*EVENLI.*.FTZ$',
-                               'RGS_spectra'      : '.*(R1|R2).*RSPEC.*.FTZ$',
-                               'EPIC_event_lists' : '.*(M1|M2|PN).*EVLI.*.FTZ$',
-                               'EPIC_images'      : '.*(M1|M2|PN).*IMAGE_.*.FTZ$'}
+        self._file_patterns = {'main_summary'     : r'^.*OBX.*SUMMAR.*\.HTM$',
+                               'RGS_event_lists'  : r'^.*(R1|R2).*EVENLI.*\.FTZ$',
+                               'RGS_spectra'      : r'^.*(R1|R2).*RSPEC.*\.FTZ$',
+                               'EPIC_event_lists' : r'^.*(M1|M2|PN).*EVLI.*\.FTZ$',
+                               'EPIC_images'      : r'^.*(M1|M2|PN).*IMAGE_.*\.FTZ$'}
 
         products = load_json_from_package(os.path.join('_data','PPS_product_names.json'))
 
@@ -149,6 +149,10 @@ class ObsID:
         _logger.debug('PPS product dicts loaded.')
 
         self.parse_PPS_dir()
+
+        pps_file_list = self.get_all_PPS_filenames()
+
+        self.PPSFiles = _PPSFiles(self._obsid,pps_file_list)
 
         _logger.debug('Finished with ObsID.__init__')
 
@@ -2674,10 +2678,434 @@ class ObsID:
         """
         if hasattr(self, attr_name): delattr(self, attr_name)
 
-class PPSFiles(ObsID):
+
+class _EPICPPSFile:
+
+    def __init__(self,filename):
+
+        self._local      = os.path.exists(filename)
+        self._local_path = os.path.dirname(filename)
+        self._filename   = os.path.basename(filename)
+        self._parse_filename()
+        self._aw3_path   = os.path.join('s3://nasa-heasarc/xmm/data/rev0/',self._obsid,'PPS')
+
+    def __getitem__(self,ext):
+        with fits.open(self._filename,use_fsspec=True,fsspec_kwargs={"anon": True}) as hdul:
+            return hdul[ext]
+
+    def __repr__(self):
+        return (f"<PPSFile ObsID={self._obsid}, Inst={self._inst_id}, "
+                f"Exp={self._exp_flag}{self._exp_num}, Type={self._prod_type}, "
+                f"Format={self._format}>")
+
+    @property
+    def name(self):
+        return self._filename
+
+    @property
+    def link(self):
+        if self._local:
+            filename = os.path.join(self._local_path,self._filename)
+        else:
+            filename = os.path.join(self._aw3_path,self._filename)
+        return str(filename)
+    
+    def _parse_filename(self):
+        """
+        Parses a 31-character XMM-Newton PPS filename and stores the 
+        components as instance variables in 'self'.
+        
+        Format: POOOOOOOOOODDZEEETTTTTTSXXX.FFF
+        """
+        # Extract using strict string slicing
+        self._obsid      = self._filename[1:11]   # OOOOOOOOOO
+        self._inst_id    = self._filename[11:13]  # DD
+        self._exp_flag   = self._filename[13:14]  # Z
+        self._exp_num    = self._filename[14:17]  # EEE
+        self._prod_type  = self._filename[17:23]  # TTTTTT
+        self._subset_num = self._filename[23:24]  # S
+        self._source_num = self._filename[24:27]  # XXX
+        self._format     = self._filename[28:]    # FFF
+
+        if 'EVLI' in self._prod_type:
+            self._type = 'event_list'
+        elif 'IMAGE_' in self._prod_type:
+            self._type = 'image'
+        elif 'FBKTSR' in self._prod_type:
+            self._type = 'light_curve'
+
+        return
+    
+    def download(self,
+                 repo: str = None,
+                 data_dir: str | Path  = None,
+                 overwrite: bool = False,
+                 proprietary: bool = False,
+                 credentials_file: str = None,
+                 encryption_key: str = None,):
+        """
+        This will download a single PPS file. If the PPS file is present then it 
+        will not download the file again, unless overwrite=True. Calls 
+        download_data from sasutils. 
+
+        Parameters
+        ----------
+        repo : str, optional
+            Which repository to use to download data. Accepted values are, 
+            'ESA' (data from the XSA), 
+            'NASA' (data from the HEASARC), 
+            'AWS' (data from AWS s3 bucket (NASA)), 
+            'Fornax' (if user is on Fornax),
+            'SciServer' (if user is on SciServer).
+            Defaults to 'ESA' ('XSA') or set by sas_config file.
+        data_dir : str | Path, optional
+            Path to directory where the data will be downloaded. Automatically 
+            creates directory 'data_dir/obsid'. 
+            Default from sas_config file, or current working directory.
+        overwrite : bool, optional
+            If True will force overwrite of data if obsid data already exists 
+            in 'data_dir/obsid'. 
+            Defaults to False.
+        proprietary : bool, optional
+            Flag for downloading proprietary data from the XSA at ESA. 
+            Defaults to False.
+        credentials_file : str, optional
+            Path and filename of file containing XSA username and password. For 
+            proprietary data only. (If not given then astroquery will ask user 
+            for username and password.) 
+            Defaults to None.
+        encryption_key : str, optional
+            Encryption key for proprietary data, a string 32 characters long. 
+            -OR- path to file containing ONLY the encryption key. Note: ONLY 
+            used for data from the HEASARC. 
+            Defaults to None.
+        
+        Raises
+        ------
+        ValueError
+            Download repository not recognized.
+        """
+
+        # Set repo from config file (default 'esa')
+        _logger.debug(f'Checking repo: {repo}')
+        if repo is None:
+            self._repo = sas_cfg.get_setting('repo')
+            _logger.debug(f'repo from config: {self._repo}')
+        else:
+            if repo.lower() not in repo_opts:
+                _logger.error('Download repository not recognized!')
+                raise ValueError(f'Download repository {repo} not recognized. '\
+                                 f'Allowed Options for repo are {repo_opts}.')
+            else:
+                _logger.info(f'Will download data from {repo}.')
+            self._repo = repo
+            _logger.debug(f'repo set to: {self._repo}')
+
+        if not os.path.exists(self._filename):
+            # File does not exist.
+            _logger.debug(f'{self._filename} not found. Will download.')
+        elif overwrite:
+            # File exists and overwrite = True.
+            _logger.debug(f'Removing {self._filename}. Will download.')
+            os.remove(self._filename)
+        else:
+            # File exists and overwrite = False.
+            _logger.info(f'Existing file {self._filename} found. Will not download.')
+            return
+
+        dl_data(self._obsid,
+                self._data_dir,
+                level          = 'PPS',
+                overwrite      = False,
+                repo           = self._repo,
+                proprietary      = proprietary,
+                encryption_key   = encryption_key,
+                credentials_file = credentials_file,
+                PPS_subset   = True,
+                filename     = self._filename,)
+
+        self._local = True
+
+        return
+
+    def return_instance(self):
+
+        from pysas.xmmio import XMMEventList, XMMLightCurve, XMMFits
+
+        if self._type == 'event_list':
+            return XMMEventList(self.link)
+        elif self._type == 'image':
+            return XMMFits(self.link)
+        elif self._type == 'light_curve':
+            return XMMLightCurve.lcurve_from_file(self.link)
+
+class _EPICPPSInst:
+
+    def __init__(self,event_list,fits_image,light_curve,unsch_event_list=None):
+
+        self.Event_List  = _EPICPPSFile(event_list)
+        self.FITS_Image  = _EPICPPSFile(fits_image)
+        self.Light_Curve = _EPICPPSFile(light_curve)
+        if unsch_event_list:
+            self.Unscheduled_Event_List = _EPICPPSFile(unsch_event_list)
+
+class _PPSFiles:
+
+    def __init__(self,pps_file_list):
+
+        self._file_list = pps_file_list
+
+        # This simplifies discovery of several common PPS files.
+        # Reasoning: While these files can be found using 
+        # 'return_PPS_filenames', the returned list(s) 
+        # would need additional filtering.
+        # For example, 'EPIC_images' would take two calls to 
+        # 'return_PPS_filenames' depending on whether the
+        # Obs is slew or not. This gets around that.
+        # Also, 'return_PPS_filenames' for SUMMAR files 
+        # would return a list of multiple files. This allows the 
+        # main file to be selected directly.
+        self._file_patterns = {'main_summary'     : r'^.*OBX.*SUMMAR.*\.HTM$',
+                               'RGS_event_lists'  : r'^.*(R1|R2).*EVENLI.*\.FTZ$',
+                               'RGS_spectra'      : r'^.*(R1|R2).*RSPEC.*\.FTZ$',
+                               'EPIC_event_lists' : r'^.*(M1|M2|PN).*EVLI.*\.FTZ$',
+                               'EPIC_images'      : r'^.*(M1|M2|PN).*IMAGE_.*\.FTZ$'}
+
+        products = load_json_from_package(os.path.join('_data','PPS_product_names.json'))
+
+        self.EPIC_Product_Dict = products['EPIC_products']
+        self.RGS_Product_Dict  = products['RGS_products']
+        self.OBS_Product_Dict  = products['Obs_products']
+        self.OM_Product_Dict   = products['OM_products']
+
+        # Main Summary File
+        summary_file = self._return_file_list_on_pattern(self._file_patterns['main_summary'])
+        self._summary_file = summary_file[0]
+        _logger.debug(f'summary_file: {self._summary_file}')
+
+        # Attitude File
+        attitude_file = self._return_PPS_filenames(self.OBS_Product_Dict['ATTTSR_FIT'])
+        self._attitude_file = attitude_file[0]
+        _logger.debug(f'attitude_file: {self._attitude_file}')
+
+        # Calibration Index File (CALIND)
+        calind_file = self._return_PPS_filenames(self.OBS_Product_Dict['CALIND_FIT'])
+        self._calind_file = calind_file[0]
+        _logger.debug(f'calind_file: {self._calind_file}')
+
+        # EPIC Event Lists
+        self._epic_event_lists = self._return_file_list_on_pattern(self._file_patterns['EPIC_event_lists'])
+        self._epic_event_lists.sort()
+        for file in self._epic_event_lists:
+            _logger.debug(f' >{file}')
+
+        # EPIC Images
+        self._epic_images = self._return_file_list_on_pattern(self._file_patterns['EPIC_images'])
+        self._epic_images.sort()
+        for file in self._epic_images:
+            _logger.debug(f' >{file}')
+
+        # EPIC Source List
+        epic_source_list = self._return_PPS_filenames(self.EPIC_Product_Dict['OBSMLI_FIT'])
+        self._epic_source_list = epic_source_list[0]
+        _logger.debug(f'epic_source_list: {self._epic_source_list}')
+
+        # EPIC Background Light Curve
+        epic_light_curves = self._return_PPS_filenames(self.EPIC_Product_Dict['FBKTSR_FIT'])
+        self._epic_light_curves = epic_light_curves
+        for file in self._epic_light_curves:
+            _logger.debug(f' >{file}')
+
+        # RGS Event Lists
+        self._rgs_event_lists = self._return_file_list_on_pattern(self._file_patterns['RGS_event_lists'])
+        self._rgs_event_lists.sort()
+        for file in self._rgs_event_lists:
+            _logger.debug(f' >{file}')
+
+        # RGS Spectra
+        self._rgs_spectra = self._return_file_list_on_pattern(self._file_patterns['RGS_spectra'])
+        self._rgs_spectra.sort()
+        for file in self._rgs_spectra:
+            _logger.debug(f' >{file}')
+
+        self._files_fits  = self._return_file_list_on_pattern(r'^.*\.(FIT|FTZ)$')
+        self._files_png   = self._return_file_list_on_pattern(r'^.*\.PNG$')
+        self._files_html  = self._return_file_list_on_pattern(r'^.*\.HTM$')
+        self._files_pdf   = self._return_file_list_on_pattern(r'^.*\.PDF$')
+        self._files_ascii = self._return_file_list_on_pattern(r'^.*\.(ASC|ASZ)$')
+
+        evnt_lst = self._return_file_list_on_pattern(r'^.*M1.*S\d{3}.*\.FTZ$', list_of_files = self.EPIC_Event_Lists)
+        image    = self._return_file_list_on_pattern(r'^.*M1.*8\d{3}\.FTZ$', list_of_files = self.EPIC_Images)
+        lght_crv = self._return_file_list_on_pattern(r'^.*M1.*\.FTZ$', list_of_files = self.EPIC_Light_Curves)
+        unsch_event_list = self._return_file_list_on_pattern(r'^.*M1.*U\d{3}.*\.FTZ$', list_of_files = self.EPIC_Event_Lists)
+        if unsch_event_list:
+            unsch_event_list = os.path.join(self._pps_dir,unsch_event_list[0])
+        self.MOS1 = _EPICPPSInst(os.path.join(self._pps_dir,evnt_lst[0]),
+                                 os.path.join(self._pps_dir,image[0]),
+                                 os.path.join(self._pps_dir,lght_crv[0]),
+                                 unsch_event_list=unsch_event_list)
+
+        evnt_lst = self._return_file_list_on_pattern(r'^.*M2.*S\d{3}.*\.FTZ$', list_of_files = self.EPIC_Event_Lists)
+        image    = self._return_file_list_on_pattern(r'^.*M2.*8\d{3}\.FTZ$', list_of_files = self.EPIC_Images)
+        lght_crv = self._return_file_list_on_pattern(r'^.*M2.*\.FTZ$', list_of_files = self.EPIC_Light_Curves)
+        unsch_event_list = self._return_file_list_on_pattern(r'^.*M2.*U\d{3}.*\.FTZ$', list_of_files = self.EPIC_Event_Lists)
+        if unsch_event_list:
+            unsch_event_list = os.path.join(self._pps_dir,unsch_event_list[0])
+        self.MOS2 = _EPICPPSInst(os.path.join(self._pps_dir,evnt_lst[0]),
+                                 os.path.join(self._pps_dir,image[0]),
+                                 os.path.join(self._pps_dir,lght_crv[0]),
+                                 unsch_event_list=unsch_event_list)
+
+        evnt_lst = self._return_file_list_on_pattern(r'^.*PN.*S\d{3}.*\.FTZ$', list_of_files = self.EPIC_Event_Lists)
+        image    = self._return_file_list_on_pattern(r'^.*PN.*8\d{3}\.FTZ$', list_of_files = self.EPIC_Images)
+        lght_crv = self._return_file_list_on_pattern(r'^.*PN.*\.FTZ$', list_of_files = self.EPIC_Light_Curves)
+        unsch_event_list = self._return_file_list_on_pattern(r'^.*PN.*U\d{3}.*\.FTZ$', list_of_files = self.EPIC_Event_Lists)
+        if unsch_event_list:
+            unsch_event_list = os.path.join(self._pps_dir,unsch_event_list[0])
+        self.PN = _EPICPPSInst(os.path.join(self._pps_dir,evnt_lst[0]),
+                               os.path.join(self._pps_dir,image[0]),
+                               os.path.join(self._pps_dir,lght_crv[0]),
+                               unsch_event_list=unsch_event_list)
+
+    @property
+    def Summary_File(self):
+        return self._summary_file
+
+    @property
+    def Attitude_File(self):
+        return self._attitude_file
+
+    @property
+    def Calind_File(self):
+        return self._calind_file
+
+    @property
+    def EPIC_Event_Lists(self):
+        return self._epic_event_lists
+
+    @property
+    def EPIC_Images(self):
+        return self._epic_images
+
+    @property
+    def EPIC_Source_List(self):
+        return self._epic_source_list
+
+    @property
+    def EPIC_Light_Curves(self):
+        return self._epic_light_curves
+
+    @property
+    def RGS_Event_Lists(self):
+        return self._rgs_event_lists
+
+    @property
+    def RGS_Spectra(self):
+        return self._rgs_spectra
+
+    @property
+    def Files_All(self):
+        return self._file_list
+
+    @property
+    def Files_FITS(self):
+        return self._files_fits
+
+    @property
+    def Files_PNG(self):
+        return self._files_png
+
+    @property
+    def Files_HTML(self):
+        return self._files_html
+
+    @property
+    def Files_PDF(self):
+        return self._files_pdf
+
+    @property
+    def Files_ASCII(self):
+        return self._files_ascii
+
+    def _return_file_list_on_pattern(self, 
+                                     pattern: str, 
+                                     list_of_files: list | None = None):
+        """
+        Returns a list of PPS filenames based on the regular expression pattern 
+        passed in.
+
+        Parameters
+        ----------
+        pattern : str
+            A string with a regular expression (re) pattern. The pattern must 
+            use proper 're' operators for the 're' python package.
+        list_of_files : list | None, optional
+            A list of filenames to search, by default will use self._file_list.
+
+        Returns
+        -------
+        list
+            List of files matching the pattern passed in.
+        """
+
+        _logger.debug(f'Searching PPS files for pattern: {pattern}')
+
+        if list_of_files is None:
+            list_of_files = self._file_list
+
+        files = []
+        for filename in list_of_files:
+            if re.search(pattern,filename):
+                files.append(filename)
+
+        # Return 'None' if no files of pattern were found.
+        _logger.debug(f'Number of files found: {len(files)}')
+        
+        return files
+
+    def _return_PPS_filenames(self,
+                              pattern_dict: dict, 
+                              list_of_files: list | None = None):
+        """
+        Returns a list of PPS filenames based on a filename pattern dictionary.
+
+        The dictionary passed in must have the keys:
+
+            'Source' : Data source identifier (DD)
+
+            'Product': Product filename field (TTTTTT)
+
+            'Format' : File format or extension (FFF)
+
+        This follows the general format for PPS file names:
+
+            POOOOOOOOOODDUEEETTTTTTSXXX.FFF
+
+        Parameters
+        ----------
+        pattern_dict : dict
+            PPS product type pattern dictionary.
+        list_of_files : list | None, optional
+            List of files to search, by default will use self._files['PPS'].
+
+        Returns
+        -------
+        list
+            List of PPS files matching the product type pattern dictionary.
+        """
+
+        source  = pattern_dict['Source']
+        product = pattern_dict['Product']
+        format  = pattern_dict['Format']
+
+        pattern = f'.*{source}.*{product}.*{format}'
+
+        files = self._return_file_list_on_pattern(pattern, list_of_files=list_of_files)
+
+        return files
+
+class PPSFiles(_PPSFiles):
     """
-    The PPSFiles class has been depricated. All functionality has been
-    incorporated into the ObsID class.
     """
     def __init__(self, obsid, 
                  data_dir    = None,
@@ -2685,13 +3113,137 @@ class PPSFiles(ObsID):
                  tasklogdir  = None,
                  output_to_terminal = True,
                  output_to_file     = False):
-        super().__init__(obsid, 
-                         data_dir    = data_dir,
-                         logfilename = logfilename,
-                         tasklogdir  = tasklogdir,
-                         output_to_terminal = output_to_terminal,
-                         output_to_file     = output_to_file)
-        warn("""
-             The PPSFiles class has been depricated. All functionality has been
-             incorporated into the ObsID class.
-             """)
+
+        self._obsid = obsid
+        self._set_data_dir(data_dir=data_dir)
+        self._set_data_sub_dirs()
+        self._pps_dir_exists = os.path.exists(self._pps_dir)
+        all_files = self._get_all_PPS_filenames()
+
+        super().__init__(all_files)
+
+    def _set_data_dir(self, data_dir = None):
+        """
+        Sets the data_dir using the following hierarchy:
+            1. data_dir passed into this function
+            2. self._data_dir: previously validated data_dir
+            2. data_dir from config file
+            3. cwd
+
+        If data_dir does not exist then it will be created.
+
+        Parameters
+        ----------
+        data_dir : str
+            Sets the data directory.
+        """
+        _logger.debug('Entered _set_data_dir')
+
+        if not hasattr(self, '_data_dir'): self._data_dir = None
+
+        # ---------------------------------------------------------
+        # 1 & 2. Priority: Function argument -> Instance attribute
+        # ---------------------------------------------------------
+        target_dir = data_dir or self._data_dir
+
+        # ---------------------------------------------------------
+        # 3 & 4. Fallback: Config file -> Current Working Directory
+        # ---------------------------------------------------------
+        if not target_dir:
+            # Check config file safely
+            config_dir = None
+            if sas_cfg.config.has_option('sas', 'data_dir'):
+                config_dir = sas_cfg.get_setting('data_dir')
+
+            # Use config_dir if it exists, otherwise fallback to CWD
+            if config_dir and os.path.exists(config_dir):
+                target_dir = config_dir
+                _logger.info(f'Using data_dir from config file: {config_dir}')
+            else:
+                target_dir = os.getcwd()
+                _logger.info(f'Using current directory for data_dir: {target_dir}')
+        else:
+            _logger.info(f'Setting data_dir to user input: {target_dir}')
+
+        # ---------------------------------------------------------
+        # Path Resolution and Directory Creation
+        # ---------------------------------------------------------
+        # os.path.abspath natively handles relative paths, './', and absolute paths
+        self._data_dir = os.path.abspath(target_dir)
+
+        # Safely create the directory (and any necessary parent directories)
+        if not os.path.isdir(self._data_dir):
+            _logger.info(f'{self._data_dir} does not exist. Creating it!')
+            os.makedirs(self._data_dir, exist_ok=True)
+
+        _logger.info(f'Data directory = {self._data_dir}')
+        _logger.debug('Exiting _set_data_dir')
+
+        return
+    
+    def _set_data_sub_dirs(self, create = False):
+        """
+        Sets obs_dir, pps_dir, and work_dir. 
+        If create = True then the directories will be created.
+
+        Parameters
+        ----------
+        create : bool, optional
+            Flag to create directories, by default False.
+        """
+
+        # ---------------------------------------------------------
+        # Set Paths
+        # ---------------------------------------------------------
+        work_dir_name = sas_cfg.get_setting('work_dir_name')
+        if not hasattr(self, '_obs_dir'):
+            self._obs_dir  = os.path.join(self._data_dir, self._obsid)
+        if not hasattr(self, '_pps_dir'):
+            self._pps_dir  = os.path.join(self._obs_dir, 'PPS')
+        if not hasattr(self, '_work_dir'):
+            self._work_dir = os.path.join(self._obs_dir, work_dir_name)
+
+        # ---------------------------------------------------------
+        # Create Directories
+        # ---------------------------------------------------------
+
+        if create:
+            os.makedirs(self._obs_dir, exist_ok=True)
+            os.makedirs(self._pps_dir, exist_ok=True)
+            os.makedirs(self._work_dir, exist_ok=True)
+            _logger.debug(f'Observation directory created: {self._obs_dir}')
+            _logger.debug(f'PPS directory created: {self._pps_dir}')
+            _logger.debug(f'Work directory created: {self._work_dir}')
+        else:
+            _logger.debug(f'Observation directory set: {self._obs_dir}')
+            _logger.debug(f'PPS directory set: {self._pps_dir}')
+            _logger.debug(f'Work directory set: {self._work_dir}')
+
+        return
+
+    def _get_all_PPS_filenames(self):
+        """
+        This returns a list of all possible PPS filenames, regardless of
+        whether or not the PPS files have already been downloaded.
+
+        Returns
+        -------
+        list
+            List of all PPS files for the Obs ID.
+        """
+        reqs = requests.get(f'https://heasarc.gsfc.nasa.gov/FTP/xmm/data/rev0/{self._obsid}/PPS/')
+        soup = BeautifulSoup(reqs.text, 'html.parser')
+
+        all_files = []
+        for link in soup.find_all('a'):
+            file = link.get('href')
+            if file[0] == 'P':
+                all_files.append(file)
+
+        _logger.debug(f'{len(all_files)} files found.')
+
+        return all_files
+
+
+
+

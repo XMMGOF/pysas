@@ -26,6 +26,7 @@
 
 # Standard library imports
 import os, warnings
+import pathlib
 from pathlib import Path
 
 # Third party imports
@@ -121,11 +122,14 @@ class XMMFits:
                 self._data_head = self.get_header(ext=ext)
                 with warnings.catch_warnings():
                     warnings.simplefilter('ignore', AstropyWarning)
-                    _wcs = WCS(self._data_head, keysel=['pixel'])
-                    _wcs.pixel_shape = None
-                    _wcs.pixel_bounds = None
-                    self._wcs = _wcs.celestial
-                    self._wcs.pixel_shape = (51840, 51840)
+                    if ext == 'EVENTS':
+                        _wcs = WCS(self._data_head, keysel=['pixel'])
+                        _wcs.pixel_shape = None
+                        _wcs.pixel_bounds = None
+                        self._wcs = _wcs.celestial
+                        self._wcs.pixel_shape = (51840, 51840)
+                    else:
+                        self._wcs   = WCS(self._data_head)
 
             else:
                 self._data      = self.get_data(ext=0)
