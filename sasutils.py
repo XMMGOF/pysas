@@ -152,6 +152,8 @@ def download_data(obsid: str,
         File decryption failed.
     """
 
+    cwd = os.getcwd()
+
     # Set directories for the observation, odf, and working
     obs_dir = os.path.join(data_dir,obsid)
     odf_dir = os.path.join(obs_dir,'ODF')
@@ -562,6 +564,9 @@ def download_data(obsid: str,
         ppssumhtmllink = 'file://' + ppssumhtmlfull
         _logger.info(f'PPS products can be found in {pps_dir}')
         print(f'\nPPS products can be found in {pps_dir}\n\nLink to Observation Summary html: {ppssumhtmllink}')
+
+    _logger.info(f'Returning directory to {cwd}')
+    os.chdir(cwd)
 
     return
 

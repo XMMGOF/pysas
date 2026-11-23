@@ -180,7 +180,6 @@ class XMMEventList(XMMFits):
     def create_light_curve(self,
                            dt=100, 
                            time_col='TIME', 
-                           ext_name='EVENTS',
                            gti=None,
                            **kwargs,
                            ):
@@ -203,10 +202,10 @@ class XMMEventList(XMMFits):
             time_centers = edges[:-1] + (dt / 2)
             
             to_lc = {'time'   : edges[:-1], 
-                    'counts' : counts, 
-                    'dt'     : dt, 
-                    'err'    : None, 
-                    'instr'  : self.instrument}
+                     'counts' : counts, 
+                     'dt'     : dt, 
+                     'err'    : None, 
+                     'instr'  : self.instrument}
 
             to_lc.update(kwargs)
 
